@@ -1,0 +1,104 @@
+Comparing the concurrency behaviour of Dropbox, Microsoft OneDrive, and
+Google Drive. Say $ROOT is the root directory of the synced filesystem.
+
+1. Create directories $ROOT/experiment/folder-{a,b,c}
+   and files $ROOT/experiment/folder-{a,b,c}/{a,b,c}{1,2}.txt
+   Let the devices sync up fully.
+
+2. Take both devices offline. On one device, move folder-c to be a child
+   of folder-a; on the other device, move folder-c to be a child of
+   folder-b. Then take both devices online again and observe the
+   outcome.
+
+   Dropbox: duplicates the moved folder and all files within it (so we
+   have both folder-a/folder-c/c{1,2}.txt and
+   folder-b/folder-c/c{1,2}.txt). Before the next experiment I deleted
+   folder-b/folder-c in order to have the same starting state.
+
+   OneDrive: picks one of the two destination directories, in this case
+   folder-a, so we have folder-a/folder-c/c{1,2}.txt. No duplication.
+
+   GDrive: picks one of the two destination directories, in this case
+   folder-a, so we have folder-a/folder-c/c{1,2}.txt. No duplication.
+
+   In all cases, we now have experiment/folder-a/a{1,2}.txt,
+   experiment/folder-a/folder-c/c{1,2}.txt, and
+   experiment/folder-b/b{1,2}.txt.
+
+3. Take both devices offline again. On one device, move folder-a to be a
+   child of folder-b; on the other device, move folder-b to be a child
+   of folder-a. Then take both devices online again and observe the
+   outcome.
+
+   Dropbox: duplicates the parent folder. In the merged state, we have
+   folder-a/folder-b/b{1,2}.txt, folder-b/folder-a/a{1,2}.txt, and
+   folder-b/folder-a/folder-c/c{1,2}.txt (but no folder-a/a{1,2}.txt).
+
+   OneDrive: picks one of the two moves. In the merged state, we have
+   folder-b/b{1,2}.txt, folder-b/folder-a/a{1,2}.txt, and
+   folder-b/folder-a/folder-c/c{1,2}.txt.
+
+   GDrive: fails to sync, replicas become permanently inconsistent. On
+   the replica where I moved folder-b to be a child of folder-a, this
+   file structure remains unchanged (i.e. we have folder-a/folder-b),
+   and no error is shown. On the replica where I moved folder-a to be a
+   child of folder-b, this file structure also remains unchanged (i.e.
+   we have folder-b/folder-a), and the sync history shows an error
+   "Can't sync 1 item", and viewing details brings up the error message:
+   "Can't remove files with changes pending. Try again after sync is
+   complete. Download error - My Drive/experiment/folder-b". See
+   screenshots in ~/Dropbox/Screenshots/*2019-02-20*.png. Clicking
+   "retry all" does not resolve the error (the client keeps trying again
+   and again, never succeeding). After I manually move the folders into
+   the locations to match the first replica, the error goes away.
+
+4. Move everything back to the original structure of point 1.
+   Take both devices offline. On one device, rename folder-c to
+   folder-c1, and rename folder-a/a1.txt to folder-a/a1-1.txt. On the
+   other device, rename folder-c to folder-c2, and rename
+   folder-a/a1.txt to folder-a/a1-2.txt. Then take both devices online.
+
+   Dropbox: duplicates both the folder and the file; for the duplicated
+   folder, all files within it are also duplicated. Thus, we end up with
+   folder-a/a{1-1,1-2,2}.txt, folder-b/b{1,2}.txt, folder-c1/c{1,2}.txt,
+   and folder-c2/c{1,2}.txt.
+
+   OneDrive: picks one of the two renames, in this case a1-2.txt and
+   folder-c2. Thus, we end up with folder-a/a{1-2,2}.txt,
+   folder-b/b{1,2}.txt, and folder-c2/c{1,2}.txt.
+
+   GDrive: same as OneDrive.
+
+4. Move everything back to the original structure of point 1.
+   Additionally create files folder-b/b{3,4}.txt. Take both devices
+   offline. On one device, rename folder-a/a1.txt to folder-a/a.txt,
+   rename folder-b/b1.txt to folder-b/b.txt, edit the contents of
+   folder-b/b2.txt, delete folder-b/b3.txt, and leave folder-b/b4.txt
+   untouched. On the other device, rename folder-a/a2.txt to
+   folder-a/a.txt, and delete folder-b. Then bring both devices online.
+
+   Dropbox: folder-a/a.txt contains the contents of former a2.txt, and
+   "folder-a/a (ecureuil.local's conflicted copy 2019-02-20).txt"
+   contains the contents of former a1.txt. folder-b is restored on the
+   device where it was deleted, containing folder-b/b1.txt (in its
+   edited form) and folder-b/b.txt, but b3.txt and b4.txt are gone.
+
+   OneDrive: folder-a/a.txt contains the contents of former a2.txt, and
+   folder-a/a-écureuil.txt contains the contents of former a1.txt.
+   folder-b is restored on the device where it was deleted, containing
+   folder-b/b1.txt (in its edited form) and folder-b/b.txt, but b3.txt
+   and b4.txt are gone.
+
+   GDrive: folder-a/a.txt contains the contents of former a2.txt, and
+   "folder-a/a (1).txt" contains the contents of former a1.txt. folder-b
+   is deleted on both devices, and the edits to b2.txt are lost.
+
+
+[1]	Vinh Tao, Marc Shapiro, and Vianney Rancurel: “Merging semantics for
+conflict updates in geo-distributed file systems,” at 8th ACM
+International Systems and Storage Conference (SYSTOR), 2015.
+https://pages.lip6.fr/Marc.Shapiro/papers/geodistr-FS-Systor-2015.pdf
+
+[2]	Mehdi Ahmed-Nacer, Stéphane Martin, and Pascal Urso: “File system on
+CRDT,” INRIA, Technical Report no. RR-8027, Jul. 2012.
+https://hal.inria.fr/hal-00720681/

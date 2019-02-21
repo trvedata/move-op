@@ -1,0 +1,8 @@
+- http://www.coda.cs.cmu.edu
+- https://www.cis.upenn.edu/~bcpierce/unison/
+- Ficus: https://pdos.csail.mit.edu/6.824/papers/ficus.pdf
+- Section 6 in https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2007-75.pdf
+
+- Bayou
+- Norman Ramsey, El Csirmaz, et al. An algebraic approach to file synchronization. ACM SIGSOFT Software Engineering Notes, 26(5):175–185, 2001.
+- More references in Vinh Tao's paper
