@@ -3,124 +3,95 @@ theory Move
 begin
 
 datatype ('time, 'node) operation
-  = Move 'time "'node option" 'node
+  = Move (move_time: 'time) (move_parent: 'node) (move_child: 'node)
 
 datatype ('time, 'node) log_op
-  = UndoMove (timestamp: 'time) (old_parent: "'node option")
-      (new_parent: "'node option") (child: 'node)
+  = LogMove (log_time: 'time) (old_parent: \<open>'node option\<close>) (new_parent: 'node) (log_child: 'node)
+
 (*
 datatype 'node tree   
   = Node 'node \<open>'node tree fset\<close>
 *)
-fun applyop :: \<open>('t, 'n) log_op \<Rightarrow> ('n option \<times> 'n) set \<Rightarrow> ('n option \<times> 'n) set\<close> where
-  \<open>applyop (UndoMove t oldp newp c) ns =
-     ({ (x, y) | x y. (x, y) \<in> ns \<and> y \<noteq> c } \<union> {(newp, c)})\<close>
 
-definition find_unique :: \<open>('a \<Rightarrow> bool) \<Rightarrow> 'a set \<Rightarrow> 'a option\<close> where
-  \<open>find_unique P ss \<equiv>
-     if \<exists>!x\<in>ss. P x then
-       Some (THE x. x \<in> ss \<and> P x)
+definition get_parent :: \<open>'n \<Rightarrow> ('n \<times> 'n) set \<Rightarrow> 'n option\<close> where
+  \<open>get_parent ch tree \<equiv>
+     if \<exists>!parent. (parent, ch) \<in> tree then
+       Some (THE parent. (parent, ch) \<in> tree)
      else None\<close>
 
-fun applyoper :: \<open>('t, 'n) operation \<Rightarrow> ('n option \<times> 'n) set \<Rightarrow> ('n option \<times> 'n) set \<times> ('t, 'n) log_op\<close> where
-  \<open>applyoper (Move t p c) ns =
-     ({ (x, y) | x y. (x, y) \<in> ns \<and> y \<noteq> c } \<union> {(p, c)}, UndoMove t (THE p. undefined) p c)\<close>
+fun apply_op :: \<open>('t, 'n) operation \<times> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op \<times> ('n \<times> 'n) set\<close> where
+  \<open>apply_op (Move t newp c, tree) =
+     (LogMove t (get_parent c tree) newp c, {(p', c') \<in> tree. c' \<noteq> c} \<union> {(newp, c)})\<close>
 
-fun undoop :: \<open>('t, 'n) log_op \<Rightarrow> ('n option \<times> 'n) set \<Rightarrow> ('n option \<times> 'n) set\<close> where
-  \<open>undoop (UndoMove t oldp newp c) ns = applyop (UndoMove t newp oldp c) ns\<close>
+fun undo_op :: \<open>('t, 'n) log_op \<times> ('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
+  \<open>undo_op (LogMove t None newp c, tree) = {(p', c') \<in> tree. c' \<noteq> c}\<close> |
+  \<open>undo_op (LogMove t (Some oldp) newp c, tree) =
+     {(p', c') \<in> tree. c' \<noteq> c} \<union> {(oldp, c)}\<close>
 
-lemma undoop_applyop_inv1: 
-  assumes \<open>ls = UndoMove t oldp newp c\<close>
-    and \<open>(oldp, c) \<in> ns\<close>
-    and \<open>\<And>x. (x, c) \<in> ns \<Longrightarrow> x = oldp\<close>
-  shows \<open>undoop ls (applyop ls ns) = ns\<close>
-  using assms
-  apply -
-  apply clarify
-  apply(subst undoop.simps, (subst applyop.simps)+)
-  apply(rule equalityI)
-   apply(rule subsetI)
-   apply clarify
-   apply(erule UnE)
-    apply(drule CollectD)
-    apply(erule exE)+
-    apply clarify
-   apply(erule UnE)
-    apply(drule CollectD)
-    apply(erule exE)+
-     apply clarify+
-  apply(rule_tac x=a in exI)
-  apply(rule_tac x=b in exI)
-  apply(rule conjI)
-   apply force
-  apply(rule conjI)
-   apply(subst (asm) de_Morgan_conj)
-   apply(erule disjE)
-  apply(case_tac \<open>b = c\<close>, force)
-    apply(rule UnI1)
-    apply(rule CollectI)
-  apply(rule_tac x=a in exI)
-    apply(rule_tac x=b in exI)
-    apply(rule conjI)
-     apply force
-    apply force
-   apply(rule UnI1)
-   apply(rule CollectI)
-  apply(rule_tac x=a in exI)
-   apply(rule_tac x=b in exI)
-    apply(rule conjI)
-     apply force
-   apply force
-  apply force
-  done
+fun reapply_op :: \<open>('t, 'n) log_op \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set\<close> where
+  \<open>reapply_op (LogMove t _ p c) (ops, tree) =
+     (let (op2, tree2) = apply_op (Move t p c, tree)
+      in (op2 # ops, tree2))\<close>
 
-lemma undoop_applyop_inv2: 
-  assumes \<open>ls = UndoMove t oldp newp c\<close>
-    and \<open>(newp, c) \<in> ns\<close>
-    and \<open>\<And>x. (x, c) \<in> ns \<Longrightarrow> x = newp\<close>
-  shows \<open>applyop ls (undoop ls ns) = ns\<close>
-  using assms
-  apply -
-  apply clarify
-  apply(subst undoop.simps, (subst applyop.simps)+)
-  apply(rule equalityI)
-   apply(rule subsetI)
-   apply clarify
-   apply(erule UnE)
-    apply(drule CollectD)
-    apply(erule exE)+
-    apply clarify
-   apply(erule UnE)
-    apply(drule CollectD)
-    apply(erule exE)+
-     apply clarify+
-  apply(rule_tac x=a in exI)
-  apply(rule_tac x=b in exI)
-  apply(rule conjI)
-   apply force
-  apply(rule conjI)
-   apply(subst (asm) de_Morgan_conj)
-   apply(erule disjE)
-    apply(case_tac \<open>b = c\<close>)
-  apply blast
-    apply(rule UnI1)
-    apply(rule CollectI)
-  apply(rule_tac x=a in exI)
-    apply(rule_tac x=b in exI)
-    apply(rule conjI)
-      apply force
-  apply(rule conjI)
-     apply force
-  apply assumption
-   apply(rule UnI1)
-   apply(rule CollectI)
-  apply(rule_tac x=a in exI)
-   apply(rule_tac x=b in exI)
-    apply(rule conjI)
-     apply force
-   apply force
-  apply force
-  done
+fun add_op :: \<open>('t::{linorder}, 'n) operation \<Rightarrow> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op list \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set\<close> where
+  \<open>add_op op1 tree1 [] =
+     (let (op2, tree2) = apply_op (op1, tree1)
+      in ([op2], tree2))\<close> |
+  \<open>add_op op1 tree1 (logop # ops) =
+     (if move_time op1 < log_time logop
+      then reapply_op logop (add_op op1 (undo_op (logop, tree1)) ops)
+      else let (op2, tree2) = apply_op (op1, tree1) in (op2 # ops, tree2))\<close>
+
+lemma get_parent_None:
+  assumes \<open>\<nexists>p. (p, c) \<in> tree\<close>
+  shows \<open>get_parent c tree = None\<close>
+by (meson assms get_parent_def)
+
+lemma get_parent_Some:
+  assumes \<open>(p, c) \<in> tree\<close>
+    and \<open>\<And>x. (x, c) \<in> tree \<Longrightarrow> x = p\<close>
+  shows \<open>get_parent c tree = Some p\<close>
+proof -
+  have \<open>\<exists>!parent. (parent, c) \<in> tree\<close>
+    using assms by metis
+  hence \<open>(THE parent. (parent, c) \<in> tree) = p\<close>
+    using assms(2) by fastforce
+  thus \<open>get_parent c tree = Some p\<close>
+    using assms get_parent_def by metis
+qed
+
+lemma apply_undo_inv:
+  assumes \<open>\<And>x. (x, c) \<in> tree \<Longrightarrow> x = oldp\<close>
+  shows \<open>undo_op (apply_op (Move t p c, tree)) = tree\<close>
+proof(cases "\<exists>par. (par, c) \<in> tree")
+  case True
+  hence \<open>(oldp, c) \<in> tree\<close>
+    using assms by blast
+  hence \<open>get_parent c tree = Some oldp\<close>
+    using assms get_parent_Some by metis
+  hence \<open>undo_op (apply_op (Move t p c, tree)) =
+      {(p', c') \<in> ({(p'', c'') \<in> tree. c'' \<noteq> c} \<union> {(p, c)}). c' \<noteq> c} \<union> {(oldp, c)}\<close>
+    by simp
+  moreover have \<open>\<And>p' c'. (p', c') \<in> tree \<Longrightarrow> (p', c') \<in> undo_op (apply_op (Move t p c, tree))\<close>
+    using assms calculation by auto
+  moreover have \<open>\<And>p' c'. (p', c') \<in> undo_op (apply_op (Move t p c, tree)) \<Longrightarrow> (p', c') \<in> tree\<close>
+    using \<open>(oldp, c) \<in> tree\<close> calculation(1) by auto
+  ultimately show ?thesis
+    by (meson pred_equals_eq2)
+next
+  case no_old_parent: False
+  hence \<open>get_parent c tree = None\<close>
+    using assms get_parent_None by metis
+  hence \<open>undo_op (apply_op (Move t p c, tree)) =
+      {(p', c') \<in> ({(p'', c'') \<in> tree. c'' \<noteq> c} \<union> {(p, c)}). c' \<noteq> c}\<close>
+    by simp
+  moreover have \<open>{(p', c') \<in> tree. c' \<noteq> c} = tree\<close>
+    using no_old_parent by fastforce
+  moreover from this have \<open>{(p', c') \<in> (tree \<union> {(p, c)}). c' \<noteq> c} = tree\<close>
+    by auto
+  ultimately show ?thesis by simp
+qed
+
 
 find_consts name: List
 
