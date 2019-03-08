@@ -19,9 +19,15 @@ definition get_parent :: \<open>'n \<Rightarrow> ('n \<times> 'n) set \<Rightarr
        Some (THE parent. (parent, ch) \<in> tree)
      else None\<close>
 
+inductive ancestor :: "('n \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool" where
+  "\<lbrakk>(parent, child) \<in> tree\<rbrakk> \<Longrightarrow> ancestor tree parent child" |
+  "\<lbrakk>(parent, child) \<in> tree; ancestor tree anc parent\<rbrakk> \<Longrightarrow> ancestor tree anc child"
+
 fun apply_op :: \<open>('t, 'n) operation \<times> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op \<times> ('n \<times> 'n) set\<close> where
   \<open>apply_op (Move t newp c, tree) =
-     (LogMove t (get_parent c tree) newp c, {(p', c') \<in> tree. c' \<noteq> c} \<union> {(newp, c)})\<close>
+     (LogMove t (get_parent c tree) newp c,
+      if ancestor tree c newp then tree
+      else {(p', c') \<in> tree. c' \<noteq> c} \<union> {(newp, c)})\<close>
 
 fun undo_op :: \<open>('t, 'n) log_op \<times> ('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
   \<open>undo_op (LogMove t None newp c, tree) = {(p', c') \<in> tree. c' \<noteq> c}\<close> |
@@ -63,28 +69,22 @@ qed
 lemma apply_undo_inv:
   assumes \<open>\<And>x. (x, c) \<in> tree \<Longrightarrow> x = oldp\<close>
   shows \<open>undo_op (apply_op (Move t p c, tree)) = tree\<close>
-proof(cases "\<exists>par. (par, c) \<in> tree")
+proof(cases \<open>\<exists>par. (par, c) \<in> tree\<close>)
   case True
-  hence \<open>(oldp, c) \<in> tree\<close>
+  hence 1: \<open>(oldp, c) \<in> tree\<close>
     using assms by blast
-  hence \<open>get_parent c tree = Some oldp\<close>
+  hence 2: \<open>get_parent c tree = Some oldp\<close>
     using assms get_parent_Some by metis
-  hence \<open>undo_op (apply_op (Move t p c, tree)) =
-      {(p', c') \<in> ({(p'', c'') \<in> tree. c'' \<noteq> c} \<union> {(p, c)}). c' \<noteq> c} \<union> {(oldp, c)}\<close>
-    by simp
   moreover have \<open>\<And>p' c'. (p', c') \<in> tree \<Longrightarrow> (p', c') \<in> undo_op (apply_op (Move t p c, tree))\<close>
     using assms calculation by auto
   moreover have \<open>\<And>p' c'. (p', c') \<in> undo_op (apply_op (Move t p c, tree)) \<Longrightarrow> (p', c') \<in> tree\<close>
-    using \<open>(oldp, c) \<in> tree\<close> calculation(1) by auto
+    using 1 2 by (cases \<open>ancestor tree c p\<close>, auto)
   ultimately show ?thesis
     by (meson pred_equals_eq2)
 next
   case no_old_parent: False
   hence \<open>get_parent c tree = None\<close>
     using assms get_parent_None by metis
-  hence \<open>undo_op (apply_op (Move t p c, tree)) =
-      {(p', c') \<in> ({(p'', c'') \<in> tree. c'' \<noteq> c} \<union> {(p, c)}). c' \<noteq> c}\<close>
-    by simp
   moreover have \<open>{(p', c') \<in> tree. c' \<noteq> c} = tree\<close>
     using no_old_parent by fastforce
   moreover from this have \<open>{(p', c') \<in> (tree \<union> {(p, c)}). c' \<noteq> c} = tree\<close>
