@@ -6,3 +6,5 @@
 - Bayou
 - Norman Ramsey, El Csirmaz, et al. An algebraic approach to file synchronization. ACM SIGSOFT Software Engineering Notes, 26(5):175–185, 2001.
 - More references in Vinh Tao's paper
+
+- Move operation mentioned in: Mehdi Ahmed-Nacer, Pascal Urso, Valter Balegas, and Nuno Preguiça: “Concurrency Control and Awareness Support for Multi-synchronous Collaborative Editing,” at 9th IEEE International Conference on Collaborative Computing, 2013.
