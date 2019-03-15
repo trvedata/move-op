@@ -97,4 +97,72 @@ next
   ultimately show ?thesis by simp
 qed
 
+lemma do_op_unique_parent:
+  assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
+    and \<open>do_op (Move t newp c, tree1) = (log_oper, tree2)\<close>
+  shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+proof(cases \<open>ancestor tree1 c newp\<close>)
+  case True
+  then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+    using assms by auto
+next
+  case False
+  hence \<open>tree2 = {(p', c') \<in> tree1. c' \<noteq> c} \<union> {(newp, c)}\<close>
+    using assms(2) by auto
+  then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+    using assms(1) by auto
+qed
+
+lemma undo_op_unique_parent:
+  assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
+    and \<open>undo_op (LogMove t oldp newp c, tree1) = tree2\<close>
+  shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+using assms by (cases oldp, auto)
+
+lemma redo_op_unique_parent:
+  assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
+    and \<open>redo_op oper (ops1, tree1) = (ops2, tree2)\<close>
+  shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+proof -
+  obtain t oldp newp c where \<open>oper = LogMove t oldp newp c\<close>
+    using log_op.exhaust by blast
+  from this obtain move2 where \<open>(move2, tree2) = do_op (Move t newp c, tree1)\<close>
+    using assms(2) by auto
+  thus \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+    by (metis assms(1) do_op_unique_parent)
+qed
+
+lemma interp_op_unique_parent:
+  assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
+    and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
+  shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+using assms proof(induct ops1)
+  case Nil
+  have "\<forall>pair. snd (case pair of (p1, p2) \<Rightarrow> ([p1], p2)) = snd pair"
+    by simp
+  hence \<open>\<exists>log_op. do_op (oper, tree1) = (log_op, tree2)\<close>
+    by (metis Nil.prems(4) interp_op.simps(1) old.prod.exhaust snd_conv)
+  thus \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+    by (metis assms(1) do_op_unique_parent operation.exhaust)
+next
+  case (Cons logop ops)
+  then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+  proof(cases \<open>move_time oper < log_time logop\<close>)
+    case True
+    then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+      sorry
+  next
+    case False
+    then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+      sorry
+  qed
+qed
+
+
+
+theorem interp_op_commutes:
+  (* missing some assumptions *)
+  shows \<open>interp_op op1 \<circ> interp_op op2 = interp_op op2 \<circ> interp_op op1\<close>
+  oops
+
 end
