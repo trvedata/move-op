@@ -2,6 +2,8 @@ theory Move
   imports Main
 begin
 
+section \<open>Definitions\<close>
+
 datatype ('time, 'node) operation
   = Move (move_time: 'time) (move_parent: 'node) (move_child: 'node)
 
@@ -28,7 +30,7 @@ inductive ancestor :: "('n \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<
 fun do_op :: \<open>('t, 'n) operation \<times> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op \<times> ('n \<times> 'n) set\<close> where
   \<open>do_op (Move t newp c, tree) =
      (LogMove t (get_parent tree c) newp c,
-      if ancestor tree c newp then tree
+      if ancestor tree c newp \<or> c = newp then tree
       else {(p', c') \<in> tree. c' \<noteq> c} \<union> {(newp, c)})\<close>
 
 fun undo_op :: \<open>('t, 'n) log_op \<times> ('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
@@ -52,6 +54,9 @@ fun interp_op :: \<open>('t::{linorder}, 'n) operation \<Rightarrow> ('t, 'n) st
 
 definition interp_ops :: \<open>('t::{linorder}, 'n) operation list \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set\<close> where
   \<open>interp_ops ops \<equiv> foldl (\<lambda>state op. interp_op op state) ([], {}) ops\<close>
+
+
+section \<open>undo_op is the inverse of do_op\<close>
 
 lemma get_parent_None:
   assumes \<open>\<nexists>p. (p, c) \<in> tree\<close>
@@ -83,7 +88,7 @@ proof(cases \<open>\<exists>par. (par, c) \<in> tree\<close>)
   moreover have \<open>\<And>p' c'. (p', c') \<in> tree \<Longrightarrow> (p', c') \<in> undo_op (do_op (Move t p c, tree))\<close>
     using assms calculation by auto
   moreover have \<open>\<And>p' c'. (p', c') \<in> undo_op (do_op (Move t p c, tree)) \<Longrightarrow> (p', c') \<in> tree\<close>
-    using 1 2 by (cases \<open>ancestor tree c p\<close>, auto)
+    using 1 2 by (cases \<open>ancestor tree c p \<or> c = p\<close>, auto)
   ultimately show ?thesis
     by (meson pred_equals_eq2)
 next
@@ -97,11 +102,14 @@ next
   ultimately show ?thesis by simp
 qed
 
+
+section \<open>Preserving the invariant that each tree node has at most one parent\<close>
+
 lemma do_op_unique_parent:
   assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
     and \<open>do_op (Move t newp c, tree1) = (log_oper, tree2)\<close>
   shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-proof(cases \<open>ancestor tree1 c newp\<close>)
+proof(cases \<open>ancestor tree1 c newp \<or> c = newp\<close>)
   case True
   then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
     using assms by auto
@@ -132,7 +140,7 @@ proof -
     by (metis assms(1) do_op_unique_parent)
 qed
 
-lemma interp_op_unique_parent:
+theorem interp_op_unique_parent:
   assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
     and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
   shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
@@ -155,7 +163,7 @@ next
       using undo_op_unique_parent by (metis step.prems(3) log_op.exhaust_sel)
     moreover obtain ops1b tree1b where \<open>(ops1b, tree1b) = interp_op oper (ops, tree1a)\<close>
       by (metis surj_pair)
-    moreover from this have 2: \<open>\<And>p1 p2 c. (p1, c) \<in> tree1b \<Longrightarrow> (p2, c) \<in> tree1b \<Longrightarrow> p1 = p2\<close>
+    moreover from this have \<open>\<And>p1 p2 c. (p1, c) \<in> tree1b \<Longrightarrow> (p2, c) \<in> tree1b \<Longrightarrow> p1 = p2\<close>
       using 1 by (metis step.hyps)
     ultimately show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
       using redo_op_unique_parent by (metis interp_op.simps(2) step.prems(4))
@@ -168,6 +176,46 @@ next
   qed
 qed
 
+
+section \<open>Preserving the invariant that the tree contains no cycles\<close>
+
+lemma do_op_acyclic:
+  assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
+    and \<open>do_op (Move t newp c, tree1) = (log_oper, tree2)\<close>
+  shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+proof(cases \<open>ancestor tree1 c newp \<or> c = newp\<close>)
+  case True
+  then show \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+    using assms by auto
+next
+  case False
+  hence \<open>tree2 = {(p', c') \<in> tree1. c' \<noteq> c} \<union> {(newp, c)}\<close>
+    using assms(2) by auto
+  moreover have \<open>{(p', c') \<in> tree1. c' \<noteq> c} \<subseteq> tree1\<close>
+    by blast
+  {
+    fix x
+    assume \<open>ancestor tree2 x x\<close>
+    have \<open>False\<close>
+      (* proof idea: assume there is a cycle in tree2. That cycle
+         must have been introduced by the addition of (newp, c),
+         since that's the only new tuple in the set, and there was
+         no cycle in tree1 (by assumption 1). However, if
+         (newp, c) introduced a cycle, that must mean that c was
+         ancestor of newp in tree1, which contradicts the assumption
+         \<not> ancestor tree1 c newp. *)
+      sorry
+  }
+  then show \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+    by auto
+qed
+
+theorem interp_op_acyclic:
+  (* not true as it stands -- nitpick finds a counterexample *)
+  assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
+    and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
+  shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+  oops
 
 
 theorem interp_op_commutes:
