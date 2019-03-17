@@ -136,32 +136,42 @@ lemma interp_op_unique_parent:
   assumes \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
     and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
   shows \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-using assms proof(induct ops1)
+using assms proof(induct ops1 arbitrary: tree1 tree2 ops2)
   case Nil
-  have "\<forall>pair. snd (case pair of (p1, p2) \<Rightarrow> ([p1], p2)) = snd pair"
-    by simp
+  have \<open>\<And>pair. snd (case pair of (p1, p2) \<Rightarrow> ([p1], p2)) = snd pair\<close>
+    by (simp add: prod.case_eq_if)
   hence \<open>\<exists>log_op. do_op (oper, tree1) = (log_op, tree2)\<close>
     by (metis Nil.prems(4) interp_op.simps(1) old.prod.exhaust snd_conv)
   thus \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-    by (metis assms(1) do_op_unique_parent operation.exhaust)
+    by (metis Nil.prems(3) do_op_unique_parent operation.exhaust_sel)
 next
-  case (Cons logop ops)
+  case step: (Cons logop ops)
   then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
   proof(cases \<open>move_time oper < log_time logop\<close>)
     case True
-    then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-      sorry
+    moreover obtain tree1a where \<open>tree1a = undo_op (logop, tree1)\<close>
+      by simp
+    moreover from this have 1: \<open>\<And>p1 p2 c. (p1, c) \<in> tree1a \<Longrightarrow> (p2, c) \<in> tree1a \<Longrightarrow> p1 = p2\<close>
+      using undo_op_unique_parent by (metis step.prems(3) log_op.exhaust_sel)
+    moreover obtain ops1b tree1b where \<open>(ops1b, tree1b) = interp_op oper (ops, tree1a)\<close>
+      by (metis surj_pair)
+    moreover from this have 2: \<open>\<And>p1 p2 c. (p1, c) \<in> tree1b \<Longrightarrow> (p2, c) \<in> tree1b \<Longrightarrow> p1 = p2\<close>
+      using 1 by (metis step.hyps)
+    ultimately show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
+      using redo_op_unique_parent by (metis interp_op.simps(2) step.prems(4))
   next
     case False
+    hence \<open>snd (do_op (oper, tree1)) = tree2\<close>
+      by (metis (mono_tags, lifting) interp_op.simps(2) prod.sel(2) split_beta step.prems(4))
     then show \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-      sorry
+      by (metis do_op_unique_parent operation.exhaust_sel prod.exhaust_sel step.prems(3))
   qed
 qed
 
 
 
 theorem interp_op_commutes:
-  (* missing some assumptions *)
+  (* missing some assumptions; as it stands, nitpick finds a counterexample *)
   shows \<open>interp_op op1 \<circ> interp_op op2 = interp_op op2 \<circ> interp_op op1\<close>
   oops
 
