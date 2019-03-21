@@ -249,8 +249,7 @@ lemma cyclic_ancestor_technical:
    apply (simp add: cyclic_ancestor_parent_flip)
   apply clarsimp
   apply(thin_tac \<open>(\<And>pa ca Sa. insert (p, c) S = insert (pa, ca) Sa \<Longrightarrow> False \<Longrightarrow> \<forall>n. \<not> ancestor Sa n n \<Longrightarrow> ca \<noteq> pa \<Longrightarrow> ancestor Sa ca pa)\<close>)
-    oops
-
+  
 (*
 
 
@@ -277,46 +276,15 @@ lemma cyclic_ancestor_technical:
   *)
 
   thm ancestor_indcases
+  sorry
 
 definition trans_cl :: \<open>('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
   \<open>trans_cl T \<equiv> {(x, y). ancestor T x y}\<close>
 
 lemma \<open>trans_cl T \<subseteq> T\<close>
-  oops
 
-lemma cyclic_ancestor:
-  assumes \<open>finite S\<close>
-    and \<open>\<not> (cyclic S)\<close>
-    and \<open>cyclic (S \<union> {(p, c)})\<close>
-    and \<open>c \<noteq> p\<close>
-  shows \<open>ancestor S c p\<close>
-using assms proof(induction rule: finite.induct)
-  case emptyI
-  then show \<open>ancestor {} c p\<close>
-    by (metis Un_empty_left ancestor.cases cyclicE prod.simps(1) singletonD)
-next
-  case (insertI A edge)
-  hence \<open>\<not> cyclic A\<close>
-    using acyclic_subset by blast
-  then show \<open>ancestor (insert edge A) c p\<close>
-  proof(cases \<open>cyclic (insert (p, c) A) \<or> (c, p) \<in> insert edge A\<close>)
-    case True
-    then show ?thesis
-      using ancestor_superset_closed \<open>\<not> cyclic A\<close> insertI
-      by (metis Un_insert_right ancestor.intros(1) subset_insertI sup_bot.right_neutral)
-  next
-    case False
-    hence \<open>\<not> ancestor A c p\<close>
-      by (meson ancestor.intros(1) ancestor_superset_closed ancestor_transitive cyclic_def insertI1 subset_insertI)
-    moreover have \<open>\<not> cyclic (insert (p, c) A)\<close> and \<open>(c, p) \<notin> insert edge A\<close>
-      using False by auto
-    moreover obtain a b where \<open>edge = (a, b)\<close>
-      by fastforce
-    hence \<open>a \<noteq> b\<close>
-      by (metis ancestor.intros(1) cyclic_def insertI.prems(1) insertI1)
-    ultimately show ?thesis sorry
-  qed
-qed
+lemma
+  assumes \<open>a\<close>
 
 lemma cyclic_ancestor:
   assumes  \<open>finite S\<close>
@@ -340,7 +308,7 @@ lemma cyclic_ancestor:
   apply clarsimp
   apply(case_tac \<open>cyclic (insert (p, c) A)\<close>)
    apply clarsimp
-   apply (metis UnI2 ancestor_superset_closed insert_is_Un subsetI)
+   apply (metis UnI2 ancestor_superset_closed cyclicE cyclic_def insert_is_Un subsetI)
   apply clarsimp
   apply(subgoal_tac \<open>a \<noteq> b\<close>)
    prefer 2
@@ -352,8 +320,8 @@ lemma cyclic_ancestor:
   apply clarsimp
   apply(rule ancestor.intros(2))
 
-  using assms cyclic_ancestor_technical 
-  oops
+  using assms cyclic_ancestor_technical (*
+  by (metis Un_insert_right cyclic_def sup_bot.right_neutral) *) sorry
 
 lemma do_op_acyclic:
   assumes \<open>\<not> cyclic tree1\<close>
@@ -371,13 +339,13 @@ next
     by blast
   moreover have \<open>\<not> (cyclic tree1)\<close>
     using assms and cyclic_def by auto
-  moreover have B: \<open>\<not> (cyclic {(p', c') \<in> tree1. c' \<noteq> c})\<close>
+  moreover have \<open>\<not> (cyclic {(p', c') \<in> tree1. c' \<noteq> c})\<close>
     using acyclic_subset calculation(2) calculation(3) by blast
   {
     assume \<open>cyclic tree2\<close>
     have \<open>ancestor {(p', c') \<in> tree1. c' \<noteq> c} c newp\<close>
-      using cyclic_ancestor_technical False A B \<open>cyclic tree2\<close>
-      by (metis (no_types, lifting) Un_insert_right cyclic_def sup_bot.right_neutral)
+      using cyclic_ancestor using False
+      using A \<open>\<not> cyclic {(p', c'). (p', c') \<in> tree1 \<and> c' \<noteq> c}\<close> \<open>cyclic tree2\<close> by force
     from this have \<open>False\<close>
       using False ancestor_superset_closed calculation(2) by fastforce
   }
