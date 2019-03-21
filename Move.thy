@@ -53,7 +53,7 @@ fun interp_op :: \<open>('t::{linorder}, 'n) operation \<Rightarrow> ('t, 'n) st
       else let (op2, tree2) = do_op (op1, tree1) in (op2 # ops, tree2))\<close>
 
 definition interp_ops :: \<open>('t::{linorder}, 'n) operation list \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set\<close> where
-  \<open>interp_ops ops \<equiv> foldl (\<lambda>state op. interp_op op state) ([], {}) ops\<close>
+  \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
 
 
 section \<open>undo_op is the inverse of do_op\<close>
@@ -204,11 +204,162 @@ lemma acyclic_subset:
   shows \<open>\<not> cyclic S\<close>
   using assms ancestor_superset_closed by (metis cyclic_def)
 
+lemma
+  assumes \<open>ancestor T m p\<close>
+    and \<open>(m,p) \<notin> T\<close>
+  shows \<open>\<exists>n. ancestor T m n \<and> ancestor T n p\<close>
+  using ancestor_indcases and assms
+  by (meson ancestor.simps)
+
+inductive path :: "('n \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'n) list \<Rightarrow> bool" where
+  "\<lbrakk>(b, e) \<in> T\<rbrakk> \<Longrightarrow> path T b e [(b, e)]" |
+  "\<lbrakk>path T b m xs; (m, e) \<notin> set xs; (m, e) \<in> T\<rbrakk> \<Longrightarrow> path T b e (xs@[(m, e)])"
+
+
+inductive_cases path_indcases: \<open>path T b e xs\<close>
+
+lemma empty_path: "\<not> path T x y []"
+  apply clarsimp
+  apply (erule path_indcases)
+   apply force
+  apply force
+  done
+
+lemma singleton_path: "path T b m [(p, c)] \<Longrightarrow> b = p \<and> m = c"
+  by (metis (no_types, lifting) butlast.simps(2) butlast_snoc empty_path list.inject path.cases prod.inject)
+
+lemma path_drop1: "path T b e (xs @ [(a, e)]) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> path T b a xs \<and> (a, e) \<notin> set xs"
+  apply (rule conjI)
+  using path.cases apply fastforce
+  using path.cases by force
+  
+lemma path_drop: "path T b e (xs @ ys) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> \<exists>m. path T b m xs"
+  apply (induct ys arbitrary: xs)
+   apply force
+  apply (erule_tac x="xs@[a]" in meta_allE)
+  apply clarsimp
+  using path.cases by force
+
+lemma fst_path: "path T b e ((p, c)#xs) \<Longrightarrow> b = p"
+  apply (induct xs arbitrary: e rule: rev_induct)
+   apply (simp add: singleton_path)
+  apply clarsimp
+  apply (subgoal_tac "path T b e (((p, c) # xs) @ [(a, ba)])")
+   apply (drule path_drop)
+    apply force
+   apply force
+  apply force
+  done
+
+lemma last_path: "path T b e (xs@[(p, c)]) \<Longrightarrow> e = c"
+  apply (erule path_indcases)
+   apply force
+  apply force
+  done
+
+lemma path_concat: "path S m n xs \<Longrightarrow> path S n p ys \<Longrightarrow> path S m p (xs@ys)"
+  apply (induct ys arbitrary: p rule: rev_induct)
+   apply (simp add: empty_path)
+  apply (case_tac x)
+  apply simp
+  apply (subgoal_tac "p = b")
+   defer
+   apply (simp add: last_path)
+  apply (subgoal_tac "path S m p ((xs @ xsa) @ [(a, p)])")
+   apply force
+  apply (case_tac xsa)
+   apply clarsimp
+   apply (subgoal_tac "n = aa")
+    prefer 2
+    apply (simp add: fst_path)
+   apply clarsimp
+  sorry
+
+
+lemma path_split: "path T m n xs \<Longrightarrow> (p, c) \<in> set xs \<Longrightarrow> (\<exists>ys zs. (ys = [] \<or> path T m p ys)
+                                                      \<and> (zs = [] \<or> path T c n zs)
+                                                      \<and> (xs = ys @ [(p, c)] @ zs)
+                                                      \<and> (p, c) \<notin> set ys \<and> (p, c) \<notin> set zs)"
+  apply (induct rule: path.induct)
+   apply force
+  apply clarsimp
+  apply (elim disjE conjE)
+   apply clarsimp
+   apply force
+  apply clarsimp
+  apply (elim disjE conjE)+
+     apply clarsimp
+     apply (drule singleton_path)
+     apply clarsimp
+     apply (rule_tac x="[]" in exI)
+     apply clarsimp
+     apply (rule conjI)
+      apply (simp add: path.intros(1))
+     apply force
+    apply clarsimp
+    apply (rule_tac x="[]" in exI)
+    apply clarsimp
+    apply (rule conjI)
+     apply (simp add: path.intros(2))
+    apply force
+   apply clarsimp
+   apply (rule_tac x="ys" in exI)
+   apply clarsimp
+   apply (metis (no_types, lifting) last_ConsL last_snoc path.cases path.intros(1) prod.sel(2))
+  apply (rule_tac x="ys" in exI)
+  apply clarsimp
+  by (meson path.intros(2))
+
+lemma anc_path: "ancestor T p c \<Longrightarrow> \<exists>xs. path T p c xs"
+  apply (induct rule: ancestor.induct)
+   apply (rule_tac x="[(parent, child)]" in exI, rule path.intros, assumption)
+  apply clarsimp
+  apply (case_tac "(parent, child) \<in> set x")
+   defer
+  apply (rule_tac x="x@[(parent, child)]" in exI)
+   apply (rule path.intros(2))
+     apply force
+    apply force
+   apply force
+  apply (frule path_split)
+   apply force
+  apply clarsimp
+  apply (elim disjE conjE)+
+  using singleton_path apply fastforce
+    apply clarsimp
+  using fst_path path.intros(1) apply fastforce
+   apply clarsimp
+   apply (metis (no_types, lifting) last_ConsL path.cases prod.sel(2) snoc_eq_iff_butlast)
+  by (meson path.intros(2))
+
+
+lemma path_anc: "path T p c xs \<Longrightarrow> ancestor T p c"
+  apply (induction rule: path.induct)
+   apply (rule ancestor.intros(1), simp)
+  by (simp add: ancestor.intros(2))
+
+lemma anc_path_eq: "ancestor T p c \<longleftrightarrow> (\<exists>xs. path T p c xs)"
+  by (meson anc_path path_anc)
+
+lemma path_subset: "path T m n xs \<Longrightarrow> set xs \<subseteq> T"
+  by (induction rule: path.induct) auto
+
+lemma rem_edge_path: "path T m n xs \<Longrightarrow> T = insert (p, c) S \<Longrightarrow> (p, c) \<notin> set xs \<Longrightarrow> path S m n xs"
+  apply (induction rule: path.induct)
+   apply (rule path.intros(1), force)
+  apply clarsimp
+  apply (rule path.intros(2))
+   apply clarsimp
+   apply clarsimp
+  by blast
+
 lemma cyclic_ancestor_parent_flip:
   assumes \<open>ancestor T c p\<close>
     and \<open>T = insert (p, c) S\<close>
     and \<open>c \<noteq> p\<close>
   shows \<open>ancestor S c p\<close>
+  using assms apply -
+
   sorry
 
 lemma ancestor_transitive:
@@ -216,14 +367,41 @@ lemma ancestor_transitive:
       and \<open>ancestor \<S> n p\<close>
     shows \<open>ancestor \<S> m p\<close>
   using assms
-  sorry
+  apply (simp add: anc_path_eq)
+  apply clarsimp
+  using path_concat apply force
+  done
 
-lemma
-  assumes \<open>ancestor T m p\<close>
-    and \<open>(m,p) \<notin> T\<close>
-  shows \<open>\<exists>n. ancestor T m n \<and> ancestor T n p\<close>
-  using ancestor_indcases and assms
-  by (meson ancestor.simps)
+lemma cyclic_path_technical:
+  assumes \<open>path T m n xs\<close>
+      and \<open>T = insert (p, c) S\<close>
+      and \<open>m = n\<close>
+      and \<open>\<forall>n. \<not> ancestor S n n\<close>
+      and \<open>c \<noteq> p\<close>
+    shows \<open>ancestor S c p\<close>
+  using assms apply -
+  apply (case_tac "(p, c) \<in> set xs")
+  defer
+   apply (meson path_anc rem_edge_path)
+  apply (frule path_split)
+   apply force
+  apply clarsimp
+  apply (elim disjE conjE)
+     prefer 4
+     apply (rule ancestor_transitive[where n = n])
+      apply (meson path_anc rem_edge_path)
+     apply (meson path_anc rem_edge_path)
+    apply clarsimp
+  using singleton_path apply fastforce
+   defer
+   apply clarsimp
+   apply (metis (no_types, lifting) cyclic_ancestor_parent_flip last_ConsL last_snoc path.cases path_anc prod.sel(2))
+  apply clarsimp
+  apply (subgoal_tac "n = p")
+   apply clarsimp
+   apply (meson cyclic_ancestor_parent_flip path_anc)
+  by (simp add: fst_path)
+  
 
 lemma cyclic_ancestor_technical:
   assumes \<open>ancestor T m n\<close>
@@ -232,96 +410,17 @@ lemma cyclic_ancestor_technical:
       and \<open>\<forall>n. \<not> ancestor S n n\<close>
       and \<open>c \<noteq> p\<close>
     shows \<open>ancestor S c p\<close>
-  using assms
-  apply(induction arbitrary: p c S rule: ancestor.induct)
-   apply clarsimp
-   apply(elim disjE conjE)
-    apply clarsimp
-  apply(erule_tac x=child in allE)
-   apply(subgoal_tac \<open>ancestor S child child\<close>)
-    apply force
-   apply(intro ancestor.intros, assumption)
-  apply clarsimp
-  apply(case_tac \<open>child = parent\<close>)
-  apply force
-  apply(elim disjE conjE)
-   apply clarsimp
-   apply (simp add: cyclic_ancestor_parent_flip)
-  apply clarsimp
-  apply(thin_tac \<open>(\<And>pa ca Sa. insert (p, c) S = insert (pa, ca) Sa \<Longrightarrow> False \<Longrightarrow> \<forall>n. \<not> ancestor Sa n n \<Longrightarrow> ca \<noteq> pa \<Longrightarrow> ancestor Sa ca pa)\<close>)
-  
-(*
+  using cyclic_path_technical
+  by (metis anc_path_eq assms(1) assms(2) assms(3) assms(4) assms(5))
 
-
-
-  apply(subgoal_tac \<open>ancestor S parent child\<close>)
-   apply(subgoal_tac \<open>ancestor S child child\<close>)
-    apply blast
-   apply(subgoal_tac \<open>ancestor S child parent\<close>)
-    apply (meson ancestor_transitive)
-  sledgehammer
-
-
-
-  apply(erule ancestor_indcases)
-   apply clarsimp
-   apply(elim disjE conjE)
-    apply clarsimp
-    apply(intro ancestor.intros, assumption)
-   defer
-   apply clarsimp
-   apply(elim disjE conjE)
-  apply clarsimp
-  
-  *)
-
-  thm ancestor_indcases
-  sorry
-
-definition trans_cl :: \<open>('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
-  \<open>trans_cl T \<equiv> {(x, y). ancestor T x y}\<close>
-
-lemma \<open>trans_cl T \<subseteq> T\<close>
-
-lemma
-  assumes \<open>a\<close>
 
 lemma cyclic_ancestor:
-  assumes  \<open>finite S\<close>
-    and \<open>\<not> (cyclic S)\<close>
-    and \<open>cyclic (S \<union> {(p, c)})\<close>
+  assumes \<open>cyclic (S \<union> {(p, c)})\<close>
+    and \<open>\<not> (cyclic S)\<close> 
     and \<open>c \<noteq> p\<close>
   shows \<open>ancestor S c p\<close>
-  using assms
-  apply(induction rule: finite.induct)
-   apply(clarsimp simp add: cyclic_def)
-   apply(erule ancestor_indcases)
-    apply force
-   apply clarsimp
-   apply(erule ancestor_indcases)
-    apply force
-   apply force
-  apply clarsimp
-  apply(case_tac \<open>cyclic A\<close>)
-   apply clarsimp
-   apply (metis UnI2 ancestor_superset_closed cyclicE cyclic_def insert_is_Un subsetI)
-  apply clarsimp
-  apply(case_tac \<open>cyclic (insert (p, c) A)\<close>)
-   apply clarsimp
-   apply (metis UnI2 ancestor_superset_closed cyclicE cyclic_def insert_is_Un subsetI)
-  apply clarsimp
-  apply(subgoal_tac \<open>a \<noteq> b\<close>)
-   prefer 2
-  apply (meson ancestor.intros(1) cyclic_def insertI1)
-  apply(case_tac \<open>ancestor A c p\<close>)
-   apply (meson ancestor_superset_closed equalityE insert_subset)
-  apply(case_tac \<open>(c, p) \<in> insert (a, b) A\<close>)
-   apply(intro ancestor.intros, assumption)
-  apply clarsimp
-  apply(rule ancestor.intros(2))
-
-  using assms cyclic_ancestor_technical (*
-  by (metis Un_insert_right cyclic_def sup_bot.right_neutral) *) sorry
+  using assms apply (clarsimp simp add: cyclic_def)
+  by (meson cyclic_ancestor_technical)
 
 lemma do_op_acyclic:
   assumes \<open>\<not> cyclic tree1\<close>
