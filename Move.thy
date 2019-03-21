@@ -204,20 +204,6 @@ lemma acyclic_subset:
   shows \<open>\<not> cyclic S\<close>
   using assms ancestor_superset_closed by (metis cyclic_def)
 
-lemma cyclic_ancestor_parent_flip:
-  assumes \<open>ancestor T c p\<close>
-    and \<open>T = insert (p, c) S\<close>
-    and \<open>c \<noteq> p\<close>
-  shows \<open>ancestor S c p\<close>
-  sorry
-
-lemma ancestor_transitive:
-  assumes \<open>ancestor \<S> m n\<close>
-      and \<open>ancestor \<S> n p\<close>
-    shows \<open>ancestor \<S> m p\<close>
-  using assms
-  sorry
-
 lemma
   assumes \<open>ancestor T m p\<close>
     and \<open>(m,p) \<notin> T\<close>
@@ -242,17 +228,19 @@ lemma empty_path: "\<not> path T x y []"
 lemma singleton_path: "path T b m [(p, c)] \<Longrightarrow> b = p \<and> m = c"
   by (metis (no_types, lifting) butlast.simps(2) butlast_snoc empty_path list.inject path.cases prod.inject)
 
-lemma path_drop1: "path T b e (xs @ [x]) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> \<exists>m. path T b m xs"
-  by (metis (no_types, lifting) append_self_conv2 butlast_snoc path.cases)
+lemma path_drop1: "path T b e (xs @ [(a, e)]) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> path T b a xs \<and> (a, e) \<notin> set xs"
+  apply (rule conjI)
+  using path.cases apply fastforce
+  using path.cases by force
   
 lemma path_drop: "path T b e (xs @ ys) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> \<exists>m. path T b m xs"
   apply (induct ys arbitrary: xs)
    apply force
   apply (erule_tac x="xs@[a]" in meta_allE)
   apply clarsimp
-  by (simp add: path_drop1)
+  using path.cases by force
 
-lemma cons_path: "path T b e ((p, c)#xs) \<Longrightarrow> b = p"
+lemma fst_path: "path T b e ((p, c)#xs) \<Longrightarrow> b = p"
   apply (induct xs arbitrary: e rule: rev_induct)
    apply (simp add: singleton_path)
   apply clarsimp
@@ -262,6 +250,31 @@ lemma cons_path: "path T b e ((p, c)#xs) \<Longrightarrow> b = p"
    apply force
   apply force
   done
+
+lemma last_path: "path T b e (xs@[(p, c)]) \<Longrightarrow> e = c"
+  apply (erule path_indcases)
+   apply force
+  apply force
+  done
+
+lemma path_concat: "path S m n xs \<Longrightarrow> path S n p ys \<Longrightarrow> path S m p (xs@ys)"
+  apply (induct ys arbitrary: p rule: rev_induct)
+   apply (simp add: empty_path)
+  apply (case_tac x)
+  apply simp
+  apply (subgoal_tac "p = b")
+   defer
+   apply (simp add: last_path)
+  apply (subgoal_tac "path S m p ((xs @ xsa) @ [(a, p)])")
+   apply force
+  apply (case_tac xsa)
+   apply clarsimp
+   apply (subgoal_tac "n = aa")
+    prefer 2
+    apply (simp add: fst_path)
+   apply clarsimp
+  sorry
+
 
 lemma path_split: "path T m n xs \<Longrightarrow> (p, c) \<in> set xs \<Longrightarrow> (\<exists>ys zs. (ys = [] \<or> path T m p ys)
                                                       \<and> (zs = [] \<or> path T c n zs)
@@ -314,7 +327,7 @@ lemma anc_path: "ancestor T p c \<Longrightarrow> \<exists>xs. path T p c xs"
   apply (elim disjE conjE)+
   using singleton_path apply fastforce
     apply clarsimp
-  using cons_path path.intros(1) apply fastforce
+  using fst_path path.intros(1) apply fastforce
    apply clarsimp
    apply (metis (no_types, lifting) last_ConsL path.cases prod.sel(2) snoc_eq_iff_butlast)
   by (meson path.intros(2))
@@ -339,6 +352,25 @@ lemma rem_edge_path: "path T m n xs \<Longrightarrow> T = insert (p, c) S \<Long
    apply clarsimp
    apply clarsimp
   by blast
+
+lemma cyclic_ancestor_parent_flip:
+  assumes \<open>ancestor T c p\<close>
+    and \<open>T = insert (p, c) S\<close>
+    and \<open>c \<noteq> p\<close>
+  shows \<open>ancestor S c p\<close>
+  using assms apply -
+
+  sorry
+
+lemma ancestor_transitive:
+  assumes \<open>ancestor \<S> m n\<close>
+      and \<open>ancestor \<S> n p\<close>
+    shows \<open>ancestor \<S> m p\<close>
+  using assms
+  apply (simp add: anc_path_eq)
+  apply clarsimp
+  using path_concat apply force
+  done
 
 lemma cyclic_path_technical:
   assumes \<open>path T m n xs\<close>
@@ -368,7 +400,7 @@ lemma cyclic_path_technical:
   apply (subgoal_tac "n = p")
    apply clarsimp
    apply (meson cyclic_ancestor_parent_flip path_anc)
-  by (simp add: cons_path)
+  by (simp add: fst_path)
   
 
 lemma cyclic_ancestor_technical:
