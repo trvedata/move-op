@@ -353,15 +353,6 @@ lemma rem_edge_path: "path T m n xs \<Longrightarrow> T = insert (p, c) S \<Long
    apply clarsimp
   by blast
 
-lemma cyclic_ancestor_parent_flip:
-  assumes \<open>ancestor T c p\<close>
-    and \<open>T = insert (p, c) S\<close>
-    and \<open>c \<noteq> p\<close>
-  shows \<open>ancestor S c p\<close>
-  using assms apply -
-
-  sorry
-
 lemma ancestor_transitive:
   assumes \<open>ancestor \<S> m n\<close>
       and \<open>ancestor \<S> n p\<close>
@@ -395,13 +386,13 @@ lemma cyclic_path_technical:
   using singleton_path apply fastforce
    defer
    apply clarsimp
-   apply (metis (no_types, lifting) cyclic_ancestor_parent_flip last_ConsL last_snoc path.cases path_anc prod.sel(2))
+  apply (metis anc_path_eq last_path rem_edge_path)
   apply clarsimp
   apply (subgoal_tac "n = p")
    apply clarsimp
-   apply (meson cyclic_ancestor_parent_flip path_anc)
+  apply (meson anc_path_eq rem_edge_path)
   by (simp add: fst_path)
-  
+
 
 lemma cyclic_ancestor_technical:
   assumes \<open>ancestor T m n\<close>
