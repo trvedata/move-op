@@ -179,35 +179,178 @@ qed
 
 section \<open>Preserving the invariant that the tree contains no cycles\<close>
 
+definition cyclic :: \<open>('n \<times> 'n) set \<Rightarrow> bool\<close>
+  where \<open>cyclic \<T> \<longleftrightarrow> (\<exists>n. ancestor \<T> n n)\<close>
+
+lemma cyclicE [elim]:
+  assumes \<open>cyclic \<T>\<close>
+  and \<open>(\<exists>n. ancestor \<T> n n) \<Longrightarrow> P\<close>
+  shows \<open>P\<close>
+  using assms by(auto simp add: cyclic_def)
+
+inductive_cases ancestor_indcases: \<open>ancestor \<T> m p\<close>
+thm ancestor_indcases
+
+lemma ancestor_superset_closed:
+  assumes \<open>ancestor \<T> p c\<close>
+    and \<open>\<T> \<subseteq> \<S>\<close>
+  shows \<open>ancestor \<S> p c\<close>
+  using assms
+  by (induction rule: ancestor.induct) (auto intro: ancestor.intros)
+
+lemma acyclic_subset:
+  assumes \<open>\<not> cyclic T\<close>
+    and \<open>S \<subseteq> T\<close>
+  shows \<open>\<not> cyclic S\<close>
+  using assms ancestor_superset_closed by (metis cyclic_def)
+
+lemma cyclic_ancestor_parent_flip:
+  assumes \<open>ancestor T c p\<close>
+    and \<open>T = insert (p, c) S\<close>
+    and \<open>c \<noteq> p\<close>
+  shows \<open>ancestor S c p\<close>
+  sorry
+
+lemma ancestor_transitive:
+  assumes \<open>ancestor \<S> m n\<close>
+      and \<open>ancestor \<S> n p\<close>
+    shows \<open>ancestor \<S> m p\<close>
+  using assms
+  sorry
+
+lemma
+  assumes \<open>ancestor T m p\<close>
+    and \<open>(m,p) \<notin> T\<close>
+  shows \<open>\<exists>n. ancestor T m n \<and> ancestor T n p\<close>
+  using ancestor_indcases and assms
+  by (meson ancestor.simps)
+
+lemma cyclic_ancestor_technical:
+  assumes \<open>ancestor T m n\<close>
+      and \<open>T = insert (p, c) S\<close>
+      and \<open>m = n\<close>
+      and \<open>\<forall>n. \<not> ancestor S n n\<close>
+      and \<open>c \<noteq> p\<close>
+    shows \<open>ancestor S c p\<close>
+  using assms
+  apply(induction arbitrary: p c S rule: ancestor.induct)
+   apply clarsimp
+   apply(elim disjE conjE)
+    apply clarsimp
+  apply(erule_tac x=child in allE)
+   apply(subgoal_tac \<open>ancestor S child child\<close>)
+    apply force
+   apply(intro ancestor.intros, assumption)
+  apply clarsimp
+  apply(case_tac \<open>child = parent\<close>)
+  apply force
+  apply(elim disjE conjE)
+   apply clarsimp
+   apply (simp add: cyclic_ancestor_parent_flip)
+  apply clarsimp
+  apply(thin_tac \<open>(\<And>pa ca Sa. insert (p, c) S = insert (pa, ca) Sa \<Longrightarrow> False \<Longrightarrow> \<forall>n. \<not> ancestor Sa n n \<Longrightarrow> ca \<noteq> pa \<Longrightarrow> ancestor Sa ca pa)\<close>)
+  
+(*
+
+
+
+  apply(subgoal_tac \<open>ancestor S parent child\<close>)
+   apply(subgoal_tac \<open>ancestor S child child\<close>)
+    apply blast
+   apply(subgoal_tac \<open>ancestor S child parent\<close>)
+    apply (meson ancestor_transitive)
+  sledgehammer
+
+
+
+  apply(erule ancestor_indcases)
+   apply clarsimp
+   apply(elim disjE conjE)
+    apply clarsimp
+    apply(intro ancestor.intros, assumption)
+   defer
+   apply clarsimp
+   apply(elim disjE conjE)
+  apply clarsimp
+  
+  *)
+
+  thm ancestor_indcases
+  sorry
+
+definition trans_cl :: \<open>('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
+  \<open>trans_cl T \<equiv> {(x, y). ancestor T x y}\<close>
+
+lemma \<open>trans_cl T \<subseteq> T\<close>
+
+lemma
+  assumes \<open>a\<close>
+
+lemma cyclic_ancestor:
+  assumes  \<open>finite S\<close>
+    and \<open>\<not> (cyclic S)\<close>
+    and \<open>cyclic (S \<union> {(p, c)})\<close>
+    and \<open>c \<noteq> p\<close>
+  shows \<open>ancestor S c p\<close>
+  using assms
+  apply(induction rule: finite.induct)
+   apply(clarsimp simp add: cyclic_def)
+   apply(erule ancestor_indcases)
+    apply force
+   apply clarsimp
+   apply(erule ancestor_indcases)
+    apply force
+   apply force
+  apply clarsimp
+  apply(case_tac \<open>cyclic A\<close>)
+   apply clarsimp
+   apply (metis UnI2 ancestor_superset_closed cyclicE cyclic_def insert_is_Un subsetI)
+  apply clarsimp
+  apply(case_tac \<open>cyclic (insert (p, c) A)\<close>)
+   apply clarsimp
+   apply (metis UnI2 ancestor_superset_closed cyclicE cyclic_def insert_is_Un subsetI)
+  apply clarsimp
+  apply(subgoal_tac \<open>a \<noteq> b\<close>)
+   prefer 2
+  apply (meson ancestor.intros(1) cyclic_def insertI1)
+  apply(case_tac \<open>ancestor A c p\<close>)
+   apply (meson ancestor_superset_closed equalityE insert_subset)
+  apply(case_tac \<open>(c, p) \<in> insert (a, b) A\<close>)
+   apply(intro ancestor.intros, assumption)
+  apply clarsimp
+  apply(rule ancestor.intros(2))
+
+  using assms cyclic_ancestor_technical (*
+  by (metis Un_insert_right cyclic_def sup_bot.right_neutral) *) sorry
+
 lemma do_op_acyclic:
-  assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
+  assumes \<open>\<not> cyclic tree1\<close>
     and \<open>do_op (Move t newp c, tree1) = (log_oper, tree2)\<close>
-  shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+  shows \<open>\<not> cyclic tree2\<close>
 proof(cases \<open>ancestor tree1 c newp \<or> c = newp\<close>)
   case True
-  then show \<open>\<And>x. \<not> ancestor tree2 x x\<close>
+  then show \<open>\<not> cyclic tree2\<close>
     using assms by auto
 next
   case False
-  hence \<open>tree2 = {(p', c') \<in> tree1. c' \<noteq> c} \<union> {(newp, c)}\<close>
+  hence A: \<open>tree2 = {(p', c') \<in> tree1. c' \<noteq> c} \<union> {(newp, c)}\<close>
     using assms(2) by auto
   moreover have \<open>{(p', c') \<in> tree1. c' \<noteq> c} \<subseteq> tree1\<close>
     by blast
+  moreover have \<open>\<not> (cyclic tree1)\<close>
+    using assms and cyclic_def by auto
+  moreover have \<open>\<not> (cyclic {(p', c') \<in> tree1. c' \<noteq> c})\<close>
+    using acyclic_subset calculation(2) calculation(3) by blast
   {
-    fix x
-    assume \<open>ancestor tree2 x x\<close>
-    have \<open>False\<close>
-      (* proof idea: assume there is a cycle in tree2. That cycle
-         must have been introduced by the addition of (newp, c),
-         since that's the only new tuple in the set, and there was
-         no cycle in tree1 (by assumption 1). However, if
-         (newp, c) introduced a cycle, that must mean that c was
-         ancestor of newp in tree1, which contradicts the assumption
-         \<not> ancestor tree1 c newp. *)
-      sorry
+    assume \<open>cyclic tree2\<close>
+    have \<open>ancestor {(p', c') \<in> tree1. c' \<noteq> c} c newp\<close>
+      using cyclic_ancestor using False
+      using A \<open>\<not> cyclic {(p', c'). (p', c') \<in> tree1 \<and> c' \<noteq> c}\<close> \<open>cyclic tree2\<close> by force
+    from this have \<open>False\<close>
+      using False ancestor_superset_closed calculation(2) by fastforce
   }
-  then show \<open>\<And>x. \<not> ancestor tree2 x x\<close>
-    by auto
+  from this show \<open>\<not> cyclic tree2\<close>
+    using cyclic_def by auto
 qed
 
 theorem interp_op_acyclic:
