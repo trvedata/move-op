@@ -257,25 +257,6 @@ lemma last_path: "path T b e (xs@[(p, c)]) \<Longrightarrow> e = c"
   apply force
   done
 
-lemma path_concat: "path S m n xs \<Longrightarrow> path S n p ys \<Longrightarrow> path S m p (xs@ys)"
-  apply (induct ys arbitrary: p rule: rev_induct)
-   apply (simp add: empty_path)
-  apply (case_tac x)
-  apply simp
-  apply (subgoal_tac "p = b")
-   defer
-   apply (simp add: last_path)
-  apply (subgoal_tac "path S m p ((xs @ xsa) @ [(a, p)])")
-   apply force
-  apply (case_tac xsa)
-   apply clarsimp
-   apply (subgoal_tac "n = aa")
-    prefer 2
-    apply (simp add: fst_path)
-   apply clarsimp
-  sorry
-
-
 lemma path_split: "path T m n xs \<Longrightarrow> (p, c) \<in> set xs \<Longrightarrow> (\<exists>ys zs. (ys = [] \<or> path T m p ys)
                                                       \<and> (zs = [] \<or> path T c n zs)
                                                       \<and> (xs = ys @ [(p, c)] @ zs)
@@ -354,14 +335,9 @@ lemma rem_edge_path: "path T m n xs \<Longrightarrow> T = insert (p, c) S \<Long
   by blast
 
 lemma ancestor_transitive:
-  assumes \<open>ancestor \<S> m n\<close>
-      and \<open>ancestor \<S> n p\<close>
+  assumes \<open>ancestor \<S> n p\<close> and \<open>ancestor \<S> m n\<close>
     shows \<open>ancestor \<S> m p\<close>
-  using assms
-  apply (simp add: anc_path_eq)
-  apply clarsimp
-  using path_concat apply force
-  done
+  using assms by (induction rule: ancestor.induct) (auto intro: ancestor.intros)
 
 lemma cyclic_path_technical:
   assumes \<open>path T m n xs\<close>
