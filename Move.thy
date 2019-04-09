@@ -50,7 +50,7 @@ fun interp_op :: \<open>('t::{linorder}, 'n) operation \<Rightarrow> ('t, 'n) st
   \<open>interp_op op1 (logop # ops, tree1) =
      (if move_time op1 < log_time logop
       then redo_op logop (interp_op op1 (ops, undo_op (logop, tree1)))
-      else let (op2, tree2) = do_op (op1, tree1) in (op2 # ops, tree2))\<close>
+      else let (op2, tree2) = do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
 
 definition interp_ops :: \<open>('t::{linorder}, 'n) operation list \<Rightarrow> ('t, 'n) log_op list \<times> ('n \<times> 'n) set\<close> where
   \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
@@ -61,7 +61,7 @@ section \<open>undo_op is the inverse of do_op\<close>
 lemma get_parent_None:
   assumes \<open>\<nexists>p. (p, c) \<in> tree\<close>
   shows \<open>get_parent tree c = None\<close>
-by (meson assms get_parent_def)
+  by (meson assms get_parent_def)
 
 lemma get_parent_Some:
   assumes \<open>(p, c) \<in> tree\<close>
@@ -419,12 +419,165 @@ next
     using cyclic_def by auto
 qed
 
+corollary get_parent_empty [simp]:
+  shows \<open>get_parent {} p = None\<close>
+  using get_parent_None by force
+
+corollary ancestor_empty_False [simp]:
+  shows \<open>ancestor {} p c = False\<close>
+  by (meson ancestor_indcases emptyE)
+
+lemma interp_ops_base [simp]:
+  shows \<open>interp_ops [Move t1 p1 c1, Move t2 p2 c2] =
+                    interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) ([], {}))\<close>
+  by(clarsimp simp add: interp_ops_def)
+
+lemma interp_ops_base_commute:
+  assumes \<open>t1 \<noteq> t2\<close>
+  shows \<open>interp_ops [Move t1 p1 c1, Move t2 p2 c2] = interp_ops [Move t2 p2 c2, Move t1 p1 c1]\<close>
+  using assms by(cases \<open>t2 < t1\<close>; cases \<open>p1 = c1\<close>; cases \<open>p2 = c2\<close>; cases \<open>c1 = c2\<close>; force)
+
+lemma interp_ops_step [simp]:
+  shows \<open>interp_ops (xs @ [x]) =
+                    interp_op x (interp_ops xs)\<close>
+  by(clarsimp simp add: interp_ops_def)
+
+lemma interp_ops_step_commute [simp]:
+  shows \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
+          interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (interp_ops ops))\<close>
+  by(clarsimp simp add: interp_ops_def)
+
+fun do_one_op :: \<open>('t, 'n) state \<Rightarrow> ('t, 'n) operation \<Rightarrow> ('t, 'n) state\<close> where
+  \<open>do_one_op (log, tree1) op1 =
+    (let (op2, tree2) = do_op (op1, tree1) in (op2 # log, tree2))\<close>
+
+lemma interp_ops_Nil [simp]:
+  shows \<open>interp_ops [] = ([], {})\<close>
+  by(clarsimp simp add: interp_ops_def)
+
+lemma
+  assumes \<open>(log2, tree2) = interp_op (Move t p c) (log1, tree1)\<close>
+  shows \<open>log_time ` set log2 = {t} \<union> (log_time ` set log1)\<close>
+using assms proof(induction log1 arbitrary: tree1 tree2 log2, simp)
+  case (Cons a log1)
+  then obtain log3 tree3 where \<open>(log3, tree3) = interp_op (Move t p c) (log1, undo_op (a, tree1))\<close>
+    by (metis surj_pair)
+  hence \<open>log_time ` set log3 = {t} \<union> log_time ` set log1\<close>
+    using Cons.IH by auto
+  obtain t2 oldp2 newp2 c2 where a: \<open>a = LogMove t2 oldp2 newp2 c2\<close>
+    using log_op.exhaust by blast
+  then show ?case
+  proof(cases \<open>t < t2\<close>)
+    case True
+    hence \<open>interp_op (Move t p c) (a # log1, tree1) = redo_op a (log3, tree3)\<close>
+      by (simp add: \<open>(log3, tree3) = interp_op (Move t p c) (log1, undo_op (a, tree1))\<close> \<open>a = LogMove t2 oldp2 newp2 c2\<close>)
+    hence \<open>redo_op a (log3, tree3) = (log2, tree2)\<close>
+      by (simp add: Cons.prems)
+    moreover have \<open>fst (redo_op a (log3, tree3)) = fst (do_op (Move t2 newp2 c2, tree3)) # log3\<close>
+      by (simp add: \<open>a = LogMove t2 oldp2 newp2 c2\<close>)
+    ultimately show ?thesis
+      using a apply clarsimp
+      using \<open>log_time ` set log3 = {t} \<union> log_time ` set log1\<close> by auto
+  next
+    case False
+    then show ?thesis sorry
+  qed
+qed
+
+lemma interp_ops_preserves_times:
+  assumes \<open>interp_ops ops = (log, tree)\<close>
+  shows \<open>move_time ` set ops = log_time ` set log\<close>
+using assms proof(induction ops arbitrary: log tree rule: rev_induct, simp)
+  case (snoc x xs)
+  obtain log1 tree1 where \<open>interp_ops xs = (log1, tree1)\<close>
+    by fastforce
+  hence \<open>move_time ` set xs = log_time ` set log1\<close>
+    using snoc.IH by auto
+  obtain t p c where \<open>x = Move t p c\<close>
+    using operation.exhaust by blast
+  hence \<open>interp_ops (xs @ [x]) = interp_op (Move t p c) (log1, tree1)\<close>
+    using \<open>interp_ops xs = (log1, tree1)\<close> by auto
+  then show \<open>move_time ` set (xs @ [x]) = log_time ` set log\<close>
+  proof(cases log1)
+    case Nil
+    hence \<open>log = (let (op2, tree2) = do_op (Move t p c, tree1) in [op2])\<close>
+      using \<open>interp_ops xs = (log1, tree1)\<close> \<open>x = Move t p c\<close> snoc.prems by auto
+    hence \<open>log_time ` set log = {t}\<close>
+      by auto
+    then show ?thesis 
+      by (simp add: \<open>move_time ` set xs = log_time ` set log1\<close> \<open>x = Move t p c\<close> local.Nil)
+  next
+    case (Cons logop list)
+    obtain t2 oldp2 newp2 c2 where \<open>logop = LogMove t2 oldp2 newp2 c2\<close>
+      using log_op.exhaust by blast
+    then show ?thesis
+    proof(cases \<open>t < t2\<close>)
+      case True
+      hence \<open>interp_op (Move t p c) (log1, tree1) =
+          redo_op logop (interp_op (Move t p c) (list, undo_op (logop, tree1)))\<close>
+        by (simp add: \<open>logop = LogMove t2 oldp2 newp2 c2\<close> local.Cons)
+      obtain tree2 where \<open>tree2 = undo_op (logop, tree1)\<close>
+        by simp
+      then show ?thesis sorry
+    next
+      case False
+      then show ?thesis sorry
+    qed
+  qed
+qed
+
+
+lemma
+  assumes \<open>distinct (map move_time ops)\<close>
+    and \<open>sorted (map move_time ops)\<close>
+  shows \<open>interp_ops ops = foldl do_one_op ([], {}) ops\<close>
+  using assms
+  apply(induction ops rule: rev_induct)
+   apply(clarsimp)
+  apply clarsimp
+  apply(subgoal_tac \<open>sorted (map move_time xs)\<close>)
+   prefer 2 using sorted_append apply blast
+  apply clarsimp
+  apply(case_tac \<open>x\<close>; clarsimp)
+  apply(subgoal_tac \<open>\<forall>oper\<in>set xs. x1 > move_time oper\<close>)
+   prefer 2 apply (metis (no_types, lifting) image_iff le_neq_trans list.set_intros(1) list.set_map sorted_append)
+  apply(case_tac \<open>foldl do_one_op ([], {}) xs\<close>)
+  apply(case_tac \<open>a\<close>)
+   apply clarsimp
+  apply(case_tac \<open>aa\<close>)
+  apply(subgoal_tac \<open>x1a < x1\<close>)
+   prefer 2
+  using interp_ops_preserves_times
+  apply (metis (no_types, lifting) empty_set foldl_conv_fold image_eqI insert_iff interp_ops_def le_neq_trans list.set(2) list.set_intros(1) list.set_map log_op.sel(1) sorted_append)
+  apply(subgoal_tac \<open>interp_op (Move x1 x2 x3) (aa#list, b) = do_one_op (aa#list, b) (Move x1 x2 x3)\<close>)
+   apply force
+  apply(subgoal_tac \<open>interp_op (Move x1 x2 x3) (aa#list, b) = (let (op2, tree2) = do_op (Move x1 x2 x3, b) in (op2 # aa # list, tree2))\<close>)
+   prefer 2 apply force
+  apply(subgoal_tac \<open>(let (op2, tree2) = do_op (Move x1 x2 x3, b) in (op2 # aa # list, tree2)) = do_one_op (aa#list,b) (Move x1 x2 x3)\<close>)
+   prefer 2 apply force+
+  done
+
+lemma
+  assumes \<open>distinct (map move_time (ops @ [Move t1 p1 c1, Move t2 p2 c2]))\<close>
+  shows \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
+         interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1])\<close>
+  using assms
+  apply(induction ops arbitrary: t1 t2 p1 p2 c1 c2 rule: List.rev_induct)
+  using interp_ops_base_commute
+   apply (metis append_Nil distinct_length_2_or_more list.simps(9) operation.sel(1))
+  apply clarsimp
+  apply(case_tac \<open>x\<close>; clarify)
+  apply(subgoal_tac \<open>\<And>t1 t2 p1 p2 c1 c2.
+           t1 \<noteq> t2 \<and> t1 \<notin> move_time ` set xs \<and> t2 \<notin> move_time ` set xs \<Longrightarrow> interp_ops (xs @ [Move t1 p1 c1, Move t2 p2 c2]) = interp_ops (xs @ [Move t2 p2 c2, Move t1 p1 c1])\<close>)
+   prefer 2 apply assumption
+  
+
 theorem interp_op_acyclic:
   (* not true as it stands -- nitpick finds a counterexample *)
   assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
     and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
   shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
-  oops
+  using assms oops
 
 
 theorem interp_op_commutes:
