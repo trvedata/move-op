@@ -455,6 +455,7 @@ lemma interp_ops_Nil [simp]:
   shows \<open>interp_ops [] = ([], {})\<close>
   by(clarsimp simp add: interp_ops_def)
 
+(*
 lemma
   assumes \<open>(log2, tree2) = interp_op (Move t p c) (log1, tree1)\<close>
   shows \<open>log_time ` set log2 = {t} \<union> (log_time ` set log1)\<close>
@@ -526,7 +527,6 @@ using assms proof(induction ops arbitrary: log tree rule: rev_induct, simp)
   qed
 qed
 
-
 lemma
   assumes \<open>distinct (map move_time ops)\<close>
     and \<open>sorted (map move_time ops)\<close>
@@ -569,20 +569,144 @@ lemma
   apply(case_tac \<open>x\<close>; clarify)
   apply(subgoal_tac \<open>\<And>t1 t2 p1 p2 c1 c2.
            t1 \<noteq> t2 \<and> t1 \<notin> move_time ` set xs \<and> t2 \<notin> move_time ` set xs \<Longrightarrow> interp_ops (xs @ [Move t1 p1 c1, Move t2 p2 c2]) = interp_ops (xs @ [Move t2 p2 c2, Move t1 p1 c1])\<close>)
-   prefer 2 apply assumption
-  
+  oops
+*)
+
+lemma foldr_redo:
+  assumes \<open>interp_ops ops = (log1, tree1)\<close>
+    and \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
+    and \<open>distinct ((map move_time ops) @ [t])\<close>
+    and \<open>foldr redo_op log1 ([], {}) = (log1, tree1)\<close>
+  shows \<open>foldr redo_op log2 ([], {}) = (log2, tree2)\<close>
+  sorry
+
+(* if \<open>interp_ops ops = (log, tree)\<close> then tree is a function of log. *)
+lemma redo_reconstruct_tree:
+  assumes \<open>interp_ops ops = (log, tree)\<close>
+    and \<open>distinct (map move_time ops)\<close>
+  shows \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
+using assms proof(induction ops arbitrary: log tree rule: List.rev_induct)
+  case Nil
+  thus \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
+    using foldr_Nil by simp
+next
+  case (snoc oper ops)
+  obtain t p c where \<open>oper = Move t p c\<close>
+    using operation.exhaust by blast
+  moreover obtain log1 tree1 where \<open>interp_ops ops = (log1, tree1)\<close>
+    using prod.exhaust_sel by blast
+  moreover from this have \<open>foldr redo_op log1 ([], {}) = (log1, tree1)\<close>
+    using snoc.IH snoc.prems(2) by auto
+  ultimately show \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
+    using foldr_redo snoc.prems(1) snoc.prems(2) by fastforce
+qed
+
+corollary unique_tree_given_log:
+  assumes \<open>interp_ops ops1 = (log, tree1)\<close> and \<open>interp_ops ops2 = (log, tree2)\<close>
+    and \<open>distinct (map move_time ops1)\<close> and \<open>distinct (map move_time ops2)\<close>
+  shows \<open>tree1 = tree2\<close>
+using assms redo_reconstruct_tree by (metis Pair_inject)
+
+lemma distinct_list_pick1:
+  assumes \<open>set (xs @ [x]) = set (ys @ [x] @ zs)\<close>
+    and \<open>distinct (xs @ [x])\<close> and \<open>distinct (ys @ [x] @ zs)\<close>
+  shows \<open>set xs = set (ys @ zs)\<close>
+  sorry
+
+lemma log_unique_two_ops:
+  assumes \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) = (log1, tree1)\<close>
+    and \<open>interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1]) = (log2, tree2)\<close>
+    and \<open>distinct ((map move_time ops1) @ [t1, t2])\<close>
+    and \<open>t1 < t2\<close>
+  shows \<open>log1 = log2\<close>
+  sorry
+
+lemma log_unique_swap_last:
+  assumes \<open>distinct ((map move_time ops1) @ [t1, t2])\<close>
+  shows \<open>fst (interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2])) =
+         fst (interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1]))\<close>
+proof(cases \<open>t1 < t2\<close>)
+  case True
+  then show ?thesis
+    by (meson assms log_unique_two_ops prod.exhaust_sel)
+next
+  case False
+  have \<open>distinct ((map move_time ops1) @ [t2, t1])\<close>
+    using assms by auto
+  moreover have \<open>t1 \<noteq> t2\<close>
+    using assms by auto
+  hence \<open>t2 < t1\<close>
+    using False by auto
+  ultimately have \<open>fst (interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1])) =
+         fst (interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]))\<close>
+    by (meson log_unique_two_ops prod.exhaust_sel)
+  thus ?thesis
+    by simp
+qed
+
+lemma log_unique_middle:
+  assumes \<open>interp_ops (xs @ ys @ [oper]) = (log1, tree1)\<close>
+    and \<open>interp_ops (xs @ [oper] @ ys) = (log2, tree2)\<close>
+    and \<open>distinct (map move_time (xs @ ys @ [oper]))\<close>
+  shows \<open>log1 = log2\<close>
+using assms proof(induction ys arbitrary: log1 log2 tree1 tree2 rule: List.rev_induct, simp)
+  case (snoc y ys)
+  have \<open>fst (interp_ops (xs @ [oper] @ ys @ [y])) =
+        fst (interp_op y (interp_ops (xs @ [oper] @ ys)))\<close>
+    by (metis append.assoc interp_ops_step)
+  also have \<open>... = fst (interp_op y (interp_ops (xs @ ys @ [oper])))\<close>
+  proof -
+    have \<open>distinct (map move_time (xs @ [oper] @ ys))\<close>
+        and \<open>distinct (map move_time (xs @ ys @ [oper]))\<close>
+      using snoc.prems(3) by auto
+    moreover from this have \<open>fst (interp_ops (xs @ [oper] @ ys)) =
+        fst (interp_ops (xs @ ys @ [oper]))\<close>
+      using snoc.IH by (metis prod.exhaust_sel)
+    ultimately show ?thesis
+      by (metis prod.exhaust_sel unique_tree_given_log)
+  qed
+  also have \<open>... = fst (interp_ops ((xs @ ys) @ [oper, y]))\<close>
+    by (metis append.assoc append_Cons append_Nil interp_ops_step)
+  also have \<open>... = fst (interp_ops ((xs @ ys) @ [y, oper]))\<close>
+  proof -
+    have \<open>distinct ((map move_time (xs @ ys)) @ [move_time oper, move_time y])\<close>
+      using snoc.prems(3) by auto
+    thus ?thesis
+      using log_unique_swap_last by (metis operation.exhaust_sel)
+  qed
+  then show ?case
+    using calculation snoc.prems(1) snoc.prems(2) by auto
+qed
+
+theorem interp_op_commutes:
+  assumes \<open>set ops1 = set ops2\<close>
+    and \<open>distinct (map move_time ops1)\<close> and \<open>distinct (map move_time ops2)\<close>
+  shows \<open>interp_ops ops1 = interp_ops ops2\<close>
+using assms proof(induction ops1 arbitrary: ops2 rule: List.rev_induct, simp)
+  case (snoc oper ops)
+  then obtain pre suf where pre_suf: \<open>ops2 = pre @ [oper] @ suf\<close>
+    by (metis append_Cons append_Nil in_set_conv_decomp)
+  hence \<open>set ops = set (pre @ suf)\<close>
+    using snoc.prems distinct_map distinct_list_pick1 by metis
+  hence IH: \<open>interp_ops ops = interp_ops (pre @ suf)\<close>
+    using pre_suf snoc.IH snoc.prems by auto
+  moreover have \<open>distinct (map move_time (pre @ suf @ [oper]))\<close>
+    using pre_suf snoc.prems(3) by auto
+  moreover from this have \<open>fst (interp_ops (pre @ suf @ [oper])) = fst (interp_ops (pre @ [oper] @ suf))\<close>
+    by (metis log_unique_middle prod.exhaust_sel)
+  hence \<open>fst (interp_ops (ops @ [oper])) = fst (interp_ops ops2)\<close>
+    using IH interp_ops_step pre_suf append.assoc by metis
+  ultimately show \<open>interp_ops (ops @ [oper]) = interp_ops ops2\<close>
+    using unique_tree_given_log by (metis prod.exhaust_sel snoc.prems(2) snoc.prems(3))
+qed
+
 
 theorem interp_op_acyclic:
   (* not true as it stands -- nitpick finds a counterexample *)
   assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
     and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
   shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
-  using assms oops
-
-
-theorem interp_op_commutes:
-  (* missing some assumptions; as it stands, nitpick finds a counterexample *)
-  shows \<open>interp_op op1 \<circ> interp_op op2 = interp_op op2 \<circ> interp_op op1\<close>
   oops
+
 
 end
