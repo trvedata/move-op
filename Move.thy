@@ -860,6 +860,109 @@ using assms proof(induction ys arbitrary: log1 log2 tree1 tree2 rule: List.rev_i
     using calculation snoc.prems(1) snoc.prems(2) by auto
 qed
 
+lemma interp_op_move_logop2:
+  assumes \<open>distinct [t1, t2, t3]\<close>
+    and \<open>\<And>t. t \<in> set (map log_time log) \<Longrightarrow> t < t1\<close>
+  shows \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) ((LogMove t1 oldp1 p1 c1) # log, tree)) =
+         interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, undo_op (LogMove t1 oldp1 p1 c1, tree))))\<close>
+proof -
+  obtain undone where undone: \<open>undone = undo_op (LogMove t1 oldp1 p1 c1, tree)\<close>
+    by simp
+  consider (c123) \<open>t1 < t2 \<and> t2 < t3\<close> | (c132) \<open>t1 < t3 \<and> t3 < t2\<close> | (c213) \<open>t2 < t1 \<and> t1 < t3\<close> |
+           (c231) \<open>t2 < t3 \<and> t3 < t1\<close> | (c312) \<open>t3 < t1 \<and> t1 < t2\<close> | (c321) \<open>t3 < t2 \<and> t2 < t1\<close>
+    using assms by fastforce
+  then show ?thesis
+  proof(cases)
+    case c123 (* t1 < t2 < t3 *)
+    obtain tree1 where tree1: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree1)\<close>
+      by simp
+    obtain tree2 where tree2: \<open>do_op (Move t3 p3 c3, tree1) = (LogMove t3 (get_parent tree1 c3) p3 c3, tree2)\<close>
+      by simp
+    obtain tree3 where tree3: \<open>do_op (Move t2 p2 c2, undone) = (LogMove t2 (get_parent undone c2) p2 c2, tree3)\<close>
+      by simp
+    hence undo3: \<open>undo_op (LogMove t2 (get_parent undone c2) p2 c2, tree3) = undone\<close>
+    proof -
+      have \<open>\<And>p1 p2 c. (p1, c) \<in> undone \<Longrightarrow> (p2, c) \<in> undone \<Longrightarrow> p1 = p2\<close>
+        sorry
+      thus ?thesis
+        by (metis do_undo_op_inv tree3)
+    qed
+    obtain tree4 where tree4: \<open>do_op (Move t3 p3 c3, tree3) = (LogMove t3 (get_parent tree3 c3) p3 c3, tree4)\<close>
+      by simp
+    hence undo4: \<open>undo_op (LogMove t3 (get_parent tree3 c3) p3 c3, tree4) = tree3\<close>
+    proof -
+      have \<open>\<And>p1 p2 c. (p1, c) \<in> tree3 \<Longrightarrow> (p2, c) \<in> tree3 \<Longrightarrow> p1 = p2\<close>
+        sorry
+      thus ?thesis
+        by (metis do_undo_op_inv tree4)
+    qed
+    have redo1: \<open>do_op (Move t1 p1 c1, undone) = (LogMove t1 (get_parent undone c1) p1 c1, tree)\<close>
+      sorry
+    have 1: \<open>interp_op (Move t2 p2 c2) ((LogMove t1 oldp1 p1 c1) # log, tree) =
+              ((LogMove t2 (get_parent tree c2) p2 c2) # (LogMove t1 oldp1 p1 c1) # log, tree1)\<close>
+      using c123 tree1 by auto
+    hence 4: \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) ((LogMove t1 oldp1 p1 c1) # log, tree)) =
+           (LogMove t3 (get_parent tree1 c3) p3 c3 # LogMove t2 (get_parent tree c2) p2 c2 # (LogMove t1 oldp1 p1 c1) # log, tree2)\<close>
+      by (metis c123 case_prod_conv interp_op.simps(2) log_op.sel(1) not_less_iff_gr_or_eq operation.sel(1) tree2)
+    have 6: \<open>interp_op (Move t2 p2 c2) (log, undone) = (LogMove t2 (get_parent undone c2) p2 c2 # log, tree3)\<close>
+    proof(cases log)
+      case Nil
+      then show ?thesis using tree3 by auto
+    next
+      case (Cons logop log')
+      moreover from this have \<open>log_time logop < t2\<close>
+        using assms(2) c123 dual_order.strict_trans by auto
+      ultimately show ?thesis using tree3 by auto
+    qed
+    hence \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, undone)) =
+           (LogMove t3 (get_parent tree3 c3) p3 c3 # LogMove t2 (get_parent undone c2) p2 c2 # log, tree4)\<close>
+      using c123 tree4 by auto
+    hence 3: \<open>interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, undone))) =
+           redo_op (LogMove t3 (get_parent tree3 c3) p3 c3) (interp_op (Move t1 p1 c1) (LogMove t2 (get_parent undone c2) p2 c2 # log, tree3))\<close>
+      using c123 undo4 by auto
+    have 2: \<open>interp_op (Move t1 p1 c1) (LogMove t2 (get_parent undone c2) p2 c2 # log, tree3) =
+          redo_op (LogMove t2 (get_parent undone c2) p2 c2) (interp_op (Move t1 p1 c1) (log, undone))\<close>
+      using c123 undo3 by auto
+    have \<open>interp_op (Move t1 p1 c1) (log, undone) = (LogMove t1 (get_parent undone c1) p1 c1 # log, tree)\<close>
+    proof(cases log)
+      case Nil
+      then show ?thesis using redo1 by auto
+    next
+      case (Cons logop log')
+      moreover from this have \<open>log_time logop < t1\<close>
+        by (simp add: assms(2))
+      ultimately show ?thesis using redo1 by auto
+    qed
+    hence 5: \<open>interp_op (Move t1 p1 c1) (LogMove t2 (get_parent undone c2) p2 c2 # log, tree3) =
+        (LogMove t2 (get_parent tree c2) p2 c2 # LogMove t1 (get_parent undone c1) p1 c1 # log, tree1)\<close>
+      using "2" tree1 by auto
+    hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, undone))) =
+           (LogMove t3 (get_parent tree1 c3) p3 c3 # LogMove t2 (get_parent tree c2) p2 c2 # LogMove t1 (get_parent undone c1) p1 c1 # log, tree2)\<close>
+      using "3" tree2 by auto
+    then show ?thesis
+      by (metis 1 4 5 6 fst_conv interp_op_move_logop1 undone)
+  next
+    case c132 (* t1 < t3 < t2 *)
+    then show ?thesis sorry
+  next
+    case c213 (* t2 < t1 < t3 *)
+    hence \<open>interp_op (Move t2 p2 c2) ((LogMove t1 oldp1 p1 c1) # log, tree) =
+           redo_op (LogMove t1 oldp1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op (LogMove t1 oldp1 p1 c1, tree)))\<close>
+      by simp
+    then show ?thesis sorry
+  next
+    case c231 (* t2 < t3 < t1 *)
+    then show ?thesis sorry
+  next
+    case c312 (* t3 < t1 < t2 *)
+    then show ?thesis sorry
+  next
+    case c321 (* t3 < t2 < t1 *)
+    then show ?thesis sorry
+  qed
+qed
+ 
+
 lemma interp_op_commute2:
   assumes \<open>t1 < t2\<close>
     and \<open>\<And>p1 p2 c. (p1, c) \<in> tree \<Longrightarrow> (p2, c) \<in> tree \<Longrightarrow> p1 = p2\<close>
@@ -874,10 +977,11 @@ using assms proof(induction log arbitrary: tree)
     by auto
   obtain tree2 where tree2: \<open>do_op (Move t2 p2 c2, tree1) = (LogMove t2 (get_parent tree1 c2) p2 c2, tree2)\<close>
     by simp
+  have \<open>\<not> t2 < t1\<close>
+    using not_less_iff_gr_or_eq Nil.prems(1) by blast
   hence **: \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) ([], tree)) =
         ([LogMove t2 (get_parent tree1 c2) p2 c2, LogMove t1 (get_parent tree c1) p1 c1], tree2)\<close>
-    by (metis (mono_tags, lifting) * assms(1) fst_conv interp_op.simps(2) log_op.sel(1)
-      not_less_iff_gr_or_eq operation.sel(1) snd_conv split_beta)
+    using * tree2 by auto
   obtain tree3 where tree3: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree3)\<close>
     by simp
   hence ***: \<open>interp_op (Move t2 p2 c2) ([], tree) = ([LogMove t2 (get_parent tree c2) p2 c2], tree3)\<close>
@@ -886,7 +990,7 @@ using assms proof(induction log arbitrary: tree)
     by (metis Nil.prems(2) tree3 do_undo_op_inv)
   hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) ([], tree)) =
          redo_op (LogMove t2 (get_parent tree c2) p2 c2) ([LogMove t1 (get_parent tree c1) p1 c1], tree1)\<close>
-    using * *** assms(1) by auto
+    using * *** Nil.prems(1) by auto
   then show ?case
     using tree2 ** by auto
 next
@@ -899,17 +1003,18 @@ next
   proof(cases)
     case c1
     hence \<open>t3 < t2\<close>
-      using assms(1) by auto
+      using Cons.prems(1) by auto
     obtain tree1 where \<open>do_op (Move t1 p1 c1, tree) = (LogMove t1 (get_parent tree c1) p1 c1, tree1)\<close>
       by simp
     hence *: \<open>interp_op (Move t1 p1 c1) (logop # log, tree) = (LogMove t1 (get_parent tree c1) p1 c1 # logop # log, tree1)\<close>
       using t3 c1 by auto
     obtain tree2 where tree2: \<open>do_op (Move t2 p2 c2, tree1) = (LogMove t2 (get_parent tree1 c2) p2 c2, tree2)\<close>
       by simp
+    have \<open>\<not> t2 < t1\<close>
+      using not_less_iff_gr_or_eq Cons.prems(1) by blast
     hence **: \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree)) =
                ([LogMove t2 (get_parent tree1 c2) p2 c2, LogMove t1 (get_parent tree c1) p1 c1, logop] @ log, tree2)\<close>
-      by (metis (no_types, lifting) * append.simps(2) append_Nil assms(1) fst_conv interp_op.simps(2)
-          log_op.sel(1) not_less_iff_gr_or_eq operation.sel(1) snd_conv split_beta)
+      using * tree2 by auto
     obtain tree3 where tree3: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree3)\<close>
       by simp
     hence ***: \<open>interp_op (Move t2 p2 c2) (logop # log, tree) = (LogMove t2 (get_parent tree c2) p2 c2 # logop # log, tree3)\<close>
@@ -918,16 +1023,55 @@ next
       by (metis Cons.prems(2) do_undo_op_inv tree3)
     hence \<open>interp_op (Move t1 p1 c1) (LogMove t2 (get_parent tree c2) p2 c2 # logop # log, tree3) =
           redo_op (LogMove t2 (get_parent tree c2) p2 c2) (LogMove t1 (get_parent tree c1) p1 c1 # logop # log, tree1)\<close>
-      using * assms(1) by auto
+      using * Cons.prems(1) by auto
     then show ?thesis
       using ** *** tree2 by auto
   next
     case c2
+    hence \<open>interp_op (Move t1 p1 c1) (logop # log, tree) =
+           redo_op logop (interp_op (Move t1 p1 c1) (log, undo_op (logop, tree)))\<close>
+      by (simp add: t3)
+    obtain tree1 where tree1: \<open>tree1 = undo_op (logop, tree)\<close>
+      by simp
+    have \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, undo_op (logop, tree))) =
+          interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op (logop, tree)))\<close>
+    proof -
+      have \<open>(\<And>p1 c p2. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2)\<close>
+        sorry
+      then show ?thesis
+        using Cons.IH Cons.prems(3) assms(1) tree1 by auto
+    qed
+    obtain tree3 where tree3: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree3)\<close>
+      by simp
+    have *: \<open>interp_op (Move t2 p2 c2) (logop # log, tree) = (LogMove t2 (get_parent tree c2) p2 c2 # logop # log, tree3)\<close>
+      using c2 t3 tree3 by auto
+    have \<open>undo_op (LogMove t2 (get_parent tree c2) p2 c2, tree3) = tree\<close>
+      by (metis Cons.prems(2) do_undo_op_inv tree3)
+    hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (logop # log, tree)) =
+          redo_op (LogMove t2 (get_parent tree c2) p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree))\<close>
+      using * assms(1) by auto
     (* TODO work in progress *)
     then show ?thesis sorry
   next
     case c3
-    then show ?thesis sorry
+    obtain t3 oldp3 p3 c3 where logop: \<open>logop = LogMove t3 oldp3 p3 c3\<close>
+      using log_op.exhaust by blast
+    hence \<open>distinct [t3, t1, t2]\<close>
+      using assms(1) c3 t3 by auto
+    hence \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree)) =
+           interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, undo_op(logop, tree))))\<close>
+      by (metis interp_op_move_logop2 logop)
+    also have \<open>... = interp_op (Move t3 p3 c3) (interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op(logop, tree))))\<close>
+    proof -
+      have \<open>(\<And>p1 c p2. (p1, c) \<in> undo_op(logop, tree) \<Longrightarrow> (p2, c) \<in> undo_op(logop, tree) \<Longrightarrow> p1 = p2)\<close>
+        sorry
+      then show ?thesis
+        using Cons.IH Cons.prems(3) assms(1) by auto
+    qed
+    also have \<open>... = interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (logop # log, tree))\<close>
+      by (metis \<open>distinct [t3, t1, t2]\<close> distinct_length_2_or_more interp_op_move_logop2 logop)
+    ultimately show ?thesis
+      by simp
   qed
 qed
 
