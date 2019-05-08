@@ -466,543 +466,15 @@ lemma interp_ops_step_commute [simp]:
           interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (interp_ops ops))\<close>
   by(clarsimp simp add: interp_ops_def)
 
-fun do_one_op :: \<open>('t, 'n) state \<Rightarrow> ('t, 'n) operation \<Rightarrow> ('t, 'n) state\<close> where
-  \<open>do_one_op (log, tree1) op1 =
-    (let (op2, tree2) = do_op (op1, tree1) in (op2 # log, tree2))\<close>
-
 lemma interp_ops_Nil [simp]:
   shows \<open>interp_ops [] = ([], {})\<close>
   by(clarsimp simp add: interp_ops_def)
-
-(*
-lemma
-  assumes \<open>(log2, tree2) = interp_op (Move t p c) (log1, tree1)\<close>
-  shows \<open>log_time ` set log2 = {t} \<union> (log_time ` set log1)\<close>
-using assms proof(induction log1 arbitrary: tree1 tree2 log2, simp)
-  case (Cons a log1)
-  then obtain log3 tree3 where \<open>(log3, tree3) = interp_op (Move t p c) (log1, undo_op (a, tree1))\<close>
-    by (metis surj_pair)
-  hence \<open>log_time ` set log3 = {t} \<union> log_time ` set log1\<close>
-    using Cons.IH by auto
-  obtain t2 oldp2 newp2 c2 where a: \<open>a = LogMove t2 oldp2 newp2 c2\<close>
-    using log_op.exhaust by blast
-  then show ?case
-  proof(cases \<open>t < t2\<close>)
-    case True
-    hence \<open>interp_op (Move t p c) (a # log1, tree1) = redo_op a (log3, tree3)\<close>
-      by (simp add: \<open>(log3, tree3) = interp_op (Move t p c) (log1, undo_op (a, tree1))\<close> \<open>a = LogMove t2 oldp2 newp2 c2\<close>)
-    hence \<open>redo_op a (log3, tree3) = (log2, tree2)\<close>
-      by (simp add: Cons.prems)
-    moreover have \<open>fst (redo_op a (log3, tree3)) = fst (do_op (Move t2 newp2 c2, tree3)) # log3\<close>
-      by (simp add: \<open>a = LogMove t2 oldp2 newp2 c2\<close>)
-    ultimately show ?thesis
-      using a apply clarsimp
-      using \<open>log_time ` set log3 = {t} \<union> log_time ` set log1\<close> by auto
-  next
-    case False
-    then show ?thesis sorry
-  qed
-qed
-
-lemma interp_ops_preserves_times:
-  assumes \<open>interp_ops ops = (log, tree)\<close>
-  shows \<open>move_time ` set ops = log_time ` set log\<close>
-using assms proof(induction ops arbitrary: log tree rule: rev_induct, simp)
-  case (snoc x xs)
-  obtain log1 tree1 where \<open>interp_ops xs = (log1, tree1)\<close>
-    by fastforce
-  hence \<open>move_time ` set xs = log_time ` set log1\<close>
-    using snoc.IH by auto
-  obtain t p c where \<open>x = Move t p c\<close>
-    using operation.exhaust by blast
-  hence \<open>interp_ops (xs @ [x]) = interp_op (Move t p c) (log1, tree1)\<close>
-    using \<open>interp_ops xs = (log1, tree1)\<close> by auto
-  then show \<open>move_time ` set (xs @ [x]) = log_time ` set log\<close>
-  proof(cases log1)
-    case Nil
-    hence \<open>log = (let (op2, tree2) = do_op (Move t p c, tree1) in [op2])\<close>
-      using \<open>interp_ops xs = (log1, tree1)\<close> \<open>x = Move t p c\<close> snoc.prems by auto
-    hence \<open>log_time ` set log = {t}\<close>
-      by auto
-    then show ?thesis 
-      by (simp add: \<open>move_time ` set xs = log_time ` set log1\<close> \<open>x = Move t p c\<close> local.Nil)
-  next
-    case (Cons logop list)
-    obtain t2 oldp2 newp2 c2 where \<open>logop = LogMove t2 oldp2 newp2 c2\<close>
-      using log_op.exhaust by blast
-    then show ?thesis
-    proof(cases \<open>t < t2\<close>)
-      case True
-      hence \<open>interp_op (Move t p c) (log1, tree1) =
-          redo_op logop (interp_op (Move t p c) (list, undo_op (logop, tree1)))\<close>
-        by (simp add: \<open>logop = LogMove t2 oldp2 newp2 c2\<close> local.Cons)
-      obtain tree2 where \<open>tree2 = undo_op (logop, tree1)\<close>
-        by simp
-      then show ?thesis sorry
-    next
-      case False
-      then show ?thesis sorry
-    qed
-  qed
-qed
-
-lemma
-  assumes \<open>distinct (map move_time ops)\<close>
-    and \<open>sorted (map move_time ops)\<close>
-  shows \<open>interp_ops ops = foldl do_one_op ([], {}) ops\<close>
-  using assms
-  apply(induction ops rule: rev_induct)
-   apply(clarsimp)
-  apply clarsimp
-  apply(subgoal_tac \<open>sorted (map move_time xs)\<close>)
-   prefer 2 using sorted_append apply blast
-  apply clarsimp
-  apply(case_tac \<open>x\<close>; clarsimp)
-  apply(subgoal_tac \<open>\<forall>oper\<in>set xs. x1 > move_time oper\<close>)
-   prefer 2 apply (metis (no_types, lifting) image_iff le_neq_trans list.set_intros(1) list.set_map sorted_append)
-  apply(case_tac \<open>foldl do_one_op ([], {}) xs\<close>)
-  apply(case_tac \<open>a\<close>)
-   apply clarsimp
-  apply(case_tac \<open>aa\<close>)
-  apply(subgoal_tac \<open>x1a < x1\<close>)
-   prefer 2
-  using interp_ops_preserves_times
-  apply (metis (no_types, lifting) empty_set foldl_conv_fold image_eqI insert_iff interp_ops_def le_neq_trans list.set(2) list.set_intros(1) list.set_map log_op.sel(1) sorted_append)
-  apply(subgoal_tac \<open>interp_op (Move x1 x2 x3) (aa#list, b) = do_one_op (aa#list, b) (Move x1 x2 x3)\<close>)
-   apply force
-  apply(subgoal_tac \<open>interp_op (Move x1 x2 x3) (aa#list, b) = (let (op2, tree2) = do_op (Move x1 x2 x3, b) in (op2 # aa # list, tree2))\<close>)
-   prefer 2 apply force
-  apply(subgoal_tac \<open>(let (op2, tree2) = do_op (Move x1 x2 x3, b) in (op2 # aa # list, tree2)) = do_one_op (aa#list,b) (Move x1 x2 x3)\<close>)
-   prefer 2 apply force+
-  done
-
-lemma
-  assumes \<open>distinct (map move_time (ops @ [Move t1 p1 c1, Move t2 p2 c2]))\<close>
-  shows \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
-         interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1])\<close>
-  using assms
-  apply(induction ops arbitrary: t1 t2 p1 p2 c1 c2 rule: List.rev_induct)
-  using interp_ops_base_commute
-   apply (metis append_Nil distinct_length_2_or_more list.simps(9) operation.sel(1))
-  apply clarsimp
-  apply(case_tac \<open>x\<close>; clarify)
-  apply(subgoal_tac \<open>\<And>t1 t2 p1 p2 c1 c2.
-           t1 \<noteq> t2 \<and> t1 \<notin> move_time ` set xs \<and> t2 \<notin> move_time ` set xs \<Longrightarrow> interp_ops (xs @ [Move t1 p1 c1, Move t2 p2 c2]) = interp_ops (xs @ [Move t2 p2 c2, Move t1 p1 c1])\<close>)
-  oops
-*)
-
-
-lemma redo_op_cons:
-  assumes \<open>redo_op (LogMove t oldp p c) (ops1, tree1) = (ops2, tree2)\<close>
-  shows \<open>\<exists>p2. ops2 = (LogMove t p2 p c) # ops1\<close>
-  using assms by auto
-
-lemma foldr_redo:
-  assumes \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
-    and \<open>foldr redo_op log1 st = (log1, tree1)\<close>
-  shows \<open>foldr redo_op log2 st = (log2, tree2)\<close>
-  using assms
-  apply(induction log1 arbitrary: log2 tree1 tree2 st rule: List.rev_induct; clarsimp)
-  apply(case_tac "redo_op x (a, b)"; clarsimp)
-  apply(case_tac "x"; clarsimp)
-  apply(case_tac "ancestor b x4 x3 \<or> x4 = x3"; clarsimp)
-  oops
-
-lemma foldr_redo:
-  assumes \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
-    and \<open>foldr redo_op log1 ([], {}) = (log1, tree1)\<close>
-  shows \<open>foldr redo_op log2 ([], {}) = (log2, tree2)\<close>
-using assms proof(induction log1 arbitrary: log2 tree1 tree2, clarsimp)
-  case (Cons logop log1)
-  then show ?case
-  proof(cases \<open>t < log_time logop\<close>)
-    case True
-    hence \<open>interp_op (Move t p c) (logop # log1, tree1) =
-           redo_op logop (interp_op (Move t p c) (log1, undo_op (logop, tree1)))\<close>
-      by simp
-    then show ?thesis sorry
-(*  then show ?thesis 
-      using Cons apply -
-      apply clarsimp
-      apply (case_tac "foldr redo_op log1 ([], {})")
-      apply clarsimp
-      apply (subgoal_tac "(\<exists>b2. redo_op logop (a, b) = (logop # a, b2)) \<or> (\<exists>logop2 b2. logop2 \<noteq> logop \<and> 
-                                                            redo_op logop (a, b) = (logop2 # a, b2))")
-       prefer 2
-       apply (metis log_op.exhaust_sel redo_op_cons)
-      apply (erule disjE)
-       prefer 2
-       apply force
-      apply (erule exE)
-      apply (subgoal_tac "a = log1 \<and> b2 = tree1")
-       prefer 2
-       apply force
-      apply clarsimp
-      apply(case_tac "logop", clarsimp simp del: redo_op.simps)
-      apply(subst (asm) redo_op.simps)
-      apply(subst (asm) do_op.simps)*)
-  next
-    case False
-    hence *: \<open>interp_op (Move t p c) (logop # log1, tree1) =
-           (let (op2, tree2) = do_op (Move t p c, tree1) in (op2 # logop # log1, tree2))\<close>
-      by simp
-    obtain logop2 tree2' where \<open>(logop2, tree2') = do_op (Move t p c, tree1)\<close>
-      by simp
-    hence \<open>log2 = logop2 # logop # log1\<close> and \<open>tree2' = tree2\<close>
-      using * Cons.prems(1) by auto
-    hence \<open>foldr redo_op log2 ([], {}) = redo_op logop2 (foldr redo_op (logop # log1) ([], {}))\<close>
-      by simp
-    also have \<open>... = redo_op logop2 (logop # log1, tree1)\<close>
-      using Cons.prems(2) by auto
-    (* The problem here is that redoing logop2 ignores the old-parent field,
-       and recomputes a new old-parent field by do_op. That recomputed field
-       value is not necessarily the same! So the returned log is not necessarily
-       equal to log2 = logop2 # logop # log1. *)
-    then show \<open>foldr redo_op log2 ([], {}) = (log2, tree2)\<close>
-      sorry
-  qed
-qed
-
-(*lemma foldr_redo:
-  assumes \<open>interp_ops ops = (log1, tree1)\<close>
-    and \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
-    and \<open>distinct ((map move_time ops) @ [t])\<close>
-    and \<open>foldr redo_op log1 ([], {}) = (log1, tree1)\<close>
-  shows \<open>foldr redo_op log2 ([], {}) = (log2, tree2)\<close>
-  sorry*)
-
-(* if \<open>interp_ops ops = (log, tree)\<close> then tree is a function of log. *)
-lemma redo_reconstruct_tree:
-  assumes \<open>interp_ops ops = (log, tree)\<close>
-    and \<open>distinct (map move_time ops)\<close>
-  shows \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
-using assms proof(induction ops arbitrary: log tree rule: List.rev_induct)
-  case Nil
-  thus \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
-    using foldr_Nil by simp
-next
-  case (snoc oper ops)
-  obtain t p c where \<open>oper = Move t p c\<close>
-    using operation.exhaust by blast
-  moreover obtain log1 tree1 where \<open>interp_ops ops = (log1, tree1)\<close>
-    using prod.exhaust_sel by blast
-  moreover from this have \<open>foldr redo_op log1 ([], {}) = (log1, tree1)\<close>
-    using snoc.IH snoc.prems(2) by auto
-  ultimately show \<open>foldr redo_op log ([], {}) = (log, tree)\<close>
-    using foldr_redo snoc.prems(1) snoc.prems(2) by fastforce
-qed
-
-corollary unique_tree_given_log:
-  assumes \<open>interp_ops ops1 = (log, tree1)\<close> and \<open>interp_ops ops2 = (log, tree2)\<close>
-    and \<open>distinct (map move_time ops1)\<close> and \<open>distinct (map move_time ops2)\<close>
-  shows \<open>tree1 = tree2\<close>
-using assms redo_reconstruct_tree by (metis Pair_inject)
 
 lemma distinct_list_pick1:
   assumes \<open>set (xs @ [x]) = set (ys @ [x] @ zs)\<close>
     and \<open>distinct (xs @ [x])\<close> and \<open>distinct (ys @ [x] @ zs)\<close>
   shows \<open>set xs = set (ys @ zs)\<close>
   sorry
-
-(*lemma log_unique_two_ops:
-  assumes \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) = (log1, tree1)\<close>
-    and \<open>interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1]) = (log2, tree2)\<close>
-    and \<open>distinct ((map move_time ops) @ [t1, t2])\<close>
-  shows \<open>log1 = log2\<close>
-using assms proof(induction ops arbitrary: log1 log2 tree1 tree2 t1 p1 c1 t2 p2 c2 rule: List.rev_induct)
-  case Nil
-  thus ?case
-    using interp_ops_base_commute
-    by (metis append_Nil distinct_length_2_or_more fst_conv list.simps(8))
-next
-  case (snoc x xs)
-  hence \<open>fst (interp_ops (xs @ [x, Move t1 p1 c1])) = fst (interp_ops (xs @ [Move t1 p1 c1, x]))\<close> (is ?L)
-    and \<open>fst (interp_ops (xs @ [x, Move t2 p2 c2])) = fst (interp_ops (xs @ [Move t2 p2 c2, x]))\<close> (is ?R)
-  proof -
-    obtain tx px cx where \<open>x = Move tx px cx\<close>
-      using operation.exhaust by blast
-    moreover from this have \<open>distinct (map move_time xs @ [tx, t1])\<close>
-       and \<open>distinct (map move_time xs @ [tx, t2])\<close>
-      using snoc.prems(3) by auto
-    ultimately show ?L and ?R
-      by (metis prod.exhaust_sel snoc.IH)+
-  qed
-
-  then show ?case sorry
-qed*)
-
-lemma
-  assumes \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>\<exists>pre1 pre2 suf oldp. log1 = pre1 @ suf \<and> log2 = pre2 @ [LogMove t oldp p c] @ suf \<and>
-         (\<exists>tree3. foldr redo_op pre1 ([LogMove t oldp p c] @ suf, tree3) = (pre2, tree2)) \<and>
-         (\<forall>ts \<in> log_time ` set pre2. ts > t) \<and> (\<forall>ts \<in> log_time ` set suf. ts < t)\<close>
-using assms proof(induction log1 arbitrary: tree1 tree2 log2, clarsimp)
-  case (Cons logop log1)
-  then show ?case
-  proof(cases \<open>t < log_time logop\<close>)
-    case True
-    obtain log3 tree3 where *: \<open>(log3, tree3) = interp_op (Move t p c) (log1, undo_op (logop, tree1))\<close>
-      by (metis prod.exhaust_sel)
-    have \<open>interp_op (Move t p c) (logop # log1, tree1) =
-        redo_op logop (interp_op (Move t p c) (log1, undo_op (logop, tree1)))\<close>
-      using True by simp
-    also have \<open>... = redo_op logop (log3, tree3)\<close>
-      using * by simp
-    also have **: \<open>... = (log2, tree2)\<close>
-      using Cons.prems calculation by auto
-    from this obtain logop4 tree4 where \<open>redo_op logop (log3, tree3) = (logop4 # log3, tree4)\<close>
-      by (metis log_op.exhaust_sel redo_op_cons)
-    obtain pre suf oldp where \<open>log1 = pre @ suf\<close> and
-              \<open>log3 = pre @ [LogMove t oldp p c] @ suf\<close> and
-              \<open>\<And>ts. ts \<in> log_time ` set pre \<Longrightarrow> ts > t\<close> and
-              \<open>\<And>ts. ts \<in> log_time ` set suf \<Longrightarrow> ts < t\<close>
-      sorry
-    then show ?thesis
-      apply -
-      apply(rule_tac x=\<open>logop4 # pre\<close> in exI)
-      apply(rule_tac x=\<open>suf\<close> in exI, rule_tac x=oldp in exI)
-      apply clarsimp
-      apply(rule conjI)
-      using redo_op_cons **
-      sorry
-  next
-    case False
-    then show ?thesis sorry
-  qed
-qed
-  
-
-lemma log_unique_two_ops:
-  assumes \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) = (log1, tree1)\<close>
-    and \<open>interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1]) = (log2, tree2)\<close>
-    and \<open>distinct ((map move_time ops) @ [t1, t2])\<close>
-    and \<open>t1 < t2\<close>
-  shows \<open>log1 = log2\<close>
-using assms proof(induction ops arbitrary: log1 log2 tree1 tree2 rule: List.rev_induct)
-  case Nil
-  thus ?case
-    using interp_ops_base_commute
-    by (metis append_Nil distinct_length_2_or_more fst_conv list.simps(8))
-next
-  case (snoc x xs)
-  obtain tx px cx where \<open>x = Move tx px cx\<close>
-    using operation.exhaust by blast
-  then consider (c1) \<open>tx < t1\<close> | (c2) \<open>t1 < tx \<and> tx < t2\<close> | (c3) \<open>t2 < tx\<close>
-    using not_less_iff_gr_or_eq snoc.prems(3) by auto
-  then show ?case
-  proof(cases)
-    case c1
-    then show ?thesis sorry
-  next
-    case c2
-    then show ?thesis sorry
-  next
-    case c3
-    then show ?thesis sorry
-  qed
-qed
-
-
-lemma log_unique_swap_last:
-  assumes \<open>distinct ((map move_time ops) @ [t1, t2])\<close>
-  shows \<open>fst (interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2])) =
-         fst (interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1]))\<close>
-proof(cases \<open>t1 < t2\<close>)
-  case True
-  then show ?thesis
-    by (meson assms log_unique_two_ops prod.exhaust_sel)
-next
-  case False
-  have \<open>distinct ((map move_time ops) @ [t2, t1])\<close>
-    using assms by auto
-  moreover have \<open>t1 \<noteq> t2\<close>
-    using assms by auto
-  hence \<open>t2 < t1\<close>
-    using False by auto
-  ultimately have \<open>fst (interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1])) =
-         fst (interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]))\<close>
-    by (meson log_unique_two_ops prod.exhaust_sel)
-  thus ?thesis
-    by simp
-qed
-
-lemma log_unique_middle:
-  assumes \<open>interp_ops (xs @ ys @ [oper]) = (log1, tree1)\<close>
-    and \<open>interp_ops (xs @ [oper] @ ys) = (log2, tree2)\<close>
-    and \<open>distinct (map move_time (xs @ ys @ [oper]))\<close>
-  shows \<open>log1 = log2\<close>
-using assms proof(induction ys arbitrary: log1 log2 tree1 tree2 rule: List.rev_induct, simp)
-  case (snoc y ys)
-  have \<open>fst (interp_ops (xs @ [oper] @ ys @ [y])) =
-        fst (interp_op y (interp_ops (xs @ [oper] @ ys)))\<close>
-    by (metis append.assoc interp_ops_step)
-  also have \<open>... = fst (interp_op y (interp_ops (xs @ ys @ [oper])))\<close>
-  proof -
-    have \<open>distinct (map move_time (xs @ [oper] @ ys))\<close>
-        and \<open>distinct (map move_time (xs @ ys @ [oper]))\<close>
-      using snoc.prems(3) by auto
-    moreover from this have \<open>fst (interp_ops (xs @ [oper] @ ys)) =
-        fst (interp_ops (xs @ ys @ [oper]))\<close>
-      using snoc.IH by (metis prod.exhaust_sel)
-    ultimately show ?thesis
-      by (metis prod.exhaust_sel unique_tree_given_log)
-  qed
-  also have \<open>... = fst (interp_ops ((xs @ ys) @ [oper, y]))\<close>
-    by (metis append.assoc append_Cons append_Nil interp_ops_step)
-  also have \<open>... = fst (interp_ops ((xs @ ys) @ [y, oper]))\<close>
-  proof -
-    have \<open>distinct ((map move_time (xs @ ys)) @ [move_time oper, move_time y])\<close>
-      using snoc.prems(3) by auto
-    thus ?thesis
-      using log_unique_swap_last by (metis operation.exhaust_sel)
-  qed
-  then show ?case
-    using calculation snoc.prems(1) snoc.prems(2) by auto
-qed
-
-lemma interp_op_move_logop1:
-  assumes \<open>t1 \<noteq> t2\<close>
-    and \<open>\<And>t. t \<in> set (map log_time log) \<Longrightarrow> t < t1\<close>
-    and \<open>logop = LogMove t1 (get_parent tree c1) p1 c1\<close>
-    and \<open>undo_op (logop, tree1) = tree\<close>
-    and \<open>\<And>p1 p2 c. (p1, c) \<in> tree \<Longrightarrow> (p2, c) \<in> tree \<Longrightarrow> p1 = p2\<close>
-  shows \<open>interp_op (Move t2 p2 c2) (logop # log, tree1) =
-         interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, tree))\<close>
-  sorry
-
-lemma interp_op_move_logop2:
-  assumes \<open>distinct [t1, t2, t3]\<close>
-    and \<open>\<And>t. t \<in> set (map log_time log) \<Longrightarrow> t < t1\<close>
-    and \<open>logop = LogMove t1 (get_parent tree c1) p1 c1\<close>
-    and \<open>undo_op (logop, tree1) = tree\<close>
-    and \<open>\<And>p1 p2 c. (p1, c) \<in> tree \<Longrightarrow> (p2, c) \<in> tree \<Longrightarrow> p1 = p2\<close>
-  shows \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (logop # log, tree1)) =
-         interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree)))\<close>
-proof -
-  consider (c123) \<open>t1 < t2 \<and> t2 < t3\<close> | (c132) \<open>t1 < t3 \<and> t3 < t2\<close> | (c213) \<open>t2 < t1 \<and> t1 < t3\<close> |
-           (c231) \<open>t2 < t3 \<and> t3 < t1\<close> | (c312) \<open>t3 < t1 \<and> t1 < t2\<close> | (c321) \<open>t3 < t2 \<and> t2 < t1\<close>
-    using assms by fastforce
-  then show ?thesis
-  proof(cases)
-    case c123 (* t1 < t2 < t3 *)
-    obtain tree12 where tree12: \<open>do_op (Move t2 p2 c2, tree1) = (LogMove t2 (get_parent tree1 c2) p2 c2, tree12)\<close>
-      by simp
-    obtain tree123 where tree123: \<open>do_op (Move t3 p3 c3, tree12) = (LogMove t3 (get_parent tree12 c3) p3 c3, tree123)\<close>
-      by simp
-    obtain tree2 where tree2: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree2)\<close>
-      by simp
-    hence undo3: \<open>undo_op (LogMove t2 (get_parent tree c2) p2 c2, tree2) = tree\<close>
-      by (metis assms(5) do_undo_op_inv)
-    obtain tree23 where tree23: \<open>do_op (Move t3 p3 c3, tree2) = (LogMove t3 (get_parent tree2 c3) p3 c3, tree23)\<close>
-      by simp
-    hence undo4: \<open>undo_op (LogMove t3 (get_parent tree2 c3) p3 c3, tree23) = tree2\<close>
-      by (metis assms(5) do_op_unique_parent do_undo_op_inv tree2)
-    have redo1: \<open>do_op (Move t1 p1 c1, tree) = (LogMove t1 (get_parent tree c1) p1 c1, tree1)\<close>
-      sorry
-    have 1: \<open>interp_op (Move t2 p2 c2) (logop # log, tree1) =
-              ((LogMove t2 (get_parent tree1 c2) p2 c2) # logop # log, tree12)\<close>
-      using c123 tree12 assms(3) by auto
-    hence 4: \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (logop # log, tree1)) =
-           (LogMove t3 (get_parent tree12 c3) p3 c3 # LogMove t2 (get_parent tree1 c2) p2 c2 # logop # log, tree123)\<close>
-      by (metis c123 case_prod_conv interp_op.simps(2) log_op.sel(1) not_less_iff_gr_or_eq operation.sel(1) tree123)
-    have \<open>interp_op (Move t2 p2 c2) (log, tree) = (LogMove t2 (get_parent tree c2) p2 c2 # log, tree2)\<close>
-    proof(cases log)
-      case Nil
-      then show ?thesis using tree2 by auto
-    next
-      case (Cons logop log')
-      moreover from this have \<open>log_time logop < t2\<close>
-        using assms(2) c123 dual_order.strict_trans by auto
-      ultimately show ?thesis using tree2 by auto
-    qed
-    hence \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree)) =
-           (LogMove t3 (get_parent tree2 c3) p3 c3 # LogMove t2 (get_parent tree c2) p2 c2 # log, tree23)\<close>
-      using c123 tree23 by auto
-    hence 3: \<open>interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree))) =
-           redo_op (LogMove t3 (get_parent tree2 c3) p3 c3) (interp_op (Move t1 p1 c1) (LogMove t2 (get_parent tree c2) p2 c2 # log, tree2))\<close>
-      using c123 undo4 by auto
-    have 2: \<open>interp_op (Move t1 p1 c1) (LogMove t2 (get_parent tree c2) p2 c2 # log, tree2) =
-          redo_op (LogMove t2 (get_parent tree c2) p2 c2) (interp_op (Move t1 p1 c1) (log, tree))\<close>
-      using c123 undo3 by auto
-    have \<open>interp_op (Move t1 p1 c1) (log, tree) = (LogMove t1 (get_parent tree c1) p1 c1 # log, tree1)\<close>
-    proof(cases log)
-      case Nil
-      then show ?thesis using redo1 by auto
-    next
-      case (Cons logop log')
-      moreover from this have \<open>log_time logop < t1\<close>
-        by (simp add: assms(2))
-      ultimately show ?thesis using redo1 by auto
-    qed
-    hence 5: \<open>interp_op (Move t1 p1 c1) (LogMove t2 (get_parent tree c2) p2 c2 # log, tree2) =
-        (LogMove t2 (get_parent tree1 c2) p2 c2 # LogMove t1 (get_parent tree c1) p1 c1 # log, tree12)\<close>
-      using "2" tree12 by auto
-    hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree))) =
-           (LogMove t3 (get_parent tree12 c3) p3 c3 # LogMove t2 (get_parent tree1 c2) p2 c2 # LogMove t1 (get_parent tree c1) p1 c1 # log, tree123)\<close>
-      using "3" tree123 by auto
-    then show ?thesis
-      using "4" assms(3) by simp
-  next
-    case c132 (* t1 < t3 < t2 *)
-    then show ?thesis sorry
-  next
-    case c213 (* t2 < t1 < t3 *)
-    obtain log2 tree2 where log2: \<open>interp_op (Move t2 p2 c2) (log, tree) = (log2, tree2)\<close>
-      by fastforce
-    obtain tree21 where tree21: \<open>do_op (Move t1 p1 c1, tree2) = (LogMove t1 (get_parent tree2 c1) p1 c1, tree21)\<close>
-      by simp
-    obtain tree213 where \<open>do_op (Move t3 p3 c3, tree21) = (LogMove t3 (get_parent tree21 c3) p3 c3, tree213)\<close>
-      by simp
-    hence \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (logop # log, tree1)) =
-           (LogMove t3 (get_parent tree21 c3) p3 c3 # LogMove t1 (get_parent tree2 c1) p1 c1 # log2, tree213)\<close>
-      using assms(3) assms(4) c213 log2 tree21 by auto
-    obtain tree23 where tree23: \<open>do_op (Move t3 p3 c3, tree2) = (LogMove t3 (get_parent tree2 c3) p3 c3, tree23)\<close>
-      by simp
-    have \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree)) =
-          (LogMove t3 (get_parent tree2 c3) p3 c3 # log2, tree23)\<close>
-    proof -
-      have \<open>\<And>t. t \<in> set (map log_time log2) \<Longrightarrow> t \<le> t2\<close>
-        sorry
-      moreover have \<open>t2 < t3\<close>
-        using c213 by auto
-      ultimately show ?thesis
-        sorry
-    qed
-    have \<open>interp_op (Move t1 p1 c1) (interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (log, tree))) =
-          undefined\<close>
-      sorry
-    then show ?thesis sorry
-  next
-    case c231 (* t2 < t3 < t1 *)
-    then show ?thesis sorry
-  next
-    case c312 (* t3 < t1 < t2 *)
-    then show ?thesis sorry
-  next
-    case c321 (* t3 < t2 < t1 *)
-    obtain log2 tree2 where log2: \<open>interp_op (Move t2 p2 c2) (log, tree) = (log2, tree2)\<close>
-      by fastforce
-    obtain tree21 where tree21: \<open>do_op (Move t1 p1 c1, tree2) = (LogMove t1 (get_parent tree2 c1) p1 c1, tree21)\<close>
-      by simp
-    hence undo21: \<open>undo_op (LogMove t1 (get_parent tree2 c1) p1 c1, tree21) = tree2\<close>
-      by (metis assms(5) do_undo_op_inv interp_op_unique_parent log2)
-    obtain tree23 where tree23: \<open>do_op (Move t3 p3 c3, tree2) = (LogMove t3 (get_parent tree2 c3) p3 c3, tree23)\<close>
-      by simp
-    obtain log3 tree3 where log3: \<open>interp_op (Move t3 p3 c3) (log, tree) = (log3, tree3)\<close>
-      by fastforce
-    obtain tree32 where tree32: \<open>do_op (Move t2 p2 c2, tree3) = (LogMove t2 (get_parent tree3 c2) p2 c2, tree32)\<close>
-      by simp
-    obtain tree321 where \<open>do_op (Move t1 p1 c1, tree32) = (LogMove t1 (get_parent tree32 c1) p1 c1, tree321)\<close>
-      by simp
-    have \<open>interp_op (Move t2 p2 c2) (logop # log, tree1) =
-          (LogMove t1 (get_parent tree2 c1) p1 c1 # log2, tree21)\<close>
-      using assms(3) assms(4) c321 log2 tree21 by auto
-    hence \<open>interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (logop # log, tree1)) =
-          redo_op (LogMove t1 (get_parent tree2 c1) p1 c1) (interp_op (Move t3 p3 c3) (log2, tree2))\<close>
-      using c321 undo21 by auto
-    then show ?thesis sorry
-  qed
-qed
 
 lemma interp_op_commute_base:
   assumes \<open>t1 < t2\<close>
@@ -1030,45 +502,6 @@ proof -
     using tree1 undo2 assms(1) by auto
   ultimately show ?thesis
     using tree12 by auto
-qed
-
-(* Proves commutativity under the assumption of interp_op_move_logop2.
-   However, I don't think we can get interp_op_move_logop2 to work. *)
-lemma interp_op_commute_FAIL:
-  assumes \<open>t1 < t2\<close>
-    and \<open>\<And>p1 p2 c. (p1, c) \<in> tree \<Longrightarrow> (p2, c) \<in> tree \<Longrightarrow> p1 = p2\<close>
-    and \<open>distinct ((map log_time log) @ [t1, t2])\<close>
-  shows \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, tree)) =
-         interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, tree))\<close>
-using assms proof(induction log arbitrary: tree)
-  case Nil
-  then show ?case using interp_op_commute_base by metis
-next
-  case (Cons logop log)
-  obtain t3 oldp3 p3 c3 where logop: \<open>logop = LogMove t3 oldp3 p3 c3\<close>
-    using log_op.exhaust by blast
-  have log_times: \<open>\<And>t. t \<in> set (map log_time log) \<Longrightarrow> t < t3\<close>
-    sorry
-  have oldp3: \<open>oldp3 = get_parent (undo_op(logop, tree)) c3\<close>
-    sorry
-  have unique_parent: \<open>\<And>p1 p2 c. (p1, c) \<in> undo_op(logop, tree) \<Longrightarrow> (p2, c) \<in> undo_op(logop, tree) \<Longrightarrow> p1 = p2\<close>
-    sorry
-  have \<open>distinct [t3, t1, t2]\<close>
-    using Cons.prems(3) logop by auto
-  hence \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree)) =
-         interp_op (Move t3 p3 c3) (interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, undo_op(logop, tree))))\<close>
-    using log_times oldp3 unique_parent interp_op_move_logop2 logop by (metis (no_types, hide_lams))
-  moreover have \<open>... = interp_op (Move t3 p3 c3) (interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op(logop, tree))))\<close>
-    using Cons.IH Cons.prems(3) assms(1) unique_parent by auto
-  moreover have \<open>... = interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (logop # log, tree))\<close>
-  proof -
-    have \<open>distinct [t3, t2, t1]\<close>
-      using Cons.prems(3) logop by auto
-    then show ?thesis
-      using log_times oldp3 unique_parent interp_op_move_logop2 logop by (metis (no_types, hide_lams))
-  qed
-  ultimately show ?case
-    by simp
 qed
 
 lemma interp_op_log_cons:
@@ -1116,13 +549,15 @@ using assms proof(induction log arbitrary: tree)
   then show ?case using interp_op_commute_base by metis
 next
   case (Cons logop log)
+  have parent0: \<open>\<And>p1 c p2. (p1, c) \<in> undo_op (logop, tree) \<Longrightarrow> (p2, c) \<in> undo_op (logop, tree) \<Longrightarrow> p1 = p2\<close>
+    sorry
   obtain t3 oldp3 p3 c3 where logop: \<open>logop = LogMove t3 oldp3 p3 c3\<close>
     using log_op.exhaust by blast
   then consider (c1) \<open>t3 < t1\<close> | (c2) \<open>t1 < t3 \<and> t3 < t2\<close> | (c3) \<open>t2 < t3\<close>
     using Cons.prems(3) by force
   then show ?case
   proof(cases)
-    case c1
+    case c1 (* t3 < t1 < t2 *)
     obtain tree1 where tree1: \<open>do_op (Move t1 p1 c1, tree) = (LogMove t1 (get_parent tree c1) p1 c1, tree1)\<close>
       by simp
     obtain tree12 where tree12: \<open>do_op (Move t2 p2 c2, tree1) = (LogMove t2 (get_parent tree1 c2) p2 c2, tree12)\<close>
@@ -1146,45 +581,37 @@ next
     ultimately show ?thesis
       using tree12 by auto
   next
-    case c2
-    hence \<open>interp_op (Move t1 p1 c1) (logop # log, tree) =
-           redo_op logop (interp_op (Move t1 p1 c1) (log, undo_op (logop, tree)))\<close>
-      by (simp add: logop)
-    obtain tree1 where tree1: \<open>tree1 = undo_op (logop, tree)\<close>
-      by simp
-    have \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, undo_op (logop, tree))) =
-          interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op (logop, tree)))\<close>
-    proof -
-      have \<open>(\<And>p1 c p2. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2)\<close>
-        sorry
-      then show ?thesis
-        using Cons.IH Cons.prems(3) assms(1) tree1 by auto
-    qed
-    obtain tree2 where tree2: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree2)\<close>
-      by simp
-    have *: \<open>interp_op (Move t2 p2 c2) (logop # log, tree) = (LogMove t2 (get_parent tree c2) p2 c2 # logop # log, tree2)\<close>
-      using c2 logop tree2 by auto
-    have \<open>undo_op (LogMove t2 (get_parent tree c2) p2 c2, tree2) = tree\<close>
-      by (metis Cons.prems(2) do_undo_op_inv tree2)
-    hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (logop # log, tree)) =
-          redo_op (LogMove t2 (get_parent tree c2) p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree))\<close>
-      using * assms(1) by auto
-    (* TODO work in progress *)
-    then show ?thesis sorry
-  next
-    case c3 (* t1 < t2 < t3 *)
-    obtain undone where undone: \<open>undone = undo_op (logop, tree)\<close>
-      by simp
+    case c2 (* t1 < t3 < t2 *)
     obtain tree1 log1 where tree1: \<open>interp_op (Move t1 p1 c1) (log, undo_op (logop, tree)) = (log1, tree1)\<close>
       by fastforce
-    from this obtain op1 log1' where op1: \<open>log1 = op1 # log1' \<and> t1 \<le> log_time op1\<close>
-      using interp_op_log_cons by metis
+    obtain tree13 where tree13: \<open>do_op (Move t3 p3 c3, tree1) = (LogMove t3 (get_parent tree1 c3) p3 c3, tree13)\<close>
+      by simp
+    obtain tree132 where tree132: \<open>do_op (Move t2 p2 c2, tree13) = (LogMove t2 (get_parent tree13 c2) p2 c2, tree132)\<close>
+      by simp
+    obtain tree2 where tree2: \<open>do_op (Move t2 p2 c2, tree) = (LogMove t2 (get_parent tree c2) p2 c2, tree2)\<close>
+      by simp
+    hence undo2: \<open>undo_op (LogMove t2 (get_parent tree c2) p2 c2, tree2) = tree\<close>
+      by (metis Cons.prems(2) do_undo_op_inv)
+    have \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree)) =
+           (LogMove t2 (get_parent tree13 c2) p2 c2 # LogMove t3 (get_parent tree1 c3) p3 c3 # log1, tree132)\<close>
+      using c2 logop tree1 tree13 tree132 by auto
+    moreover have \<open>interp_op (Move t2 p2 c2) (logop # log, tree) =
+                   (LogMove t2 (get_parent tree c2) p2 c2 # logop # log, tree2)\<close>
+      using c2 logop tree2 by auto
+    hence \<open>interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (logop # log, tree)) =
+           (LogMove t2 (get_parent tree13 c2) p2 c2 # LogMove t3 (get_parent tree1 c3) p3 c3 # log1, tree132)\<close>
+      using assms(1) undo2 c2 logop tree1 tree13 tree132 by auto
+    ultimately show ?thesis by simp
+  next
+    case c3 (* t1 < t2 < t3 *)
+    obtain tree1 log1 where tree1: \<open>interp_op (Move t1 p1 c1) (log, undo_op (logop, tree)) = (log1, tree1)\<close>
+      by fastforce
     obtain tree13 where tree13: \<open>do_op (Move t3 p3 c3, tree1) = (LogMove t3 (get_parent tree1 c3) p3 c3, tree13)\<close>
       by simp
     hence undo13: \<open>undo_op (LogMove t3 (get_parent tree1 c3) p3 c3, tree13) = tree1\<close>
     proof -
       have \<open>\<And>p1 p2 c. (p1, c) \<in> tree1 \<Longrightarrow> (p2, c) \<in> tree1 \<Longrightarrow> p1 = p2\<close>
-        sorry
+        by (meson interp_op_unique_parent parent0 tree1)
       thus ?thesis
         using do_undo_op_inv tree13 by metis
     qed
@@ -1203,13 +630,13 @@ next
     hence undo23: \<open>undo_op (LogMove t3 (get_parent tree2 c3) p3 c3, tree23) = tree2\<close>
     proof -
       have \<open>\<And>p1 p2 c. (p1, c) \<in> tree2 \<Longrightarrow> (p2, c) \<in> tree2 \<Longrightarrow> p1 = p2\<close>
-        sorry
+        by (meson interp_op_unique_parent parent0 tree2)
       thus ?thesis
         using do_undo_op_inv tree23 by metis
     qed
     have \<open>interp_op (Move t1 p1 c1) (logop # log, tree) =
            (LogMove t3 (get_parent tree1 c3) p3 c3 # log1, tree13)\<close>
-      using assms(1) c3 logop undone tree1 tree13 by auto
+      using assms(1) c3 logop tree1 tree13 by auto
     hence \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (logop # log, tree)) =
            (LogMove t3 (get_parent tree12 c3) p3 c3 # log12, tree123)\<close>
       using c3 tree12 tree123 undo13 by auto
@@ -1220,15 +647,8 @@ next
            (LogMove t3 (get_parent tree21 c3) p3 c3 # log21, tree213)\<close>
       using assms(1) c3 undo23 tree21 tree213 by auto
     moreover have \<open>interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, undo_op (logop, tree))) =
-           interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op (logop, tree)))\<close>
-    proof -
-      have \<open>\<And>p1 c p2. (p1, c) \<in> undo_op (logop, tree) \<Longrightarrow> (p2, c) \<in> undo_op (logop, tree) \<Longrightarrow> p1 = p2\<close>
-        sorry
-      moreover have \<open>distinct (map log_time log @ [t1, t2])\<close>
-        using Cons.prems(3) by auto
-      ultimately show ?thesis
-        using Cons.IH assms(1) by blast
-    qed
+                   interp_op (Move t1 p1 c1) (interp_op (Move t2 p2 c2) (log, undo_op (logop, tree)))\<close>
+      using Cons.IH Cons.prems(3) assms(1) parent0 by auto
     ultimately show ?thesis
       using tree1 tree12 tree123 tree2 tree21 tree213 by auto
   qed
