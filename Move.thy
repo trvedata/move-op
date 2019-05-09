@@ -474,7 +474,7 @@ lemma distinct_list_pick1:
   assumes \<open>set (xs @ [x]) = set (ys @ [x] @ zs)\<close>
     and \<open>distinct (xs @ [x])\<close> and \<open>distinct (ys @ [x] @ zs)\<close>
   shows \<open>set xs = set (ys @ zs)\<close>
-  sorry
+using assms by (induction xs) (fastforce+)
 
 lemma interp_op_commute_base:
   assumes \<open>t1 < t2\<close>
@@ -655,7 +655,7 @@ next
 qed
 
 lemma interp_op_commute_last:
-  assumes \<open>t1 \<noteq> t2\<close>
+  assumes \<open>distinct ((map move_time ops) @ [t1, t2])\<close>
   shows \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
          interp_ops (ops @ [Move t2 p2 c2, Move t1 p1 c1])\<close>
 proof -
@@ -706,7 +706,7 @@ using assms proof(induction ys rule: List.rev_induct, simp)
     by (metis append.assoc append_Cons append_Nil interp_ops_step)
   also have \<open>... = interp_ops ((xs @ ys) @ [y, oper])\<close>
   proof -
-    have \<open>move_time oper \<noteq> move_time y\<close>
+    have \<open>distinct ((map move_time (xs @ ys)) @ [move_time y, move_time oper])\<close>
       using snoc.prems by auto
     thus ?thesis
       using interp_op_commute_last by (metis operation.exhaust_sel)
