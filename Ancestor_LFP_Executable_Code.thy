@@ -81,9 +81,9 @@ lemma ancestor_alt_def [simp, code]:
 declare lfp_while_lattice [code_unfold]
 declare finite_class.finite [code_unfold]
 
-export_code ancestor' in SML module_name Ancestor
+definition ancestor'' :: \<open>bool\<close>
+  where \<open>ancestor'' \<equiv> ancestor' {(CHR ''a'', CHR ''b''), (CHR ''b'', CHR ''c''), (CHR ''c'', CHR ''d'')} (CHR ''a'') (CHR ''d'')\<close>
 
-value [code] \<open>ancestor' {(CHR ''a'', CHR ''b''), (CHR ''b'', CHR ''c''), (CHR ''c'', CHR ''d'')} (CHR ''a'') (CHR ''a'')\<close>
-value [code] \<open>ancestor' {(CHR ''a'', CHR ''b''), (CHR ''b'', CHR ''c''), (CHR ''c'', CHR ''d'')} (CHR ''a'') (CHR ''d'')\<close>
+export_code ancestor'' in SML module_name Ancestor file ancestor.ML
 
 end

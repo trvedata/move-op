@@ -1,9 +1,278 @@
 structure Ancestor : sig
-  type 'a enum
-  type 'a equal
+  type char
   type 'a set
-  val ancestor : 'a enum * 'a equal -> ('a * 'a) set -> 'a -> 'a -> bool
+  val ancestora : bool
 end = struct
+
+datatype char = Chara of bool * bool * bool * bool * bool * bool * bool * bool;
+
+val enum_chara : char list =
+  [Chara (false, false, false, false, false, false, false, false),
+    Chara (true, false, false, false, false, false, false, false),
+    Chara (false, true, false, false, false, false, false, false),
+    Chara (true, true, false, false, false, false, false, false),
+    Chara (false, false, true, false, false, false, false, false),
+    Chara (true, false, true, false, false, false, false, false),
+    Chara (false, true, true, false, false, false, false, false),
+    Chara (true, true, true, false, false, false, false, false),
+    Chara (false, false, false, true, false, false, false, false),
+    Chara (true, false, false, true, false, false, false, false),
+    Chara (false, true, false, true, false, false, false, false),
+    Chara (true, true, false, true, false, false, false, false),
+    Chara (false, false, true, true, false, false, false, false),
+    Chara (true, false, true, true, false, false, false, false),
+    Chara (false, true, true, true, false, false, false, false),
+    Chara (true, true, true, true, false, false, false, false),
+    Chara (false, false, false, false, true, false, false, false),
+    Chara (true, false, false, false, true, false, false, false),
+    Chara (false, true, false, false, true, false, false, false),
+    Chara (true, true, false, false, true, false, false, false),
+    Chara (false, false, true, false, true, false, false, false),
+    Chara (true, false, true, false, true, false, false, false),
+    Chara (false, true, true, false, true, false, false, false),
+    Chara (true, true, true, false, true, false, false, false),
+    Chara (false, false, false, true, true, false, false, false),
+    Chara (true, false, false, true, true, false, false, false),
+    Chara (false, true, false, true, true, false, false, false),
+    Chara (true, true, false, true, true, false, false, false),
+    Chara (false, false, true, true, true, false, false, false),
+    Chara (true, false, true, true, true, false, false, false),
+    Chara (false, true, true, true, true, false, false, false),
+    Chara (true, true, true, true, true, false, false, false),
+    Chara (false, false, false, false, false, true, false, false),
+    Chara (true, false, false, false, false, true, false, false),
+    Chara (false, true, false, false, false, true, false, false),
+    Chara (true, true, false, false, false, true, false, false),
+    Chara (false, false, true, false, false, true, false, false),
+    Chara (true, false, true, false, false, true, false, false),
+    Chara (false, true, true, false, false, true, false, false),
+    Chara (true, true, true, false, false, true, false, false),
+    Chara (false, false, false, true, false, true, false, false),
+    Chara (true, false, false, true, false, true, false, false),
+    Chara (false, true, false, true, false, true, false, false),
+    Chara (true, true, false, true, false, true, false, false),
+    Chara (false, false, true, true, false, true, false, false),
+    Chara (true, false, true, true, false, true, false, false),
+    Chara (false, true, true, true, false, true, false, false),
+    Chara (true, true, true, true, false, true, false, false),
+    Chara (false, false, false, false, true, true, false, false),
+    Chara (true, false, false, false, true, true, false, false),
+    Chara (false, true, false, false, true, true, false, false),
+    Chara (true, true, false, false, true, true, false, false),
+    Chara (false, false, true, false, true, true, false, false),
+    Chara (true, false, true, false, true, true, false, false),
+    Chara (false, true, true, false, true, true, false, false),
+    Chara (true, true, true, false, true, true, false, false),
+    Chara (false, false, false, true, true, true, false, false),
+    Chara (true, false, false, true, true, true, false, false),
+    Chara (false, true, false, true, true, true, false, false),
+    Chara (true, true, false, true, true, true, false, false),
+    Chara (false, false, true, true, true, true, false, false),
+    Chara (true, false, true, true, true, true, false, false),
+    Chara (false, true, true, true, true, true, false, false),
+    Chara (true, true, true, true, true, true, false, false),
+    Chara (false, false, false, false, false, false, true, false),
+    Chara (true, false, false, false, false, false, true, false),
+    Chara (false, true, false, false, false, false, true, false),
+    Chara (true, true, false, false, false, false, true, false),
+    Chara (false, false, true, false, false, false, true, false),
+    Chara (true, false, true, false, false, false, true, false),
+    Chara (false, true, true, false, false, false, true, false),
+    Chara (true, true, true, false, false, false, true, false),
+    Chara (false, false, false, true, false, false, true, false),
+    Chara (true, false, false, true, false, false, true, false),
+    Chara (false, true, false, true, false, false, true, false),
+    Chara (true, true, false, true, false, false, true, false),
+    Chara (false, false, true, true, false, false, true, false),
+    Chara (true, false, true, true, false, false, true, false),
+    Chara (false, true, true, true, false, false, true, false),
+    Chara (true, true, true, true, false, false, true, false),
+    Chara (false, false, false, false, true, false, true, false),
+    Chara (true, false, false, false, true, false, true, false),
+    Chara (false, true, false, false, true, false, true, false),
+    Chara (true, true, false, false, true, false, true, false),
+    Chara (false, false, true, false, true, false, true, false),
+    Chara (true, false, true, false, true, false, true, false),
+    Chara (false, true, true, false, true, false, true, false),
+    Chara (true, true, true, false, true, false, true, false),
+    Chara (false, false, false, true, true, false, true, false),
+    Chara (true, false, false, true, true, false, true, false),
+    Chara (false, true, false, true, true, false, true, false),
+    Chara (true, true, false, true, true, false, true, false),
+    Chara (false, false, true, true, true, false, true, false),
+    Chara (true, false, true, true, true, false, true, false),
+    Chara (false, true, true, true, true, false, true, false),
+    Chara (true, true, true, true, true, false, true, false),
+    Chara (false, false, false, false, false, true, true, false),
+    Chara (true, false, false, false, false, true, true, false),
+    Chara (false, true, false, false, false, true, true, false),
+    Chara (true, true, false, false, false, true, true, false),
+    Chara (false, false, true, false, false, true, true, false),
+    Chara (true, false, true, false, false, true, true, false),
+    Chara (false, true, true, false, false, true, true, false),
+    Chara (true, true, true, false, false, true, true, false),
+    Chara (false, false, false, true, false, true, true, false),
+    Chara (true, false, false, true, false, true, true, false),
+    Chara (false, true, false, true, false, true, true, false),
+    Chara (true, true, false, true, false, true, true, false),
+    Chara (false, false, true, true, false, true, true, false),
+    Chara (true, false, true, true, false, true, true, false),
+    Chara (false, true, true, true, false, true, true, false),
+    Chara (true, true, true, true, false, true, true, false),
+    Chara (false, false, false, false, true, true, true, false),
+    Chara (true, false, false, false, true, true, true, false),
+    Chara (false, true, false, false, true, true, true, false),
+    Chara (true, true, false, false, true, true, true, false),
+    Chara (false, false, true, false, true, true, true, false),
+    Chara (true, false, true, false, true, true, true, false),
+    Chara (false, true, true, false, true, true, true, false),
+    Chara (true, true, true, false, true, true, true, false),
+    Chara (false, false, false, true, true, true, true, false),
+    Chara (true, false, false, true, true, true, true, false),
+    Chara (false, true, false, true, true, true, true, false),
+    Chara (true, true, false, true, true, true, true, false),
+    Chara (false, false, true, true, true, true, true, false),
+    Chara (true, false, true, true, true, true, true, false),
+    Chara (false, true, true, true, true, true, true, false),
+    Chara (true, true, true, true, true, true, true, false),
+    Chara (false, false, false, false, false, false, false, true),
+    Chara (true, false, false, false, false, false, false, true),
+    Chara (false, true, false, false, false, false, false, true),
+    Chara (true, true, false, false, false, false, false, true),
+    Chara (false, false, true, false, false, false, false, true),
+    Chara (true, false, true, false, false, false, false, true),
+    Chara (false, true, true, false, false, false, false, true),
+    Chara (true, true, true, false, false, false, false, true),
+    Chara (false, false, false, true, false, false, false, true),
+    Chara (true, false, false, true, false, false, false, true),
+    Chara (false, true, false, true, false, false, false, true),
+    Chara (true, true, false, true, false, false, false, true),
+    Chara (false, false, true, true, false, false, false, true),
+    Chara (true, false, true, true, false, false, false, true),
+    Chara (false, true, true, true, false, false, false, true),
+    Chara (true, true, true, true, false, false, false, true),
+    Chara (false, false, false, false, true, false, false, true),
+    Chara (true, false, false, false, true, false, false, true),
+    Chara (false, true, false, false, true, false, false, true),
+    Chara (true, true, false, false, true, false, false, true),
+    Chara (false, false, true, false, true, false, false, true),
+    Chara (true, false, true, false, true, false, false, true),
+    Chara (false, true, true, false, true, false, false, true),
+    Chara (true, true, true, false, true, false, false, true),
+    Chara (false, false, false, true, true, false, false, true),
+    Chara (true, false, false, true, true, false, false, true),
+    Chara (false, true, false, true, true, false, false, true),
+    Chara (true, true, false, true, true, false, false, true),
+    Chara (false, false, true, true, true, false, false, true),
+    Chara (true, false, true, true, true, false, false, true),
+    Chara (false, true, true, true, true, false, false, true),
+    Chara (true, true, true, true, true, false, false, true),
+    Chara (false, false, false, false, false, true, false, true),
+    Chara (true, false, false, false, false, true, false, true),
+    Chara (false, true, false, false, false, true, false, true),
+    Chara (true, true, false, false, false, true, false, true),
+    Chara (false, false, true, false, false, true, false, true),
+    Chara (true, false, true, false, false, true, false, true),
+    Chara (false, true, true, false, false, true, false, true),
+    Chara (true, true, true, false, false, true, false, true),
+    Chara (false, false, false, true, false, true, false, true),
+    Chara (true, false, false, true, false, true, false, true),
+    Chara (false, true, false, true, false, true, false, true),
+    Chara (true, true, false, true, false, true, false, true),
+    Chara (false, false, true, true, false, true, false, true),
+    Chara (true, false, true, true, false, true, false, true),
+    Chara (false, true, true, true, false, true, false, true),
+    Chara (true, true, true, true, false, true, false, true),
+    Chara (false, false, false, false, true, true, false, true),
+    Chara (true, false, false, false, true, true, false, true),
+    Chara (false, true, false, false, true, true, false, true),
+    Chara (true, true, false, false, true, true, false, true),
+    Chara (false, false, true, false, true, true, false, true),
+    Chara (true, false, true, false, true, true, false, true),
+    Chara (false, true, true, false, true, true, false, true),
+    Chara (true, true, true, false, true, true, false, true),
+    Chara (false, false, false, true, true, true, false, true),
+    Chara (true, false, false, true, true, true, false, true),
+    Chara (false, true, false, true, true, true, false, true),
+    Chara (true, true, false, true, true, true, false, true),
+    Chara (false, false, true, true, true, true, false, true),
+    Chara (true, false, true, true, true, true, false, true),
+    Chara (false, true, true, true, true, true, false, true),
+    Chara (true, true, true, true, true, true, false, true),
+    Chara (false, false, false, false, false, false, true, true),
+    Chara (true, false, false, false, false, false, true, true),
+    Chara (false, true, false, false, false, false, true, true),
+    Chara (true, true, false, false, false, false, true, true),
+    Chara (false, false, true, false, false, false, true, true),
+    Chara (true, false, true, false, false, false, true, true),
+    Chara (false, true, true, false, false, false, true, true),
+    Chara (true, true, true, false, false, false, true, true),
+    Chara (false, false, false, true, false, false, true, true),
+    Chara (true, false, false, true, false, false, true, true),
+    Chara (false, true, false, true, false, false, true, true),
+    Chara (true, true, false, true, false, false, true, true),
+    Chara (false, false, true, true, false, false, true, true),
+    Chara (true, false, true, true, false, false, true, true),
+    Chara (false, true, true, true, false, false, true, true),
+    Chara (true, true, true, true, false, false, true, true),
+    Chara (false, false, false, false, true, false, true, true),
+    Chara (true, false, false, false, true, false, true, true),
+    Chara (false, true, false, false, true, false, true, true),
+    Chara (true, true, false, false, true, false, true, true),
+    Chara (false, false, true, false, true, false, true, true),
+    Chara (true, false, true, false, true, false, true, true),
+    Chara (false, true, true, false, true, false, true, true),
+    Chara (true, true, true, false, true, false, true, true),
+    Chara (false, false, false, true, true, false, true, true),
+    Chara (true, false, false, true, true, false, true, true),
+    Chara (false, true, false, true, true, false, true, true),
+    Chara (true, true, false, true, true, false, true, true),
+    Chara (false, false, true, true, true, false, true, true),
+    Chara (true, false, true, true, true, false, true, true),
+    Chara (false, true, true, true, true, false, true, true),
+    Chara (true, true, true, true, true, false, true, true),
+    Chara (false, false, false, false, false, true, true, true),
+    Chara (true, false, false, false, false, true, true, true),
+    Chara (false, true, false, false, false, true, true, true),
+    Chara (true, true, false, false, false, true, true, true),
+    Chara (false, false, true, false, false, true, true, true),
+    Chara (true, false, true, false, false, true, true, true),
+    Chara (false, true, true, false, false, true, true, true),
+    Chara (true, true, true, false, false, true, true, true),
+    Chara (false, false, false, true, false, true, true, true),
+    Chara (true, false, false, true, false, true, true, true),
+    Chara (false, true, false, true, false, true, true, true),
+    Chara (true, true, false, true, false, true, true, true),
+    Chara (false, false, true, true, false, true, true, true),
+    Chara (true, false, true, true, false, true, true, true),
+    Chara (false, true, true, true, false, true, true, true),
+    Chara (true, true, true, true, false, true, true, true),
+    Chara (false, false, false, false, true, true, true, true),
+    Chara (true, false, false, false, true, true, true, true),
+    Chara (false, true, false, false, true, true, true, true),
+    Chara (true, true, false, false, true, true, true, true),
+    Chara (false, false, true, false, true, true, true, true),
+    Chara (true, false, true, false, true, true, true, true),
+    Chara (false, true, true, false, true, true, true, true),
+    Chara (true, true, true, false, true, true, true, true),
+    Chara (false, false, false, true, true, true, true, true),
+    Chara (true, false, false, true, true, true, true, true),
+    Chara (false, true, false, true, true, true, true, true),
+    Chara (true, true, false, true, true, true, true, true),
+    Chara (false, false, true, true, true, true, true, true),
+    Chara (true, false, true, true, true, true, true, true),
+    Chara (false, true, true, true, true, true, true, true),
+    Chara (true, true, true, true, true, true, true, true)];
+
+fun list_all p [] = true
+  | list_all p (x :: xs) = p x andalso list_all p xs;
+
+fun enum_all_char p = list_all p enum_chara;
+
+fun list_ex p [] = false
+  | list_ex p (x :: xs) = p x orelse list_ex p xs;
+
+fun enum_ex_char p = list_ex p enum_chara;
 
 type 'a finite = {};
 
@@ -14,6 +283,33 @@ val finite_enum = #finite_enum : 'a enum -> 'a finite;
 val enum = #enum : 'a enum -> 'a list;
 val enum_all = #enum_all : 'a enum -> ('a -> bool) -> bool;
 val enum_ex = #enum_ex : 'a enum -> ('a -> bool) -> bool;
+
+val finite_char = {} : char finite;
+
+val enum_char =
+  {finite_enum = finite_char, enum = enum_chara, enum_all = enum_all_char,
+    enum_ex = enum_ex_char}
+  : char enum;
+
+fun equal_bool p true = p
+  | equal_bool p false = not p
+  | equal_bool true p = p
+  | equal_bool false p = not p;
+
+fun equal_chara (Chara (x1, x2, x3, x4, x5, x6, x7, x8))
+  (Chara (y1, y2, y3, y4, y5, y6, y7, y8)) =
+  equal_bool x1 y1 andalso
+    (equal_bool x2 y2 andalso
+      (equal_bool x3 y3 andalso
+        (equal_bool x4 y4 andalso
+          (equal_bool x5 y5 andalso
+            (equal_bool x6 y6 andalso
+              (equal_bool x7 y7 andalso equal_bool x8 y8))))));
+
+type 'a equal = {equal : 'a -> 'a -> bool};
+val equal = #equal : 'a equal -> 'a -> 'a -> bool;
+
+val equal_char = {equal = equal_chara} : char equal;
 
 fun enum_all_prod A_ B_ p =
   enum_all A_ (fn x => enum_all B_ (fn y => p (x, y)));
@@ -35,9 +331,6 @@ fun enum_prod A_ B_ =
     enum = enum_proda A_ B_, enum_all = enum_all_prod A_ B_,
     enum_ex = enum_ex_prod A_ B_}
   : ('a * 'b) enum;
-
-type 'a equal = {equal : 'a -> 'a -> bool};
-val equal = #equal : 'a equal -> 'a -> 'a -> bool;
 
 fun eq A_ a b = equal A_ a b;
 
@@ -71,9 +364,6 @@ fun filter p [] = []
   | filter p (x :: xs) = (if p x then x :: filter p xs else filter p xs);
 
 fun collect A_ p = Set (filter p (enum A_));
-
-fun list_all p [] = true
-  | list_all p (x :: xs) = p x andalso list_all p xs;
 
 fun whilea b c s = (if b s then whilea b c (c s) else s);
 
@@ -110,5 +400,20 @@ fun ancestor (A1_, A2_) s p c =
                   member (equal_prod A2_ A2_) (pa, ca) s andalso
                     member (equal_prod A2_ A2_) (ca, g) t))))
       bot_set);
+
+val ancestora : bool =
+  ancestor (enum_char, equal_char)
+    (insert (equal_prod equal_char equal_char)
+      (Chara (true, false, false, false, false, true, true, false),
+        Chara (false, true, false, false, false, true, true, false))
+      (insert (equal_prod equal_char equal_char)
+        (Chara (false, true, false, false, false, true, true, false),
+          Chara (true, true, false, false, false, true, true, false))
+        (insert (equal_prod equal_char equal_char)
+          (Chara (true, true, false, false, false, true, true, false),
+            Chara (false, false, true, false, false, true, true, false))
+          bot_set)))
+    (Chara (true, false, false, false, false, true, true, false))
+    (Chara (false, false, true, false, false, true, true, false));
 
 end; (*struct Ancestor*)
