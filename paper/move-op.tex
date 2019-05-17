@@ -1,0 +1,94 @@
+\documentclass[sigconf]{acmart}
+
+\usepackage{isabelle,isabellesym}
+\isabellestyle{it}
+\renewenvironment{isabelle}{%
+  \bigbreak\noindent\hspace{\parindent}%
+  \begin{minipage}{\textwidth-\parindent}% use minipage to prevent page breaks
+  \begin{isabellebody}%
+  \begin{tabbing}%
+}{%
+  \end{tabbing}%
+  \end{isabellebody}%
+  \end{minipage}%
+  \bigbreak%
+}
+\renewcommand{\isanewline}{\\}
+
+\setcopyright{rightsretained}
+\copyrightyear{2019}
+\acmYear{2019}
+\acmDOI{}
+\acmConference[]{}{}{}
+\acmBooktitle{}
+\acmPrice{}
+\acmISBN{}
+
+\begin{document}
+\title{A highly-available move operation for replicated trees}
+
+\author{Martin Kleppmann}
+\email{mk428@cl.cam.ac.uk}
+\orcid{0000-0001-7252-6958}
+\affiliation{%
+  \institution{Department of Computer Science and Technology}
+  \streetaddress{15 JJ Thomson Avenue}
+  \city{Cambridge}
+  \state{}
+  \postcode{CB3 0FD}
+  \country{United Kingdom}
+}
+
+\author{Dominic P.\ Mulligan}
+\email{Dominic.Mulligan@arm.com}
+\orcid{0000-0003-4643-3541}
+\affiliation{%
+  \institution{Arm Research}
+  \streetaddress{110 Fulbourn Road}
+  \city{Cambridge}
+  \state{}
+  \postcode{CB1 9NJ}
+  \country{United Kingdom}
+}
+
+\author{Victor B.\ F.\ Gomes}
+\email{vb358@cl.cam.ac.uk}
+\orcid{0000-0002-2954-4648}
+\affiliation{%
+  \institution{Department of Computer Science and Technology}
+  \streetaddress{15 JJ Thomson Avenue}
+  \city{Cambridge}
+  \state{}
+  \postcode{CB3 0FD}
+  \country{United Kingdom}
+}
+
+\author{Alastair R.\ Beresford}
+\email{arb33@cl.cam.ac.uk}
+\orcid{0000-0003-0818-6535}
+\affiliation{%
+  \institution{Department of Computer Science and Technology}
+  \streetaddress{15 JJ Thomson Avenue}
+  \city{Cambridge}
+  \state{}
+  \postcode{CB3 0FD}
+  \country{United Kingdom}
+}
+
+\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
+\maketitle
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction}
+
+CRDTs rock \cite{Shapiro:2011wy,Shapiro:2011un}.
+
+\begin{acks}
+The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
+\end{acks}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}{}
+\end{document}
