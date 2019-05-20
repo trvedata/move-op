@@ -23,9 +23,9 @@ definition get_parent :: \<open>('n \<times> 'n) set \<Rightarrow> 'n \<Rightarr
        Some (THE parent. (parent, child) \<in> tree)
      else None\<close>
 
-inductive ancestor :: "('n \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool" where
-  "\<lbrakk>(parent, child) \<in> tree\<rbrakk> \<Longrightarrow> ancestor tree parent child" |
-  "\<lbrakk>(parent, child) \<in> tree; ancestor tree anc parent\<rbrakk> \<Longrightarrow> ancestor tree anc child"
+inductive ancestor :: \<open>('n \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close> where
+  \<open>\<lbrakk>(parent, child) \<in> tree\<rbrakk> \<Longrightarrow> ancestor tree parent child\<close> |
+  \<open>\<lbrakk>(parent, child) \<in> tree; ancestor tree anc parent\<rbrakk> \<Longrightarrow> ancestor tree anc child\<close>
 
 fun do_op :: \<open>('t, 'n) operation \<times> ('n \<times> 'n) set \<Rightarrow> ('t, 'n) log_op \<times> ('n \<times> 'n) set\<close> where
   \<open>do_op (Move t newp c, tree) =
@@ -56,7 +56,7 @@ definition interp_ops :: \<open>('t::{linorder}, 'n) operation list \<Rightarrow
   \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
 
 
-section \<open>undo_op is the inverse of do_op\<close>
+section \<open>undo-op is the inverse of do-op\<close>
 
 lemma get_parent_None:
   assumes \<open>\<nexists>p. (p, c) \<in> tree\<close>
