@@ -546,7 +546,7 @@ using assms proof(induction log arbitrary: tree)
 next
   case (Cons logop log)
   have parent0: \<open>\<And>p1 c p2. (p1, c) \<in> undo_op (logop, tree) \<Longrightarrow> (p2, c) \<in> undo_op (logop, tree) \<Longrightarrow> p1 = p2\<close>
-    sorry
+    by (metis Cons.prems(2) log_op.exhaust_sel undo_op_unique_parent)
   obtain t3 oldp3 p3 c3 where logop: \<open>logop = LogMove t3 oldp3 p3 c3\<close>
     using log_op.exhaust by blast
   then consider (c1) \<open>t3 < t1\<close> | (c2) \<open>t1 < t3 \<and> t3 < t2\<close> | (c3) \<open>t2 < t3\<close>
@@ -650,6 +650,71 @@ next
   qed
 qed
 
+lemma interp_op_timestamp:
+  assumes \<open>distinct ((map log_time log1) @ [t])\<close>
+    and \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
+  shows \<open>distinct (map log_time log2) \<and> set (map log_time log2) = {t} \<union> set (map log_time log1)\<close>
+using assms proof(induction log1 arbitrary: tree1 log2 tree2)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons logop log)
+  obtain log3 tree3 where log3: \<open>interp_op (Move t p c) (log, undo_op (logop, tree1)) = (log3, tree3)\<close>
+    using prod.exhaust_sel by blast
+  have \<open>distinct ((map log_time log) @ [t])\<close>
+    using Cons.prems(1) by auto
+  hence IH: \<open>distinct (map log_time log3) \<and> set (map log_time log3) = {t} \<union> set (map log_time log)\<close>
+    using Cons.IH Cons.prems(1) log3 by auto
+  then show ?case
+  proof(cases \<open>t < log_time logop\<close>)
+    case recursive_case: True
+    obtain t2 oldp2 p2 c2 where logop: \<open>logop = LogMove t2 oldp2 p2 c2\<close>
+      using log_op.exhaust by blast
+    obtain tree4 where \<open>do_op (Move t2 p2 c2, tree3) = (LogMove t2 (get_parent tree3 c2) p2 c2, tree4)\<close>
+      by simp
+    hence \<open>interp_op (Move t p c) (logop # log, tree1) =
+           (LogMove t2 (get_parent tree3 c2) p2 c2 # log3, tree4)\<close>
+      using logop log3 recursive_case by auto
+    moreover from this have \<open>set (map log_time log2) = {t} \<union> set (map log_time (logop # log))\<close>
+      using Cons.prems(2) IH logop by fastforce
+    moreover have \<open>distinct (map log_time (LogMove t2 (get_parent tree3 c2) p2 c2 # log3))\<close>
+      using Cons.prems(1) IH logop recursive_case by auto
+    ultimately show ?thesis
+      using Cons.prems(2) by auto
+  next
+    case cons_case: False
+    obtain tree4 where \<open>do_op (Move t p c, tree1) = (LogMove t (get_parent tree1 c) p c, tree4)\<close>
+      by simp
+    hence \<open>interp_op (Move t p c) (logop # log, tree1) =
+           (LogMove t (get_parent tree1 c) p c # logop # log, tree4)\<close>
+      by (simp add: cons_case)
+    moreover from this have \<open>set (map log_time log2) = {t} \<union> set (map log_time (logop # log))\<close>
+      using Cons.prems(2) by auto
+    moreover have \<open>distinct (t # map log_time (logop # log))\<close>
+      using Cons.prems(1) by auto
+    ultimately show ?thesis
+      using Cons.prems(2) by auto
+  qed
+qed
+
+lemma interp_ops_timestamps:
+  assumes \<open>distinct (map move_time ops)\<close>
+    and \<open>interp_ops ops = (log, tree)\<close>
+  shows \<open>distinct (map log_time log) \<and> set (map move_time ops) = set (map log_time log)\<close>
+using assms proof(induction ops arbitrary: log tree rule: List.rev_induct, simp)
+  case (snoc oper ops)
+  obtain log1 tree1 where log1: \<open>interp_ops ops = (log1, tree1)\<close>
+    by fastforce
+  hence IH: \<open>distinct (map log_time log1) \<and> set (map move_time ops) = set (map log_time log1)\<close>
+    using snoc by auto
+  hence \<open>set (map move_time (ops @ [oper])) = {move_time oper} \<union> set (map log_time log1)\<close>
+    by force
+  moreover have \<open>distinct (map log_time log1 @ [move_time oper])\<close>
+    using log1 snoc(1) snoc.prems(1) by force
+  ultimately show ?case
+    by (metis (no_types) interp_op_timestamp interp_ops_step log1 operation.exhaust_sel snoc.prems(2))
+qed
+
 lemma interp_op_commute_last:
   assumes \<open>distinct ((map move_time ops) @ [t1, t2])\<close>
   shows \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
@@ -660,7 +725,7 @@ proof -
   hence unique_parent: \<open>\<And>p1 p2 c. (p1, c) \<in> tree \<Longrightarrow> (p2, c) \<in> tree \<Longrightarrow> p1 = p2\<close>
     by (meson interp_ops_unique_parent)
   have distinct_times: \<open>distinct ((map log_time log) @ [t1, t2])\<close>
-    sorry
+    using assms interp_ops interp_ops_timestamps by auto
   have \<open>interp_ops (ops @ [Move t1 p1 c1, Move t2 p2 c2]) =
         interp_op (Move t2 p2 c2) (interp_op (Move t1 p1 c1) (log, tree))\<close>
     using interp_ops by simp
@@ -713,7 +778,8 @@ qed
 
 theorem interp_ops_commutes:
   assumes \<open>set ops1 = set ops2\<close>
-    and \<open>distinct (map move_time ops1)\<close> and \<open>distinct (map move_time ops2)\<close>
+    and \<open>distinct (map move_time ops1)\<close>
+    and \<open>distinct (map move_time ops2)\<close>
   shows \<open>interp_ops ops1 = interp_ops ops2\<close>
 using assms proof(induction ops1 arbitrary: ops2 rule: List.rev_induct, simp)
   case (snoc oper ops)
