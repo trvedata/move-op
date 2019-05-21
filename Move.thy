@@ -431,13 +431,73 @@ next
     using cyclic_def by auto
 qed
 
-theorem interp_op_acyclic:
-  (* not true as it stands -- nitpick finds a counterexample *)
-  assumes \<open>\<And>x. \<not> ancestor tree1 x x\<close>
-    and \<open>interp_op oper (ops1, tree1) = (ops2, tree2)\<close>
-  shows \<open>\<And>x. \<not> ancestor tree2 x x\<close>
-  oops
+fun do_op_log :: \<open>('t, 'n) log_op \<Rightarrow> ('n \<times> 'n) set \<Rightarrow> ('n \<times> 'n) set\<close> where
+  \<open>do_op_log (LogMove t oldp p c) tree = snd (do_op (Move t p c, tree))\<close>
 
+lemma interp_op_tree_log:
+  assumes \<open>tree1 = foldr do_op_log log1 {}\<close>
+    and \<open>interp_ops ops = (log1, tree1)\<close>
+    and \<open>interp_op (Move t p c) (log1, tree1) = (log2, tree2)\<close>
+  shows \<open>tree2 = foldr do_op_log log2 {}\<close>
+using assms proof(induction log1 arbitrary: tree1 log2 tree2)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons logop log1)
+  then show ?case
+  proof(cases \<open>t < log_time logop\<close>)
+    case True
+    hence \<open>interp_op (Move t p c) (logop # log1, tree1) =
+           redo_op logop (interp_op (Move t p c) (log1, undo_op (logop, tree1)))\<close>
+      by simp
+    have \<open>tree1 = do_op_log logop (foldr do_op_log log1 {})\<close>
+      by (simp add: Cons.prems(1))
+    have \<open>undo_op (logop, tree1) = foldr do_op_log log1 {}\<close>
+      sorry
+    then show ?thesis sorry
+  next
+    case False
+    then show ?thesis sorry
+  qed
+qed
+
+lemma interp_ops_tree_log:
+  assumes \<open>interp_ops ops = (log, tree)\<close>
+  shows \<open>tree = foldr do_op_log log {}\<close>
+using assms proof(induction ops arbitrary: log tree rule: List.rev_induct)
+  case Nil
+  then show ?case by (simp add: interp_ops_def)
+next
+  case (snoc x xs)
+  then obtain log1 tree1 where log1: \<open>interp_ops xs = (log1, tree1)\<close>
+    by fastforce
+  hence \<open>tree1 = foldr do_op_log log1 {}\<close>
+    using snoc.IH by auto
+  moreover have \<open>interp_ops (xs @ [x]) = interp_op x (log1, tree1)\<close>
+    by (metis (no_types) log1 foldl_Cons foldl_Nil foldl_append interp_ops_def)
+  ultimately show ?case
+    by (metis interp_op_tree_log log1 operation.exhaust_sel snoc(2))
+qed
+
+theorem interp_ops_acyclic:
+  assumes \<open>interp_ops ops = (log, tree)\<close>
+  shows \<open>\<not> cyclic tree\<close>
+proof -
+  have \<open>tree = foldr do_op_log log {}\<close>
+    using assms interp_ops_tree_log by auto
+  from this show ?thesis
+  proof(induction log arbitrary: tree, simp add: cyclic_def)
+    case (Cons logop log)
+    hence \<open>\<not> cyclic (foldr do_op_log log {})\<close>
+      by simp
+    moreover obtain move where \<open>move = Move (log_time logop) (new_parent logop) (log_child logop)\<close>
+      by simp
+    moreover from this have \<open>foldr do_op_log (logop # log) {} = snd (do_op (move, foldr do_op_log log {}))\<close>
+      by (metis do_op_log.simps foldr.simps(2) log_op.exhaust_sel o_apply)
+    ultimately show ?case
+      by (metis Cons.prems do_op_acyclic eq_snd_iff)
+  qed
+qed
 
 
 section \<open>Commutativity of move operation\<close>
