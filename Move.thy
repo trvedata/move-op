@@ -732,6 +732,22 @@ next
   qed
 qed
 
+corollary interp_op_commute2I:
+  assumes \<open>unique_parent tree\<close>
+    and \<open>distinct ((map log_time log) @ [t1, t2])\<close>
+    and \<open>interp_op (Move t1 p1 m1 c1) (log, tree) = (log1, tree1)\<close>
+    and \<open>interp_op (Move t2 p2 m2 c2) (log, tree) = (log2, tree2)\<close>
+  shows \<open>interp_op (Move t2 p2 m2 c2) (log1, tree1) = interp_op (Move t1 p1 m1 c1) (log2, tree2)\<close>
+proof (case_tac \<open>t1 < t2\<close>, metis assms interp_op_commute2)
+  assume \<open>\<not> t1 < t2\<close>
+  hence \<open>t2 < t1\<close>
+    using assms by force
+  moreover have \<open>distinct ((map log_time log) @ [t2, t1])\<close>
+    using assms by force
+  ultimately show ?thesis
+    using assms interp_op_commute2 by metis
+qed
+
 lemma interp_op_timestamp:
   assumes \<open>distinct ((map log_time log1) @ [t])\<close>
     and \<open>interp_op (Move t p m c) (log1, tree1) = (log2, tree2)\<close>
@@ -778,6 +794,16 @@ next
       using Cons.prems(2) by auto
   qed
 qed
+
+corollary interp_op_timestampI1:
+  assumes \<open>interp_op (Move t p m c) (log1, tree1) = (log2, tree2)\<close> \<open>distinct ((map log_time log1) @ [t])\<close>
+  shows \<open>distinct (map log_time log2)\<close>
+  using assms interp_op_timestamp by metis
+
+corollary interp_op_timestampI2:
+  assumes \<open>interp_op (Move t p m c) (log1, tree1) = (log2, tree2)\<close> \<open>distinct ((map log_time log1) @ [t])\<close>
+  shows \<open>set (map log_time log2) = {t} \<union> set (map log_time log1)\<close>
+  using assms interp_op_timestamp by metis
 
 lemma interp_ops_timestamps:
   assumes \<open>distinct (map move_time ops)\<close>
