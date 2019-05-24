@@ -9,7 +9,7 @@ definition interp_op' :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
     else None\<close>
 
 fun valid_move_opers :: "('t, 'n, 'm) state \<Rightarrow> 't \<times>('t, 'n, 'm) operation \<Rightarrow> bool" where
-  \<open>valid_move_opers S (i, Move t _ _ _) = (t = i)\<close>
+  \<open>valid_move_opers (log, _) (_, Move t _ _ _) = (t \<notin> set (map log_time log))\<close>
 
 locale move = network_with_constrained_ops _ "interp_op'" "([], {})" valid_move_opers
 begin
@@ -109,13 +109,14 @@ lemma log_tree_invariant:
   shows   "distinct (map log_time log) \<and> unique_parent tree"
 using assms proof (induct xs arbitrary: log tree rule: rev_induct, clarsimp)
   case (snoc x xs)
-  have "apply_operations xs \<noteq> None"
-    sorry
-  then obtain log1 tree1 where "apply_operations xs = Some (log1, tree1)"
+  hence "apply_operations xs \<noteq> None"
+    by (case_tac x; clarsimp simp: apply_operations_def node_deliver_messages_append kleisli_def)
+       (metis (no_types, hide_lams) bind_eq_Some_conv surj_pair)
+  then obtain log1 tree1 where *: "apply_operations xs = Some (log1, tree1)"
     by auto
   moreover have "xs prefix of i"
     using snoc.prems(1) by blast
-  ultimately have "distinct (map log_time log1)" "unique_parent tree1"
+  ultimately have **: "distinct (map log_time log1)" "unique_parent tree1"
     using snoc.hyps by blast+
   show ?case
   proof (case_tac x)
@@ -128,89 +129,44 @@ using assms proof (induct xs arbitrary: log tree rule: rev_induct, clarsimp)
     fix m assume 1: "x = Deliver m"
     obtain t oper where 2: "m = (t, oper)"
       by force
-    have 3: "move_time oper \<notin> log_time ` set log1"
-      sorry
     hence "interp_msg (t, oper) (log1, tree1) = Some (log, tree)"
       using \<open>apply_operations xs = Some (log1, tree1)\<close> snoc.prems(2) 1 2 by simp
-    hence "interp_op oper (log1, tree1) = (log, tree)"
-      by (clarsimp simp: interp_msg_def interp_op'_def) (meson option.distinct(1) option.inject)
-    hence "distinct (map log_time log)"
-      apply (case_tac oper)
-      apply (rule interp_op_timestampI1)
-      apply clarsimp
-       apply assumption
-      using 3
+    hence 4: "interp_op' oper (log1, tree1) = Some (log, tree)"
+      by (clarsimp simp: interp_msg_def interp_op'_def)
+    hence "distinct ((map log_time log1) @ [move_time oper])"
+      by (clarsimp simp: interp_op'_def) (meson option.distinct(1))
+    moreover hence 5: "interp_op oper (log1, tree1) = (log, tree)"
+      using 4 ** by (clarsimp simp: interp_op'_def)
+    ultimately have "distinct (map log_time log)"
+      apply (case_tac oper, clarsimp)
+      apply (rule interp_op_timestampI1, assumption)
       by (clarsimp simp add: \<open>distinct (map log_time log1)\<close>)
-    show "distinct (map log_time log) \<and> unique_parent tree"
-      using \<open>distinct (map log_time log)\<close> \<open>interp_op oper (log1, tree1) = (log, tree)\<close> \<open>unique_parent tree1\<close> interp_op_unique_parent by blast
+    thus "distinct (map log_time log) \<and> unique_parent tree"
+      using ** 5 interp_op_unique_parent by blast
   qed
 qed
 
-lemma log_tree_invariant2:
-  assumes "xs prefix of i"  "apply_operations xs = Some (log, tree)"
-  shows   "distinct (map log_time log) \<and> unique_parent tree"
-  using assms apply (induct xs arbitrary: log tree rule: rev_induct)
-   apply (clarsimp simp: unique_parent_def)
-  apply (subgoal_tac "xs prefix of i")
-   prefer 2
-  apply force
-  apply clarsimp
-  apply (case_tac "apply_operations xs")
-   apply clarsimp
-   apply (clarsimp simp: apply_operations_def node_deliver_messages_append)
-   apply (case_tac x)
-    apply force
-   apply clarsimp
-  apply (clarsimp simp: kleisli_def)
-   apply (clarsimp simp: apply_operations_def node_deliver_messages_append)
-  apply (case_tac x)
-   apply force
-  apply (clarsimp simp: kleisli_def)
-  apply (erule_tac x=a in meta_allE)
-  apply (erule_tac x=b in meta_allE)
-  apply (clarsimp simp: interp_msg_def interp_op'_def)
-  apply (case_tac "move_time ba \<notin> log_time ` set a")
-  prefer 2
-  apply force
-  apply (case_tac ba)
-  apply clarsimp
-  apply (rule conjI)
-   apply (rule interp_op_timestampI1)
-    apply assumption
-   apply force
 
-  using interp_op_unique_parent by blast
-
-
+lemma log_time_invariant:
+  assumes "xs@[Deliver (t, oper)] prefix of i"  "apply_operations xs = Some (log, tree)"
+  shows   "move_time oper \<notin> set (map log_time log)"
+  sorry
 
 lemma apply_operations_never_fails:
   assumes "xs prefix of i"
   shows "apply_operations xs \<noteq> None"
-  using assms  apply (induct xs rule: rev_induct)
-   apply clarsimp
-  apply (unfold apply_operations_def)
-  apply (subgoal_tac "xs prefix of i")
-   prefer 2
-   apply force
-  apply clarsimp
-  apply (unfold node_deliver_messages_append)
-  apply (case_tac x)
-   apply (clarsimp simp: apply_operations_def)
-  apply clarsimp
-  apply (clarsimp simp: kleisli_def)
-
-  apply (clarsimp simp: interp_msg_def interp_op'_def)
-  apply (fold apply_operations_def)
-  apply (frule log_tree_invariant) back
-   apply assumption
-  apply clarsimp
-  apply (frule_tac m="(aa, ba)" in deliver_in_prefix_is_valid)
-   apply force
-  apply clarsimp
-  apply (case_tac ba)
-  apply clarsimp
-  sorry
-
+using assms proof(induct xs rule: rev_induct, clarsimp)
+  case (snoc x xs)
+  hence "apply_operations xs \<noteq> None"
+    by blast
+  then obtain log1 tree1 where *: "apply_operations xs = Some (log1, tree1)"
+    by auto
+  moreover hence "distinct (map log_time log1) \<and> unique_parent tree1"
+    using log_tree_invariant snoc.prems by blast
+  ultimately show ?case
+    using log_time_invariant snoc.prems
+    by (cases x; clarsimp simp: interp_msg_def) (clarsimp simp: interp_op'_def)
+qed
 
 sublocale sec: strong_eventual_consistency weak_hb hb interp_msg
   "\<lambda>os. \<exists>xs i. xs prefix of i \<and> node_deliver_messages xs = os" "([], {})"
