@@ -9,7 +9,7 @@ definition interp_op' :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
     else None\<close>
 
 fun valid_move_opers :: "('t, 'n, 'm) state \<Rightarrow> 't \<times>('t, 'n, 'm) operation \<Rightarrow> bool" where
-  \<open>valid_move_opers (log, _) (_, Move t _ _ _) = (t \<notin> set (map log_time log))\<close>
+  \<open>valid_move_opers _ (i, Move t _ _ _) = (i = t)\<close>
 
 locale move = network_with_constrained_ops _ "interp_op'" "([], {})" valid_move_opers
 begin
@@ -146,11 +146,118 @@ using assms proof (induct xs arbitrary: log tree rule: rev_induct, clarsimp)
   qed
 qed
 
+definition indices :: "('id \<times> ('id, 'v, 'm) operation) event list \<Rightarrow> 'id list" where
+  "indices xs \<equiv> List.map_filter (\<lambda>x. case x of Deliver (i, _) \<Rightarrow> Some i | _ \<Rightarrow> None) xs"
+
+lemma indices_Nil [simp]:
+  shows "indices [] = []"
+by(auto simp: indices_def map_filter_def)
+
+lemma indices_append [simp]:
+  shows "indices (xs@ys) = indices xs @ indices ys"
+by(auto simp: indices_def map_filter_def)
+
+lemma indices_Broadcast_singleton [simp]:
+  shows "indices [Broadcast b] = []"
+by(auto simp: indices_def map_filter_def)
+
+lemma indices_Deliver_Insert [simp]:
+  shows "indices [Deliver (i, x)] = [i]"
+  by(auto simp: indices_def map_filter_def)
+
+lemma idx_in_elem[intro]:
+  assumes "Deliver (i, x) \<in> set xs"
+  shows   "i \<in> set (indices xs)"
+using assms by(induction xs, auto simp add: indices_def map_filter_def)
+
+lemma valid_move_oper_delivered:
+  assumes "xs@[Deliver (t, oper)] prefix of i"
+  shows "move_time oper = t"
+by (metis assms deliver_in_prefix_is_valid in_set_conv_decomp operation.set_cases(1) operation.set_sel(1) valid_move_opers.simps)
+
+lemma apply_opers_idx_elems:
+  assumes "xs prefix of i" "apply_operations xs = Some (log, tree)"
+  shows "set (map log_time log) = set (indices xs)"
+  using assms apply (induction xs arbitrary: log tree rule: rev_induct)
+   apply force
+  apply (subgoal_tac "xs prefix of i")
+  prefer 2 apply force
+  apply (case_tac x)
+   apply clarsimp
+  apply (case_tac "apply_operations xs")
+  apply force
+  apply (clarsimp simp: interp_msg_def interp_op'_def)
+  apply (subgoal_tac "unique_parent ba \<and> distinct (map log_time aa)")
+   prefer 2
+   apply (simp add: log_tree_invariant)
+  apply (case_tac "move_time b \<notin> set (indices xs)")
+  prefer 2
+   apply force
+  apply clarsimp
+  apply (case_tac b)
+  apply clarsimp
+  apply (subgoal_tac "set (map log_time log) = {x1} \<union> set (map log_time aa)")
+   prefer 2
+   apply (rule interp_op_timestampI2)
+    apply assumption
+   apply force
+  apply (subgoal_tac "a = x1")
+   apply force
+  using valid_move_oper_delivered
+  by (metis operation.sel(1))
+
+lemma indices_distinct_aux:
+  assumes "xs @ [Deliver (a, b)] prefix of i"
+    shows "a \<notin> set (indices xs)"
+proof 
+  have 1: "xs prefix of i"
+    using assms by force
+  assume "a \<in> set (indices xs)"
+  hence "\<exists>x. Deliver (a, x) \<in> set xs"
+    by (clarsimp simp: indices_def map_filter_def, case_tac x; force)
+  then obtain c where 2: "Deliver (a, c) \<in> set xs"
+    by auto
+  moreover then obtain j where "Broadcast (a, c) \<in> set (history j)"
+    using 1 delivery_has_a_cause prefix_elem_to_carriers by blast
+  moreover obtain k where "Broadcast (a, b) \<in> set (history k)"
+    by (meson assms delivery_has_a_cause in_set_conv_decomp prefix_elem_to_carriers)
+  ultimately have "b = c"
+    by (metis fst_conv network.msg_id_unique network_axioms old.prod.inject)
+  hence "\<not> distinct (xs @ [Deliver (a, b)])"
+    by (simp add: 2)
+  thus "False"
+    using assms prefix_distinct by blast
+qed
+
+
+lemma indices_distinct:
+  assumes "xs prefix of i"
+  shows   "distinct (indices xs)"
+using assms proof (induct xs rule: rev_induct, clarsimp)
+  case (snoc x xs)
+  hence "xs prefix of i"
+    by force
+  moreover hence "distinct (indices xs)"
+    by (simp add: snoc.hyps)
+  ultimately show ?case
+    using indices_distinct_aux snoc.prems by (case_tac x; force)
+qed
 
 lemma log_time_invariant:
   assumes "xs@[Deliver (t, oper)] prefix of i"  "apply_operations xs = Some (log, tree)"
   shows   "move_time oper \<notin> set (map log_time log)"
-  sorry
+proof -
+  have "xs prefix of i"
+    using assms by force
+  have "move_time oper = t"
+    using assms valid_move_oper_delivered by auto
+  moreover have "indices (xs @ [Deliver (t, oper)]) = indices xs @ [t]"
+    by simp
+  moreover have "distinct (indices (xs @ [Deliver (t, oper)]))"
+    using assms indices_distinct by blast
+  ultimately show ?thesis
+    using apply_opers_idx_elems assms indices_distinct_aux by blast
+qed    
 
 lemma apply_operations_never_fails:
   assumes "xs prefix of i"
