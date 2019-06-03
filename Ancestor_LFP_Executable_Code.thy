@@ -81,9 +81,20 @@ lemma ancestor_alt_def [simp, code]:
 declare lfp_while_lattice [code_unfold]
 declare finite_class.finite [code_unfold]
 
-definition ancestor'' :: \<open>bool\<close>
-  where \<open>ancestor'' \<equiv> ancestor' {(CHR ''a'', CHR ''b''), (CHR ''b'', CHR ''c''), (CHR ''c'', CHR ''d'')} (CHR ''a'') (CHR ''d'')\<close>
+section\<open>Efficiency improvements\<close>
 
-export_code ancestor'' in SML module_name Ancestor file ancestor.ML
+lemma ancestor_unwind [code]:
+  shows \<open>ancestor Ss p c \<longleftrightarrow> ((p, c) \<in> Ss \<or> (\<exists>(x, y)\<in>Ss. p = x \<and> ancestor Ss y c))\<close>
+  apply(rule iffI)
+  apply(induction rule: ancestor.induct)
+  apply force
+  apply force
+  apply(erule disjE)
+  apply(force intro!: ancestor.intros)
+  apply(clarsimp)
+  apply(simp add: ancestor.intros(2))
+  done
+
+export_code ancestor in SML
 
 end
