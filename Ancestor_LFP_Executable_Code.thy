@@ -1,5 +1,5 @@
 theory Ancestor_LFP_Executable_Code
-  imports Main "HOL-Library.While_Combinator"
+  imports Main "HOL-Library.While_Combinator" "HOL-Library.Code_Target_Nat"
 begin
 
 inductive ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
@@ -87,25 +87,48 @@ lemma ancestor_unwind [code]:
   shows \<open>ancestor Ss p c \<longleftrightarrow> ((p, c) \<in> Ss \<or> (\<exists>(x, y)\<in>Ss. p = x \<and> ancestor Ss y c))\<close>
   apply(rule iffI)
   apply(induction rule: ancestor.induct)
-  apply force
-  apply force
+  apply force+
   apply(erule disjE)
   apply(force intro!: ancestor.intros)
-  apply(clarsimp)
-  apply(simp add: ancestor.intros(2))
+  apply(clarsimp simp add: ancestor.intros)
   done
 
 export_code ancestor in SML module_name Ancestor file ancestor.ML
 
 record example_node =
-  name :: \<open>string\<close>
+  name :: \<open>String.literal\<close>
   age  :: \<open>nat\<close>
 
 value \<open>
-  let db = {(\<lparr>name = ''Alan'', age = 34\<rparr>, \<lparr>name = ''Bill'', age = 18\<rparr>),
-              (\<lparr>name = ''Bill'', age = 18\<rparr>, \<lparr>name = ''Charles'', age = 1\<rparr>)};
-      pr = \<lparr>name = ''Alan'', age = 34\<rparr>;
-      cd = \<lparr>name = ''Charles'', age = 1\<rparr>
+  let db = {(\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Bill'', age = 18\<rparr>),
+              (\<lparr>name = String.implode ''Bill'', age = 18\<rparr>, \<lparr>name = String.implode ''Charles'', age = 1\<rparr>),
+              (\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Diane'', age = 17\<rparr>),
+              (\<lparr>name = String.implode ''Diane'', age = 17\<rparr>, \<lparr>name = String.implode ''Elizabeth'', age = 0\<rparr>)};
+      pr = \<lparr>name = String.implode ''Alan'', age = 34\<rparr>;
+      cd = \<lparr>name = String.implode ''Elizabeth'', age = 0\<rparr>
    in ancestor db pr cd\<close>
+
+definition support :: \<open>('a \<times> 'a) set \<Rightarrow> 'a set\<close>
+  where \<open>support Ss \<equiv> \<Union>(x, y) \<in> Ss. {x, y}\<close>
+
+definition has_descendent :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> bool\<close>
+  where \<open>has_descendent Ss p \<equiv> \<exists>s\<in>support Ss. ancestor Ss p s\<close>
+
+definition has_ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> bool\<close>
+  where \<open>has_ancestor Ss c \<equiv> \<exists>a\<in>support Ss. ancestor Ss a c\<close>
+
+definition have_common_ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
+  where \<open>have_common_ancestor Ss c1 c2 \<equiv> \<exists>a\<in>support Ss. ancestor Ss a c1 \<and> ancestor Ss a c2\<close>
+
+value \<open>
+  let db = {(\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Bill'', age = 18\<rparr>),
+              (\<lparr>name = String.implode ''Bill'', age = 18\<rparr>, \<lparr>name = String.implode ''Charles'', age = 1\<rparr>),
+              (\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Diane'', age = 17\<rparr>),
+              (\<lparr>name = String.implode ''Diane'', age = 17\<rparr>, \<lparr>name = String.implode ''Elizabeth'', age = 0\<rparr>)};
+      pr = \<lparr>name = String.implode ''Diane'', age = 17\<rparr>;
+      cd = \<lparr>name = String.implode ''Elizabeth'', age = 0\<rparr>
+   in have_common_ancestor db \<lparr>name = String.implode ''Bill'', age = 18\<rparr> \<lparr>name = String.implode ''Diane'', age = 17\<rparr>\<close>
+
+export_code has_ancestor has_descendent ancestor in SML
 
 end
