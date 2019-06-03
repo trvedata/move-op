@@ -95,6 +95,17 @@ lemma ancestor_unwind [code]:
   apply(simp add: ancestor.intros(2))
   done
 
-export_code ancestor in SML
+export_code ancestor in SML module_name Ancestor file ancestor.ML
+
+record example_node =
+  name :: \<open>string\<close>
+  age  :: \<open>nat\<close>
+
+value \<open>
+  let db = {(\<lparr>name = ''Alan'', age = 34\<rparr>, \<lparr>name = ''Bill'', age = 18\<rparr>),
+              (\<lparr>name = ''Bill'', age = 18\<rparr>, \<lparr>name = ''Charles'', age = 1\<rparr>)};
+      pr = \<lparr>name = ''Alan'', age = 34\<rparr>;
+      cd = \<lparr>name = ''Charles'', age = 1\<rparr>
+   in ancestor db pr cd\<close>
 
 end
