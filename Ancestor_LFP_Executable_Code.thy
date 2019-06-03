@@ -1,5 +1,5 @@
 theory Ancestor_LFP_Executable_Code
-  imports Main "HOL-Library.While_Combinator" "HOL-Library.Code_Target_Nat"
+  imports Main "HOL-Library.While_Combinator" "HOL-Library.Code_Target_Int"
 begin
 
 inductive ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
@@ -93,11 +93,9 @@ lemma ancestor_unwind [code]:
   apply(clarsimp simp add: ancestor.intros)
   done
 
-export_code ancestor in SML module_name Ancestor file ancestor.ML
-
-record example_node =
+record person =
   name :: \<open>String.literal\<close>
-  age  :: \<open>nat\<close>
+  age  :: \<open>int\<close>
 
 value \<open>
   let db = {(\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Bill'', age = 18\<rparr>),
@@ -117,10 +115,10 @@ definition has_descendent :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Righ
 definition has_ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> bool\<close>
   where \<open>has_ancestor Ss c \<equiv> \<exists>a\<in>support Ss. ancestor Ss a c\<close>
 
-definition have_common_ancestor :: \<open>('a \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
+definition have_common_ancestor :: \<open>(person \<times> person) set \<Rightarrow> person \<Rightarrow> person \<Rightarrow> bool\<close>
   where \<open>have_common_ancestor Ss c1 c2 \<equiv> \<exists>a\<in>support Ss. ancestor Ss a c1 \<and> ancestor Ss a c2\<close>
 
-value \<open>
+value [code] \<open>
   let db = {(\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Bill'', age = 18\<rparr>),
               (\<lparr>name = String.implode ''Bill'', age = 18\<rparr>, \<lparr>name = String.implode ''Charles'', age = 1\<rparr>),
               (\<lparr>name = String.implode ''Alan'', age = 34\<rparr>, \<lparr>name = String.implode ''Diane'', age = 17\<rparr>),
@@ -129,6 +127,10 @@ value \<open>
       cd = \<lparr>name = String.implode ''Elizabeth'', age = 0\<rparr>
    in have_common_ancestor db \<lparr>name = String.implode ''Bill'', age = 18\<rparr> \<lparr>name = String.implode ''Diane'', age = 17\<rparr>\<close>
 
-export_code has_ancestor has_descendent ancestor in SML
+definition mk_person :: \<open>String.literal \<Rightarrow> int \<Rightarrow> person\<close>
+  where \<open>mk_person n a \<equiv> \<lparr>name = n, age = a\<rparr>\<close>
+
+export_code has_ancestor has_descendent ancestor have_common_ancestor mk_person in SML
+  module_name Ancestor file ancestor.ML
 
 end
