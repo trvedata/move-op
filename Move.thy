@@ -905,4 +905,93 @@ using assms proof(induction ops1 arbitrary: ops2 rule: List.rev_induct, simp)
     by (metis append_assoc interp_ops_step pre_suf)
 qed
 
+section\<open>Code generation\<close>
+
+text\<open>Collects all of the metadata that may appear in the move-operation database\<close>
+definition meta :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'm set\<close>
+  where \<open>meta T \<equiv> \<Union>(p, m, c) \<in> T. {m}\<close>
+
+text\<open>Collects all of the nodes that may appear either in a parent or child position in the move
+     operation database\<close>
+definition support :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n set\<close>
+  where \<open>support T \<equiv> \<Union>(p, m, c) \<in> T. {p, c}\<close>
+
+text\<open>A more convenient introduction rule for the transitive step of the ancestor relation, for use
+     in the next proof below\<close>
+lemma ancestor_intro_alt:
+  assumes \<open>ancestor tree p c\<close>
+      and \<open>(anc, m, p) \<in> tree\<close>
+  shows \<open>ancestor tree anc c\<close>
+using assms by (induction rule: ancestor.induct) (force intro: ancestor.intros)+
+
+text\<open>A manual unwinding of the ancestor relation, expressing the relation recursively.  The code
+     attribute means that this gets picked up the code-generation mechanism which uses the theorem
+     to extract executable code for the ancestor inductive relation\<close>
+lemma ancestor_code_gen [code]:
+  shows \<open>ancestor tree parent child \<longleftrightarrow>
+           ((\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
+           (\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
+proof
+  assume \<open>?L\<close>
+  from this show \<open>?R\<close>
+  proof(induction rule: ancestor.induct)
+    case (1 parent m child tree)
+    from this show ?case
+      by(auto simp add: meta_def)
+  next
+    case (2 parent m child tree anc)
+      {
+        assume \<open>\<exists>m\<in>meta tree. (anc, m, parent) \<in> tree\<close>
+          and \<open>(parent, m, child) \<in> tree\<close>
+        from this also have \<open>ancestor tree parent child\<close>
+          by(auto intro: ancestor.intros)
+        ultimately have \<open>?case\<close>
+          by(auto simp add: support_def)
+      }
+      note L = this
+      {
+        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>support tree. (anc, m, anca) \<in> tree \<and> ancestor tree anca parent\<close>
+          and *: \<open>(parent, m, child) \<in> tree\<close>
+        from this obtain m anca where \<open>m \<in> meta tree\<close> and \<open>anca \<in> support tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
+            and **: \<open>ancestor tree anca parent\<close>
+          by auto
+        from this also have \<open>ancestor tree anca parent\<close>
+          using ancestor_intro_alt by(auto simp add: support_def)
+        moreover from this and * have \<open>ancestor tree anca child\<close>
+          by(auto intro: ancestor.intros) 
+        ultimately have \<open>?case\<close>
+          by auto
+      }
+      from this and L show \<open>?case\<close>
+        using "2.IH" and "2.hyps" by blast
+    qed
+next
+  assume *: \<open>(\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
+    (\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child)\<close>
+  {
+    assume \<open>\<exists>m\<in>meta tree. (parent, m, child) \<in> tree\<close>
+    from this have \<open>ancestor tree parent child\<close>
+    by(auto simp add: meta_def intro: ancestor.intros)
+  }
+  note P = this
+  {
+    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child\<close>
+    from this have \<open>ancestor tree parent child\<close>
+    by(auto simp add: meta_def support_def intro: ancestor.intros ancestor_intro_alt)
+  }
+  from this and P and * show \<open>ancestor tree parent child\<close>
+    by auto
+qed
+
+text\<open>Construct the degenerate tree with a single branch 26-elements long consisting of pairs
+     (0, (0, 1), 1), (1, (1, 2), 2), \<dots> (26, (26, 27), 27) and use this to test how quickly the
+     ancestor relation executes.  It seems quite fast (executing within Isabelle/HOL).  Note the
+     value command uses the code-generation mechanism under-the-surface:\<close>
+value \<open>
+  let counter = [0..26];
+      offset  = [1..27];
+      pairs   = zip counter offset;
+      triples = \<Union>(f, s)\<in>set pairs. {(f, (f, s), s)}
+    in [ancestor triples 0 26, ancestor triples 23 25, ancestor triples 22 4]\<close>
+
 end
