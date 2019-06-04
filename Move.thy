@@ -1,5 +1,5 @@
 theory Move
-  imports Main
+  imports Main "HOL-Library.Code_Target_Numeral" Stream_Fusion_Code.Stream_Fusion
 begin
 
 section \<open>Definitions\<close>
@@ -907,6 +907,9 @@ qed
 
 section\<open>Code generation\<close>
 
+fun ancestor' :: \<open>'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close>
+  where \<open>ancestor' parent child t = ancestor t parent child\<close>
+
 text\<open>Collects all of the metadata that may appear in the move-operation database\<close>
 definition meta :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'm set\<close>
   where \<open>meta T \<equiv> \<Union>(p, m, c) \<in> T. {m}\<close>
@@ -923,15 +926,18 @@ lemma ancestor_intro_alt:
   shows \<open>ancestor tree anc c\<close>
 using assms by (induction rule: ancestor.induct) (force intro: ancestor.intros)+
 
-text\<open>A manual unwinding of the ancestor relation, expressing the relation recursively.  The code
+text\<open>A manual unwinding of the ancestor' function, expressing the relation recursively.  The code
      attribute means that this gets picked up the code-generation mechanism which uses the theorem
-     to extract executable code for the ancestor inductive relation\<close>
-lemma ancestor_code_gen [code]:
-  shows \<open>ancestor tree parent child \<longleftrightarrow>
+     to extract executable code for the ancestor' function, even though its definition is given in
+     terms of the ancestor inductive relation\<close>
+lemma ancestor'_simps [simp, code]:
+  shows \<open>ancestor' parent child tree \<longleftrightarrow>
            ((\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-           (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
+           (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
 proof
   assume \<open>?L\<close>
+  from this have \<open>ancestor tree parent child\<close>
+    by simp
   from this show \<open>?R\<close>
   proof(induction rule: ancestor.induct)
     case (1 parent m child tree)
@@ -949,7 +955,7 @@ proof
       }
       note L = this
       {
-        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>children tree. (anc, m, anca) \<in> tree \<and> ancestor tree anca parent\<close>
+        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>children tree. (anc, m, anca) \<in> tree \<and> ancestor' anca parent tree\<close>
           and *: \<open>(parent, m, child) \<in> tree\<close>
         from this obtain m anca where \<open>m \<in> meta tree\<close> and \<open>anca \<in> children tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
             and **: \<open>ancestor tree anca parent\<close>
@@ -966,7 +972,7 @@ proof
     qed
 next
   assume *: \<open>(\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-    (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child)\<close>
+    (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree)\<close>
   {
     assume \<open>\<exists>m\<in>meta tree. (parent, m, child) \<in> tree\<close>
     from this have \<open>ancestor tree parent child\<close>
@@ -974,11 +980,11 @@ next
   }
   note P = this
   {
-    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child\<close>
+    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree\<close>
     from this have \<open>ancestor tree parent child\<close>
     by(auto simp add: meta_def children_def intro: ancestor.intros ancestor_intro_alt)
   }
-  from this and P and * show \<open>ancestor tree parent child\<close>
+  from this and P and * show \<open>ancestor' parent child tree\<close>
     by auto
 qed
 
@@ -991,35 +997,14 @@ value \<open>
       offset  = [1..27];
       pairs   = zip counter offset;
       triples = \<Union>(f, s)\<in>set pairs. {(f, (f, s), s)}
-    in [ancestor triples 0 26, ancestor triples 23 25, ancestor triples 22 4, ancestor triples 0 0]\<close>
+    in [ancestor' 0 26 triples, ancestor' 23 25 triples, ancestor' 22 4 triples, ancestor' 0 0 triples]\<close>
 
 text\<open>Check code is produced for all targets...\<close>
-export_code ancestor in SML
-export_code ancestor in Haskell
-export_code ancestor in Scala
-export_code ancestor in OCaml
+export_code ancestor' in SML
+export_code ancestor' in Haskell
+export_code ancestor' in Scala
+export_code ancestor' in OCaml
 text\<open>...and finally save the SML that is generated above to a specific file\<close>
-export_code ancestor in SML module_name Ancestor file ancestor.ML
-
-find_consts \<open>nat \<Rightarrow> nat \<Rightarrow> nat list\<close>
-
-text\<open>Generates some arbitrary big tree...\<close>
-fun generate_tree :: \<open>nat \<Rightarrow> (nat \<times> unit \<times> nat) set\<close> where
-  \<open>generate_tree 0 = {}\<close> |
-  \<open>generate_tree (Suc m) =
-     (let smaller = generate_tree m;
-          levels  = List.upt (Suc m) (Suc (Suc m + Suc m));
-          tree    = map (\<lambda>i. (m, (), i)) levels
-        in smaller \<union> set tree)\<close>
-
-text\<open>Ancestry checking in this tree also seems straightforward.  The hold-up seems to be down to
-     actually calculating the base tree set, not computing the ancestry relation.  Use a let to
-     share the computation amongst many tests...\<close>
-value \<open>generate_tree 35\<close>
-value \<open>card (generate_tree 35) \<comment> \<open>665 elements in this set!\<close>\<close>
-
-value\<open>let tree = generate_tree 35
-        in [ancestor tree 1 3, ancestor tree 5 9, ancestor tree 4 30, ancestor tree 40 1,
-                \<forall>i\<in>set[1..<35]. ancestor tree i (Suc i)]\<close>
+export_code ancestor' in SML module_name Ancestor file ancestor.ML
 
 end

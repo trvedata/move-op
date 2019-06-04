@@ -2,7 +2,7 @@ structure Ancestor : sig
   type 'a equal
   type 'a set
   val ancestor :
-    'a equal -> 'b equal -> ('a * ('b * 'a)) set -> 'a -> 'a -> bool
+    'a equal -> 'b equal -> 'a -> 'a -> ('a * ('b * 'a)) set -> bool
 end = struct
 
 type 'a equal = {equal : 'a -> 'a -> bool};
@@ -59,7 +59,7 @@ fun meta B_ t = sup_seta B_ (image (fn (_, (m, _)) => insert B_ m bot_set) t);
 fun children A_ t =
   sup_seta A_ (image (fn (_, (_, c)) => insert A_ c bot_set) t);
 
-fun ancestor A_ B_ tree parent child =
+fun ancestor A_ B_ parent child tree =
   bex (meta B_ tree)
     (fn m =>
       member (equal_prod A_ (equal_prod B_ A_)) (parent, (m, child))
@@ -70,6 +70,6 @@ fun ancestor A_ B_ tree parent child =
           (fn anc =>
             member (equal_prod A_ (equal_prod B_ A_)) (parent, (m, anc))
               tree andalso
-              ancestor A_ B_ tree anc child));
+              ancestor A_ B_ anc child tree));
 
 end; (*struct Ancestor*)
