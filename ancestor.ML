@@ -56,8 +56,8 @@ fun image f (Set xs) = Set (map f xs);
 
 fun meta B_ t = sup_seta B_ (image (fn (_, (m, _)) => insert B_ m bot_set) t);
 
-fun support A_ t =
-  sup_seta A_ (image (fn (p, (_, c)) => insert A_ p (insert A_ c bot_set)) t);
+fun children A_ t =
+  sup_seta A_ (image (fn (_, (_, c)) => insert A_ c bot_set) t);
 
 fun ancestor A_ B_ tree parent child =
   bex (meta B_ tree)
@@ -66,7 +66,7 @@ fun ancestor A_ B_ tree parent child =
         tree) orelse
     bex (meta B_ tree)
       (fn m =>
-        bex (support A_ tree)
+        bex (children A_ tree)
           (fn anc =>
             member (equal_prod A_ (equal_prod B_ A_)) (parent, (m, anc))
               tree andalso

@@ -911,10 +911,9 @@ text\<open>Collects all of the metadata that may appear in the move-operation da
 definition meta :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'm set\<close>
   where \<open>meta T \<equiv> \<Union>(p, m, c) \<in> T. {m}\<close>
 
-text\<open>Collects all of the nodes that may appear either in a parent or child position in the move
-     operation database\<close>
-definition support :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n set\<close>
-  where \<open>support T \<equiv> \<Union>(p, m, c) \<in> T. {p, c}\<close>
+text\<open>Collects all of the nodes that may appear in a child position in the move operation database\<close>
+definition children :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n set\<close>
+  where \<open>children T \<equiv> \<Union>(p, m, c) \<in> T. {c}\<close>
 
 text\<open>A more convenient introduction rule for the transitive step of the ancestor relation, for use
      in the next proof below\<close>
@@ -930,7 +929,7 @@ text\<open>A manual unwinding of the ancestor relation, expressing the relation 
 lemma ancestor_code_gen [code]:
   shows \<open>ancestor tree parent child \<longleftrightarrow>
            ((\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-           (\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
+           (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
 proof
   assume \<open>?L\<close>
   from this show \<open>?R\<close>
@@ -946,17 +945,17 @@ proof
         from this also have \<open>ancestor tree parent child\<close>
           by(auto intro: ancestor.intros)
         ultimately have \<open>?case\<close>
-          by(auto simp add: support_def)
+          by(auto simp add: children_def)
       }
       note L = this
       {
-        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>support tree. (anc, m, anca) \<in> tree \<and> ancestor tree anca parent\<close>
+        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>children tree. (anc, m, anca) \<in> tree \<and> ancestor tree anca parent\<close>
           and *: \<open>(parent, m, child) \<in> tree\<close>
-        from this obtain m anca where \<open>m \<in> meta tree\<close> and \<open>anca \<in> support tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
+        from this obtain m anca where \<open>m \<in> meta tree\<close> and \<open>anca \<in> children tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
             and **: \<open>ancestor tree anca parent\<close>
           by auto
         from this also have \<open>ancestor tree anca parent\<close>
-          using ancestor_intro_alt by(auto simp add: support_def)
+          using ancestor_intro_alt by(auto simp add: children_def)
         moreover from this and * have \<open>ancestor tree anca child\<close>
           by(auto intro: ancestor.intros) 
         ultimately have \<open>?case\<close>
@@ -967,7 +966,7 @@ proof
     qed
 next
   assume *: \<open>(\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-    (\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child)\<close>
+    (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child)\<close>
   {
     assume \<open>\<exists>m\<in>meta tree. (parent, m, child) \<in> tree\<close>
     from this have \<open>ancestor tree parent child\<close>
@@ -975,9 +974,9 @@ next
   }
   note P = this
   {
-    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>support tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child\<close>
+    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor tree anc child\<close>
     from this have \<open>ancestor tree parent child\<close>
-    by(auto simp add: meta_def support_def intro: ancestor.intros ancestor_intro_alt)
+    by(auto simp add: meta_def children_def intro: ancestor.intros ancestor_intro_alt)
   }
   from this and P and * show \<open>ancestor tree parent child\<close>
     by auto
