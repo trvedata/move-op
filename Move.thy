@@ -1001,4 +1001,24 @@ export_code ancestor in OCaml
 text\<open>...and finally save the SML that is generated above to a specific file\<close>
 export_code ancestor in SML module_name Ancestor file ancestor.ML
 
+find_consts \<open>nat \<Rightarrow> nat \<Rightarrow> nat list\<close>
+
+text\<open>Generates some arbitrary big tree...\<close>
+fun generate_tree :: \<open>nat \<Rightarrow> (nat \<times> unit \<times> nat) set\<close> where
+  \<open>generate_tree 0 = {}\<close> |
+  \<open>generate_tree (Suc m) =
+     (let smaller = generate_tree m;
+          levels  = List.upt (Suc m) (Suc (Suc m + Suc m));
+          tree    = map (\<lambda>i. (m, (), i)) levels
+        in smaller \<union> set tree)\<close>
+
+text\<open>Ancestry checking in this tree also seems straightforward.  The hold-up seems to be down to
+     actually calculating the base tree set, not computing the ancestry relation.  Use a let to
+     share the computation amongst many tests...\<close>
+value \<open>generate_tree 30\<close>
+
+value\<open>let tree = generate_tree 30
+        in [ancestor tree 1 3, ancestor tree 5 9, ancestor tree 4 30, ancestor tree 40 1,
+                \<forall>i\<in>set[1..<35]. ancestor tree i (Suc i)]\<close>
+
 end
