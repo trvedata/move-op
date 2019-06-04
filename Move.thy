@@ -992,6 +992,14 @@ value \<open>
       offset  = [1..27];
       pairs   = zip counter offset;
       triples = \<Union>(f, s)\<in>set pairs. {(f, (f, s), s)}
-    in [ancestor triples 0 26, ancestor triples 23 25, ancestor triples 22 4]\<close>
+    in [ancestor triples 0 26, ancestor triples 23 25, ancestor triples 22 4, ancestor triples 0 0]\<close>
+
+text\<open>Check code is produced for all targets...\<close>
+export_code ancestor in SML
+export_code ancestor in Haskell
+export_code ancestor in Scala
+export_code ancestor in OCaml
+text\<open>...and finally save the SML that is generated above to a specific file\<close>
+export_code ancestor in SML module_name Ancestor file ancestor.ML
 
 end
