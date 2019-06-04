@@ -1015,9 +1015,10 @@ fun generate_tree :: \<open>nat \<Rightarrow> (nat \<times> unit \<times> nat) s
 text\<open>Ancestry checking in this tree also seems straightforward.  The hold-up seems to be down to
      actually calculating the base tree set, not computing the ancestry relation.  Use a let to
      share the computation amongst many tests...\<close>
-value \<open>generate_tree 30\<close>
+value \<open>generate_tree 35\<close>
+value \<open>card (generate_tree 35) \<comment> \<open>665 elements in this set!\<close>\<close>
 
-value\<open>let tree = generate_tree 30
+value\<open>let tree = generate_tree 35
         in [ancestor tree 1 3, ancestor tree 5 9, ancestor tree 4 30, ancestor tree 40 1,
                 \<forall>i\<in>set[1..<35]. ancestor tree i (Suc i)]\<close>
 
