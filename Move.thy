@@ -1062,9 +1062,69 @@ value\<open>generate 20\<close>
 text\<open>Do some ancestry testing on this set:\<close>
 definition test1 :: \<open>bool list\<close>
   where \<open>test1 \<equiv>
-           let tree = generate 25 in
+           let tree = generate 5 in
              [ancestor'' 0 8 tree, ancestor'' 23 25 tree, ancestor'' 8 4 tree]\<close>
 
 ML_val\<open>@{code test1}\<close>
+
+section\<open>Refining...\<close>
+
+inductive ancestor''' :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
+  where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T p c\<close>
+      | \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T a p \<Longrightarrow> ancestor''' T a c\<close>
+
+lemma get_parent_SomeI:
+  assumes \<open>unique_parent T\<close>
+    and \<open>(p, m, c) \<in> T\<close>
+  shows \<open>get_parent T c = Some (p, m)\<close>
+using assms
+  apply(clarsimp simp add: unique_parent_def get_parent_def)
+  apply(rule conjI)
+  apply(rule_tac a=p in ex1I, rule_tac a=m in ex1I)
+  apply force+
+  done
+
+lemma get_parent_SomeD:
+  assumes \<open>get_parent T c = Some (p, m)\<close>
+    and \<open>unique_parent T\<close>
+  shows \<open>(p, m, c) \<in> T\<close>
+using assms
+  apply(clarsimp simp add: get_parent_def unique_parent_def split: if_split_asm)
+  using assms(1) assms(2) get_parent_SomeI apply fastforce
+  done
+  
+
+lemma ancestor_ancestor''':
+  assumes \<open>ancestor T p c\<close> and \<open>unique_parent T\<close>
+    shows \<open>ancestor''' T p c\<close>
+using assms
+  apply(induction rule: ancestor.induct)
+  apply(rule ancestor'''.intros)
+  apply(rule get_parent_SomeI)
+  apply force+
+  apply(clarsimp)
+  apply(rule ancestor'''.intros(2))
+  apply(rule get_parent_SomeI)
+  apply force+
+  done
+
+lemma ancestor'''_ancestor:
+  assumes \<open>ancestor''' T p c\<close> and \<open>unique_parent T\<close>
+    shows \<open>ancestor T p c\<close>
+using assms
+  apply(induction rule: ancestor'''.induct)
+  apply(drule get_parent_SomeD)
+  apply(rule ancestor.intros(1))
+  apply force
+  apply clarsimp
+  apply(rule ancestor.intros(2))
+  apply(drule get_parent_SomeD)
+  apply force+
+  done
+
+theorem ancestor_ancestor'''_equiv:
+  assumes \<open>unique_parent T\<close>
+  shows \<open>ancestor T p c \<longleftrightarrow> ancestor''' T p c\<close>
+using assms ancestor_ancestor''' ancestor'''_ancestor by metis
 
 end
