@@ -1254,18 +1254,27 @@ definition test2
 
 ML_val \<open>@{code test2}\<close>
 
-fun generate' :: \<open>nat \<Rightarrow> (nat, unit \<times> nat) hm\<close>
+fun generate' :: \<open>nat \<Rightarrow> (nat \<times> nat, nat \<times> nat) hm\<close>
   where \<open>generate' 0 = hm.empty ()\<close>
       | \<open>generate' (Suc m) =
            (let count = List.upt 0 (Suc m);
                 offst = List.upt 1 (Suc (Suc m));
                 pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y]
-             in foldr (\<lambda>x y. hm.update (snd x) ((), fst x) y) pairs (generate' m))\<close>
+             in foldr (\<lambda>x y. hm.update x (snd x, fst x) y) pairs (generate' m))\<close>
                                  
-value\<open>generate' 250\<close>
+value\<open>generate' 100\<close>
 
 value\<open>
-  let hm = generate' 250 in
-    [efficient_ancestor hm 0 0, efficient_ancestor hm 0 1, \<forall>i\<in>set[0..<74]. efficient_ancestor hm i (Suc i)]\<close>
+  let bound = 100;
+      hm    = generate' 100
+   in [efficient_ancestor hm 0 0, efficient_ancestor hm 0 1, \<forall>i\<in>set[0..<74]. efficient_ancestor hm 0 (Suc i)]\<close>
+
+theorem efficient_ancestor_correct:
+  shows \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor (set (hm.to_list t)) p c\<close>
+  apply(clarsimp simp add: efficient_ancestor_def)
+  apply(subst ancestor_ancestor'''_equiv)
+  apply(rule unique_parent_to_list)
+  apply force
+  done
 
 end
