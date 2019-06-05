@@ -1093,7 +1093,6 @@ using assms
   using assms(1) assms(2) get_parent_SomeI apply fastforce
   done
   
-
 lemma ancestor_ancestor''':
   assumes \<open>ancestor T p c\<close> and \<open>unique_parent T\<close>
     shows \<open>ancestor''' T p c\<close>
@@ -1113,7 +1112,7 @@ lemma ancestor'''_ancestor:
     shows \<open>ancestor T p c\<close>
 using assms
   apply(induction rule: ancestor'''.induct)
-  apply(drule get_parent_SomeD)
+  apply(drule get_parent_SomeD, assumption)
   apply(rule ancestor.intros(1))
   apply force
   apply clarsimp
@@ -1122,9 +1121,124 @@ using assms
   apply force+
   done
 
-theorem ancestor_ancestor'''_equiv:
+theorem ancestor_ancestor'''_equiv [simp]:
   assumes \<open>unique_parent T\<close>
   shows \<open>ancestor T p c \<longleftrightarrow> ancestor''' T p c\<close>
 using assms ancestor_ancestor''' ancestor'''_ancestor by metis
+
+lemma unique_parent_emptyI [intro!]:
+  shows \<open>unique_parent {}\<close>
+  by(auto simp add: unique_parent_def)
+
+lemma unique_parent_singletonI [intro!]:
+  shows \<open>unique_parent {x}\<close>
+  by(auto simp add: unique_parent_def)
+
+definition refines :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> (infix "\<preceq>" 50)
+  where \<open>refines Rs Ss \<longleftrightarrow>
+           (\<forall>p m c. hm.lookup c Rs = Some (m, p)  \<longleftrightarrow> (p, m, c) \<in> Ss)\<close>
+
+lemma refinesI [intro!]:
+  assumes \<open>\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss\<close>
+    and \<open>\<And>p m c. (p, m, c) \<in> Ss \<Longrightarrow> hm.lookup c Rs = Some (m, p)\<close>
+  shows \<open>Rs \<preceq> Ss\<close>
+using assms unfolding refines_def by meson
+
+lemma refinesE [elim]:
+  assumes \<open>Rs \<preceq> Ss\<close>
+    and \<open>(\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss) \<Longrightarrow> (\<And>p m c. (p, m, c) \<in> Ss \<Longrightarrow> hm.lookup c Rs = Some (m, p)) \<Longrightarrow> P\<close>
+  shows P
+using assms by(auto simp add: refines_def)
+
+lemma empty_refinesI [intro!]:
+  shows \<open>hm.empty () \<preceq> {}\<close>
+  by(auto simp add: hm.correct)
+
+lemma get_parent_refinement:
+  assumes \<open>get_parent T c = Some (p, m)\<close>
+    and \<open>unique_parent T\<close>
+    and \<open>t \<preceq> T\<close>
+    shows \<open>hm.lookup c t = Some (m, p)\<close>
+using assms
+  apply -
+  apply(erule refinesE)
+  apply(drule get_parent_SomeD)
+  apply force
+  apply meson
+  done
+
+lemma set_member_refine:
+  assumes \<open>(p, m, c) \<in> T\<close>
+    and \<open>t \<preceq> T\<close>
+  shows \<open>hm.lookup c t = Some (m, p)\<close>
+using assms by (blast elim: refinesE)
+
+lemma ancestor'''_simp1:
+  fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
+  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+    shows \<open>(case hm.lookup c t of
+              None \<Rightarrow> False
+            | Some (m, a) \<Rightarrow>
+                a = p \<or> ancestor''' T p a)\<close>
+using assms
+  apply(induction rule: ancestor'''.induct)
+  apply(drule get_parent_refinement)
+  apply force
+  apply force
+  apply simp
+  apply clarsimp
+  apply(drule get_parent_SomeD)
+  apply force
+  apply(erule refinesE)
+  apply(erule_tac x=p in meta_allE, erule_tac x=m in meta_allE, erule_tac x=c in meta_allE, erule meta_impE, assumption) back
+  apply clarsimp
+  done
+
+lemma ancestor'''_simp2:
+  assumes \<open>(case hm.lookup c t of
+              None \<Rightarrow> False
+            | Some (m, a) \<Rightarrow>
+                a = p \<or> ancestor''' T p a)\<close>
+    and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>ancestor''' T p c\<close>
+using assms
+  apply(clarsimp split: option.split_asm)
+  apply(erule refinesE)
+  apply(erule_tac x=b in meta_allE, erule_tac x=a in meta_allE, erule_tac x=c in meta_allE, erule_tac meta_impE, assumption)
+  apply(erule disjE)
+  apply clarsimp
+  apply(rule ancestor'''.intros(1))
+  apply(rule get_parent_SomeI, force, force)
+  apply(rule ancestor'''.intros(2))
+  apply(rule get_parent_SomeI, force, force, force)
+  done
+
+theorem ancestor'''_simp [simp]:
+  fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>ancestor''' T p c \<longleftrightarrow>
+           (case hm.lookup c t of
+              None \<Rightarrow> False
+            | Some (m, a) \<Rightarrow>
+                a = p \<or> ancestor''' T p a)\<close>
+using assms ancestor'''_simp1 ancestor'''_simp2 by blast
+
+locale ancestor_recasting =
+  fixes T and t
+  assumes refine: \<open>t \<preceq> T\<close> and unique_parent: \<open>unique_parent T\<close>
+begin
+
+lemma [code_unfold, code]:
+  shows \<open>ancestor T p c \<longleftrightarrow>
+           (case hm.lookup c t of
+              None \<Rightarrow> False
+            | Some (m, a) \<Rightarrow>
+                a = p \<or> ancestor''' T p a)\<close>
+using refine and unique_parent by auto
+
+end
+
+interpretation ancestor_recasting "{}" "hm.empty ()"
+  by standard auto
 
 end
