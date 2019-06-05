@@ -1223,22 +1223,49 @@ theorem ancestor'''_simp [simp]:
                 a = p \<or> ancestor''' T p a)\<close>
 using assms ancestor'''_simp1 ancestor'''_simp2 by blast
 
-locale ancestor_recasting =
-  fixes T and t
-  assumes refine: \<open>t \<preceq> T\<close> and unique_parent: \<open>unique_parent T\<close>
-begin
+definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
+  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor''' (set (hm.to_list t)) p c\<close>
 
-lemma [code_unfold, code]:
-  shows \<open>ancestor T p c \<longleftrightarrow>
-           (case hm.lookup c t of
+lemma to_list_refines:
+  shows \<open>t \<preceq> set (hm.to_list t)\<close>
+  apply(rule refinesI)
+  apply(clarsimp simp add: hm.correct)
+  sorry
+
+lemma unique_parent_to_list:
+  shows \<open>unique_parent (set (hm.to_list t))\<close>
+  sorry
+
+theorem efficient_ancestor_simp [code]:
+  shows \<open>efficient_ancestor t p c \<longleftrightarrow>
+          (case hm.lookup c t of
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
-                a = p \<or> ancestor''' T p a)\<close>
-using refine and unique_parent by auto
+                a = p \<or> efficient_ancestor t p a)\<close>
+  apply(unfold efficient_ancestor_def)
+  apply(subst ancestor'''_simp)
+  apply(rule to_list_refines)
+  apply(rule unique_parent_to_list)
+  apply force
+  done
 
-end
+definition test2
+  where \<open>test2 \<equiv> efficient_ancestor (hm.empty () :: (bool, unit \<times> bool) hm) True False\<close>
 
-interpretation ancestor_recasting "{}" "hm.empty ()"
-  by standard auto
+ML_val \<open>@{code test2}\<close>
+
+fun generate' :: \<open>nat \<Rightarrow> (nat, unit \<times> nat) hm\<close>
+  where \<open>generate' 0 = hm.empty ()\<close>
+      | \<open>generate' (Suc m) =
+           (let count = List.upt 0 (Suc m);
+                offst = List.upt 1 (Suc (Suc m));
+                pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y]
+             in foldr (\<lambda>x y. hm.update (snd x) ((), fst x) y) pairs (generate' m))\<close>
+                                 
+value\<open>generate' 250\<close>
+
+value\<open>
+  let hm = generate' 250 in
+    [efficient_ancestor hm 0 0, efficient_ancestor hm 0 1, \<forall>i\<in>set[0..<74]. efficient_ancestor hm i (Suc i)]\<close>
 
 end
