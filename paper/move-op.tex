@@ -1,7 +1,8 @@
 \documentclass[sigconf]{acmart}
 
+\usepackage{lineno}
 \usepackage{isabelle,isabellesym}
-\isabellestyle{it}
+\isabellestyle{tt}
 \renewenvironment{isabelle}{%
   \bigbreak\noindent\hspace{\parindent}%
   \begin{minipage}{\textwidth-\parindent}% use minipage to prevent page breaks
@@ -13,7 +14,8 @@
   \end{minipage}%
   \bigbreak%
 }
-\renewcommand{\isanewline}{\\}
+\renewcommand{\isacartoucheopen}{}
+\renewcommand{\isacartoucheclose}{}
 
 \setcopyright{rightsretained}
 \copyrightyear{2019}
@@ -83,7 +85,118 @@
 
 \section{Introduction}
 
-CRDTs rock \cite{Shapiro:2011wy,Shapiro:2011un}.
+For many systems and applications, the data model that describes the system state is a tree.
+For example:
+\begin{itemize}
+    \item Most filesystems, e.g. on Windows and Unix-like OSes, are organised as a tree: folders or directories are branch nodes, and files are leaf nodes.\footnote{Although symbolic links appear to allow non-tree graph structures, such as cyclic references, the underlying inode structure remains a tree: a symbolic link is not a reference to another inode, but rather a special file containing the path of another file or directory, which is resolved to an inode when the symlink is accessed.
+        If POSIX hardlinks are allowed, the filesystem is a restricted DAG rather than a tree, because the same file inode can be referenced from multiple places in the directory tree.
+        However, hardlinks are not supported by Windows, nor by popular file sync products such as Dropbox, Google Drive or Microsoft OneDrive, so we do not consider hardlinks further in this paper.}
+        In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
+    \item Rich text editors maintain a tree of textual structures such as paragraphs, bulleted and numbered lists, figures, sections, and so on.
+        These can be nested inside each other: for example, a paragraph may appear inside a bullet point of a bulleted list, which may in turn appear inside a numbered point of an enumeration.
+        Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
+    \item Vector graphics and presentation software represents images using graphical objects such as text boxes, rectangles, ellipses, lines, and so on.
+        These objects are contained within nodes representing pages of a document, or slides in a presentation.
+        Multiple objects may be combined in a \emph{group} so that they can be moved or manipulated as a unit; this corresponds to making these objects children of a common parent node.
+        Multiple objects and groups may in turn be combined into higher-level groups, forming a tree.
+        Moreover, the order of nodes determines visibility (i.e.\ objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
+    \item Personal note-taking and task-management tools such as org-mode for Emacs, or Workflowy, explicitly present the user with a tree structure that they can inspect and manipulate.
+\end{itemize}
+
+In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
+Moreover, we focus on \emph{optimistic} replication~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
+Such systems have the advantage that they can continue processing read and write requests even in the presence of arbitrary network partitions; in other words, they are \emph{available} and \emph{partition-tolerant} in the sense of the CAP theorem~\cite{Gilbert:2002il}.
+
+CRDTs~\cite{Shapiro:2011wy,Shapiro:2011un}
+
+\section{Why a move operation is hard}
+
+Errors in Google Drive
+
+% - No Synchronisation or consensus required. Available in the sense of CAP
+% - Rely only on uniqueness of node IDs, e.g. inode numbers
+% - Composing JSON/XML tree by using list datatype
+% - Location is Lww register. Concurrent move does not duplicate
+% - Isabelle: combines the conciseness of pseudocode with the precision of mathematical notation.
+% - Unlike NFS, can work offline 
+
+
+\begin{figure*}
+\raggedright
+\begin{isabellebody}
+\internallinenumbers
+\isacommand{datatype}\isamarkupfalse%
+\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\isanewline
+\ \ {\isacharequal}\ Move\ {\isacharparenleft}move{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}parent{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}meta{\isacharcolon}\ {\isacharprime}m{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}child{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
+\isanewline
+\isacommand{datatype}\isamarkupfalse%
+\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\isanewline
+\ \ {\isacharequal}\ LogMove\ {\isacharparenleft}log{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}old{\isacharunderscore}parent{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m{\isacharparenright}\ option{\isacartoucheclose}{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}new{\isacharunderscore}parent{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}log{\isacharunderscore}meta{\isacharcolon}\ {\isacharprime}m{\isacharparenright}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}log{\isacharunderscore}child{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
+\isanewline
+\isacommand{type{\isacharunderscore}synonym}\isamarkupfalse%
+\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isacharequal}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ list\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{definition}\isamarkupfalse%
+\ get{\isacharunderscore}parent\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m{\isacharparenright}\ option{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}get{\isacharunderscore}parent\ tree\ child\ {\isasymequiv}\isanewline
+\ \ \ \ \ if\ {\isasymexists}{\isacharbang}parent{\isachardot}\ {\isasymexists}{\isacharbang}meta{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree\ then\isanewline
+\ \ \ \ \ \ \ Some\ {\isacharparenleft}THE\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharparenright}{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isacharparenright}\isanewline
+\ \ \ \ \ else\ None{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{inductive}\isamarkupfalse%
+\ ancestor\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ bool{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}{\isasymlbrakk}{\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isasymrbrakk}\ {\isasymLongrightarrow}\ ancestor\ tree\ parent\ child{\isacartoucheclose}\ {\isacharbar}\isanewline
+\ \ {\isacartoucheopen}{\isasymlbrakk}{\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isacharsemicolon}\ ancestor\ tree\ anc\ parent{\isasymrbrakk}\ {\isasymLongrightarrow}\ ancestor\ tree\ anc\ child{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{fun}\isamarkupfalse%
+\ do{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}Move\ t\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}LogMove\ t\ {\isacharparenleft}get{\isacharunderscore}parent\ tree\ c{\isacharparenright}\ newp\ m\ c{\isacharcomma}\isanewline
+\ \ \ \ \ \ if\ ancestor\ tree\ c\ newp\ {\isasymor}\ c\ {\isacharequal}\ newp\ then\ tree\isanewline
+\ \ \ \ \ \ else\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}\ {\isasymunion}\ {\isacharbraceleft}{\isacharparenleft}newp{\isacharcomma}\ m{\isacharcomma}\ c{\isacharparenright}{\isacharbraceright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{fun}\isamarkupfalse%
+\ undo{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ None\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}{\isacartoucheclose}\ {\isacharbar}\isanewline
+\ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ {\isacharparenleft}Some\ {\isacharparenleft}oldp{\isacharcomma}\ oldm{\isacharparenright}{\isacharparenright}\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}\ {\isasymunion}\ {\isacharbraceleft}{\isacharparenleft}oldp{\isacharcomma}\ oldm{\isacharcomma}\ c{\isacharparenright}{\isacharbraceright}{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{fun}\isamarkupfalse%
+\ redo{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}redo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ {\isacharunderscore}\ p\ m\ c{\isacharparenright}\ {\isacharparenleft}ops{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}Move\ t\ p\ m\ c{\isacharcomma}\ tree{\isacharparenright}\isanewline
+\ \ \ \ \ \ in\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{fun}\isamarkupfalse%
+\ interp{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymRightarrow}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}interp{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}{\isacharbrackleft}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\isanewline
+\ \ \ \ \ \ in\ {\isacharparenleft}{\isacharbrackleft}op{\isadigit{2}}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\ {\isacharbar}\isanewline
+\ \ {\isacartoucheopen}interp{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}logop\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}if\ move{\isacharunderscore}time\ op{\isadigit{1}}\ {\isacharless}\ log{\isacharunderscore}time\ logop\isanewline
+\ \ \ \ \ \ then\ redo{\isacharunderscore}op\ logop\ {\isacharparenleft}interp{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}ops{\isacharcomma}\ undo{\isacharunderscore}op\ {\isacharparenleft}logop{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}{\isacharparenright}{\isacharparenright}\isanewline
+\ \ \ \ \ \ else\ let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ in\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ logop\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{definition}\isamarkupfalse%
+\ interp{\isacharunderscore}ops\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ list\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}interp{\isacharunderscore}ops\ ops\ {\isasymequiv}\ foldl\ {\isacharparenleft}{\isasymlambda}state\ oper{\isachardot}\ interp{\isacharunderscore}op\ oper\ state{\isacharparenright}\ {\isacharparenleft}{\isacharbrackleft}{\isacharbrackright}{\isacharcomma}\ {\isacharbraceleft}{\isacharbraceright}{\isacharparenright}\ ops{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{definition}\isamarkupfalse%
+\ unique{\isacharunderscore}parent\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ bool{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree\ {\isasymequiv}\ {\isacharparenleft}{\isasymforall}p{\isadigit{1}}\ p{\isadigit{2}}\ m{\isadigit{1}}\ m{\isadigit{2}}\ c{\isachardot}\ {\isacharparenleft}p{\isadigit{1}}{\isacharcomma}\ m{\isadigit{1}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymand}\ {\isacharparenleft}p{\isadigit{2}}{\isacharcomma}\ m{\isadigit{2}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymlongrightarrow}\ p{\isadigit{1}}\ {\isacharequal}\ p{\isadigit{2}}\ {\isasymand}\ m{\isadigit{1}}\ {\isacharequal}\ m{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}%
+\end{isabellebody}
+\caption{The move operation algorithm, implemented in the Isabelle/HOL language.}
+\label{fig:code}
+\end{figure*}
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
