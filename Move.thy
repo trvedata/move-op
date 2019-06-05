@@ -1226,10 +1226,12 @@ using assms ancestor'''_simp1 ancestor'''_simp2 by blast
 definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
   where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor''' (set (hm.to_list t)) p c\<close>
 
+find_theorems \<open>hm.to_list ?x\<close>
+
 lemma to_list_refines:
   shows \<open>t \<preceq> set (hm.to_list t)\<close>
   apply(rule refinesI)
-  apply(clarsimp simp add: hm.correct)
+  apply(clarsimp simp add: hm.correct hm.to_list_correct)
   sorry
 
 lemma unique_parent_to_list:
@@ -1254,20 +1256,21 @@ definition test2
 
 ML_val \<open>@{code test2}\<close>
 
-fun generate' :: \<open>nat \<Rightarrow> (nat \<times> nat, nat \<times> nat) hm\<close>
+fun generate' :: \<open>nat \<Rightarrow> (nat \<times> nat, unit \<times> nat \<times> nat) hm\<close>
   where \<open>generate' 0 = hm.empty ()\<close>
       | \<open>generate' (Suc m) =
            (let count = List.upt 0 (Suc m);
                 offst = List.upt 1 (Suc (Suc m));
                 pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y]
-             in foldr (\<lambda>x y. hm.update x (snd x, fst x) y) pairs (generate' m))\<close>
+             in foldr (\<lambda>x y. hm.update x ((), snd x, fst x) y) pairs (generate' m))\<close>
                                  
-value\<open>generate' 100\<close>
+value\<open>generate' 150\<close>
 
 value\<open>
-  let bound = 100;
-      hm    = generate' 100
-   in [efficient_ancestor hm 0 0, efficient_ancestor hm 0 1, \<forall>i\<in>set[0..<74]. efficient_ancestor hm 0 (Suc i)]\<close>
+  let bound = 150;
+      hm    = generate' bound
+   in [efficient_ancestor hm (0, 1) (0, 1), efficient_ancestor hm (0, 1) (1, 0),
+        \<forall>i\<in>set[0..<bound]. efficient_ancestor hm (0, i) (0, (Suc i))]\<close>
 
 theorem efficient_ancestor_correct:
   shows \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor (set (hm.to_list t)) p c\<close>
@@ -1276,5 +1279,8 @@ theorem efficient_ancestor_correct:
   apply(rule unique_parent_to_list)
   apply force
   done
+
+export_code efficient_ancestor in SML
+  file efficient_ancestor.ML
 
 end
