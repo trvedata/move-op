@@ -1,5 +1,6 @@
 theory Move
-  imports Main "HOL-Library.Code_Target_Numeral" Stream_Fusion_Code.Stream_Fusion
+  imports Main "HOL-Library.Code_Target_Numeral" "Collections.Collections"
+    "HOL-Library.Product_Lexorder"
 begin
 
 section \<open>Definitions\<close>
@@ -907,6 +908,8 @@ qed
 
 section\<open>Code generation\<close>
 
+text\<open>First, using Isabelle's naive sets\<dots>\<close>
+
 fun ancestor' :: \<open>'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close>
   where \<open>ancestor' parent child t = ancestor t parent child\<close>
 
@@ -914,9 +917,10 @@ text\<open>Collects all of the metadata that may appear in the move-operation da
 definition meta :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'm set\<close>
   where \<open>meta T \<equiv> \<Union>(p, m, c) \<in> T. {m}\<close>
 
-text\<open>Collects all of the nodes that may appear in a child position in the move operation database\<close>
-definition children :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n set\<close>
-  where \<open>children T \<equiv> \<Union>(p, m, c) \<in> T. {c}\<close>
+text\<open>Collects all of the nodes that may appear in a child position, along with their associated
+     metadata, in the move operation database\<close>
+definition meta_children :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> ('m \<times> 'n) set\<close>
+  where \<open>meta_children T \<equiv> \<Union>(p, m, c) \<in> T. {(m, c)}\<close>
 
 text\<open>A more convenient introduction rule for the transitive step of the ancestor relation, for use
      in the next proof below\<close>
@@ -933,7 +937,7 @@ text\<open>A manual unwinding of the ancestor' function, expressing the relation
 lemma ancestor'_simps [simp, code]:
   shows \<open>ancestor' parent child tree \<longleftrightarrow>
            ((\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-           (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
+           (\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
 proof
   assume \<open>?L\<close>
   from this have \<open>ancestor tree parent child\<close>
@@ -951,17 +955,17 @@ proof
         from this also have \<open>ancestor tree parent child\<close>
           by(auto intro: ancestor.intros)
         ultimately have \<open>?case\<close>
-          by(auto simp add: children_def)
+          by(clarsimp simp add: meta_children_def meta_def split: prod.split) blast            
       }
       note L = this
       {
-        assume \<open>\<exists>m\<in>meta tree. \<exists>anca\<in>children tree. (anc, m, anca) \<in> tree \<and> ancestor' anca parent tree\<close>
+        assume \<open>\<exists>(m, anca)\<in>meta_children tree. (anc, m, anca) \<in> tree \<and> ancestor' anca parent tree\<close>
           and *: \<open>(parent, m, child) \<in> tree\<close>
-        from this obtain m anca where \<open>m \<in> meta tree\<close> and \<open>anca \<in> children tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
+        from this obtain m anca where \<open>(m, anca) \<in> meta_children tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
             and **: \<open>ancestor tree anca parent\<close>
           by auto
         from this also have \<open>ancestor tree anca parent\<close>
-          using ancestor_intro_alt by(auto simp add: children_def)
+          using ancestor_intro_alt by(auto simp add: meta_children_def)
         moreover from this and * have \<open>ancestor tree anca child\<close>
           by(auto intro: ancestor.intros) 
         ultimately have \<open>?case\<close>
@@ -972,7 +976,7 @@ proof
     qed
 next
   assume *: \<open>(\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-    (\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree)\<close>
+    (\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree)\<close>
   {
     assume \<open>\<exists>m\<in>meta tree. (parent, m, child) \<in> tree\<close>
     from this have \<open>ancestor tree parent child\<close>
@@ -980,9 +984,9 @@ next
   }
   note P = this
   {
-    assume \<open>\<exists>m\<in>meta tree. \<exists>anc\<in>children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree\<close>
+    assume \<open>\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree\<close>
     from this have \<open>ancestor tree parent child\<close>
-    by(auto simp add: meta_def children_def intro: ancestor.intros ancestor_intro_alt)
+    by(auto simp add: meta_children_def intro: ancestor.intros ancestor_intro_alt)
   }
   from this and P and * show \<open>ancestor' parent child tree\<close>
     by auto
@@ -1006,5 +1010,61 @@ export_code ancestor' in Scala
 export_code ancestor' in OCaml
 text\<open>...and finally save the SML that is generated above to a specific file\<close>
 export_code ancestor' in SML module_name Ancestor file ancestor.ML
+export_code ancestor' in Haskell module_name Ancestor
+
+text\<open>Now, try using sets backed by more efficient containers.  ``hs'' is the type of Hash Sets from
+     the Isabelle Collections Framework.  Also, try: ``rb'' for Red-Black Trees (changed the
+     hashable constraint to a linorder) and ``ahs'' for Array-backed Hash Sets (change the constant
+     prefixes in the obvious way, e.g. hs.to_list becomes rb.to_list, etc.)\<close>
+
+definition ancestor'' :: \<open>'n \<Rightarrow> 'n \<Rightarrow> ('n::{hashable} \<times> 'm::{hashable} \<times> 'n) hs \<Rightarrow> bool\<close>
+  where \<open>ancestor'' p c tree = ancestor (set (hs.to_list tree)) p c\<close>
+
+(* TODO *)
+lemma ancestor''_simp [simp, code]:
+  shows \<open>ancestor'' p c tree \<longleftrightarrow>
+           (hs.bex tree (\<lambda>(p', m', c'). p' = p \<and> c' = c)) \<or>
+           (hs.bex tree (\<lambda>(p', m', a'). p' = p \<and> hs.memb (p', m', a') tree \<and>
+               ancestor'' a' c (hs.delete (p', m', a') tree)))\<close>
+sorry
+
+text\<open>Replay the same test before, just using Isabelle's naive (mathematical) sets, with a set with
+     a single, very-long branch, this time using hash-sets.  Note, the ICF is pretty picky about
+     code-generation so we need to wrap this up in an explicit definition and then call it with
+     ``ML_val''.\<close>
+definition test0 :: \<open>bool list\<close>
+  where \<open>test0 \<equiv>
+  let counter = [0..26];
+      offset  = [1..27];
+      pairs   = zip counter offset;
+      triples = foldr hs.union (map (\<lambda>(f, s). hs.sng (f, (f, s), s)) pairs) (hs.empty ())
+    in [ancestor'' 0 26 triples, ancestor'' 23 25 triples, ancestor'' 22 4 triples]\<close>
+
+ML_val\<open>@{code test0}\<close>
+
+text\<open>Another test, this time with a very dense, bushy tree repreresented as a set.  This is a
+     function to produce such a set\<close>
+fun generate :: \<open>nat \<Rightarrow> (nat \<times> unit \<times> nat) hs\<close>
+  where \<open>generate 0 = hs.empty ()\<close>
+      | \<open>generate (Suc m) =
+           (let count = List.upt 0 (Suc m);
+                offst = List.upt 1 (Suc (Suc m));
+                pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y];
+                sngs  = map (\<lambda>(f, s). (f, (), s)) pairs
+             in foldr (\<lambda>x y. hs.union (hs.sng x) y) sngs (generate m))\<close>
+
+text\<open>You can see (and hear from your computer fan) that the size of this grows quite quickly...\<close>
+value\<open>generate 1\<close>
+value\<open>generate 2\<close>
+value\<open>generate 10\<close>
+value\<open>generate 20\<close>
+
+text\<open>Do some ancestry testing on this set:\<close>
+definition test1 :: \<open>bool list\<close>
+  where \<open>test1 \<equiv>
+           let tree = generate 25 in
+             [ancestor'' 0 8 tree, ancestor'' 23 25 tree, ancestor'' 8 4 tree]\<close>
+
+ML_val\<open>@{code test1}\<close>
 
 end
