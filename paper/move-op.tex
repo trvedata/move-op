@@ -77,39 +77,57 @@
   \country{United Kingdom}
 }
 
-\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
-\maketitle
+%\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
 
 \begin{abstract}
+    TODO abstract.
 \end{abstract}
+\maketitle
 
-\section{Introduction}
+\section{Introduction}\label{sec:intro}
 
 For many systems and applications, the data model that describes the system state is a tree.
 For example:
 \begin{itemize}
-    \item Most filesystems, e.g. on Windows and Unix-like OSes, are organised as a tree: folders or directories are branch nodes, and files are leaf nodes.\footnote{Although symbolic links appear to allow non-tree graph structures, such as cyclic references, the underlying inode structure remains a tree: a symbolic link is not a reference to another inode, but rather a special file containing the path of another file or directory, which is resolved to an inode when the symlink is accessed.
-        If POSIX hardlinks are allowed, the filesystem is a restricted DAG rather than a tree, because the same file inode can be referenced from multiple places in the directory tree.
-        However, hardlinks are not supported by Windows, nor by popular file sync products such as Dropbox, Google Drive or Microsoft OneDrive, so we do not consider hardlinks further in this paper.}
+    \item Most \textbf{filesystems}, e.g. on Windows and Unix-like OSes, are organised as a tree: folders or directories are branch nodes, and files are leaf nodes.\footnote{In filesystems that support hardlinks, the structure is---strictly speaking---a restricted DAG in which a file inode can be referenced from multiple places in the directory tree, but directories cannot have more than one parent directory.
+        However, for the purposes of this paper, we will treat a filesystem as a tree; given such a tree, it is easy to add hardlinks and symlinks as features on top.}
         In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
-    \item Rich text editors maintain a tree of textual structures such as paragraphs, bulleted and numbered lists, figures, sections, and so on.
+    \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, bulleted and numbered lists, figures, sections, and so on.
         These can be nested inside each other: for example, a paragraph may appear inside a bullet point of a bulleted list, which may in turn appear inside a numbered point of an enumeration.
         Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
-    \item Vector graphics and presentation software represents images using graphical objects such as text boxes, rectangles, ellipses, lines, and so on.
-        These objects are contained within nodes representing pages of a document, or slides in a presentation.
-        Multiple objects may be combined in a \emph{group} so that they can be moved or manipulated as a unit; this corresponds to making these objects children of a common parent node.
+    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, ellipses, lines, and so on.
+        These objects are contained within nodes representing pages of a document, or slides of a presentation.
+        Multiple objects may be combined into a \emph{group} so that they can be manipulated as a unit; this corresponds to making these objects children of a common parent node.
         Multiple objects and groups may in turn be combined into higher-level groups, forming a tree.
-        Moreover, the order of nodes determines visibility (i.e.\ objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
-    \item Personal note-taking and task-management tools such as org-mode for Emacs, or Workflowy, explicitly present the user with a tree structure that they can inspect and manipulate.
+        %Moreover, the order of nodes determines visibility (i.e.\ objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
+    \item Personal \textbf{note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} explicitly present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
 In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
-Moreover, we focus on \emph{optimistic} replication~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
+Moreover, we focus on \emph{optimistic replication}~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
 Such systems have the advantage that they can continue processing read and write requests even in the presence of arbitrary network partitions; in other words, they are \emph{available} and \emph{partition-tolerant} in the sense of the CAP theorem~\cite{Gilbert:2002il}.
+This approach is desirable since it enables disconnected operation in a mobile computing context, and high availability in geo-replicated settings.
 
-CRDTs~\cite{Shapiro:2011wy,Shapiro:2011un}
+As the tree structure may be concurrently modified on different replicas, the state of these replicas may temporarily diverge.
+In this paper we show how the replicas can nevertheless achieve \emph{strong eventual consistency}~\cite{Shapiro:2011un}: as the replicas communicate, we guarantee that they will converge towards a consistent state.
+Our algorithm for achieving convergence is an example of a \emph{Conflict-free Replicated Data Type} or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un}.
 
-\section{Why a move operation is hard}
+In this paper we use an abstract model of a tree that can support any of the applications listed above, including distributed filesystems.
+We allow replicas to manipulate this tree in any way: by creating new nodes, deleting nodes, or moving subtrees to a new location within the tree.
+While there are many existing systems that support creating and deleting nodes (see Section~\ref{sec:relwork}), the key innovation of our algorithm is the support for moving subtrees.
+We explain in Section~\ref{sec:move-is-hard} why this move operation is so challenging.
+
+Our contributions in this work are as follows:
+\begin{itemize}
+    \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
+        As discussed in Section~\ref{sec:move-is-hard}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
+    \item We formalise our algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant, and produce a computer-checked proof of correctness of our algorithm.
+        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency).
+    \item To demonstrate the practical viability of the algorithm we extract a formally verified, executable implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
+    \item We perform experiments with replicated filesystem products such as Dropbox, Google Drive, and Microsoft OneDrive, and show that some of them exhibit problems that would be prevented by our algorithm.
+\end{itemize}
+
+\section{Why a move operation is hard}\label{sec:move-is-hard}
 
 Errors in Google Drive
 
@@ -119,6 +137,7 @@ Errors in Google Drive
 % - Location is Lww register. Concurrent move does not duplicate
 % - Isabelle: combines the conciseness of pseudocode with the precision of mathematical notation.
 % - Unlike NFS, can work offline 
+% - Garbage collection: discard causally stable prefix
 
 
 \begin{figure*}
@@ -197,6 +216,13 @@ Errors in Google Drive
 \caption{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \label{fig:code}
 \end{figure*}
+
+\section{Related work}\label{sec:relwork}
+
+% Related work:
+% OT implementation of move operation: https://hal.inria.fr/inria-00107740/
+% Ficus (does not discuss move): https://pdos.csail.mit.edu/6.824/papers/ficus.pdf
+% Roam: https://ieeexplore.ieee.org/abstract/document/795151
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
