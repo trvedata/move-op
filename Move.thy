@@ -1,5 +1,5 @@
 theory Move
-  imports Main "HOL-Library.Code_Target_Numeral" "Collections.Collections"
+  imports Main "HOL-Library.Code_Target_Numeral" "Collections.Collections" "Collections.ICF_Userguide"
     "HOL-Library.Product_Lexorder"
 begin
 
@@ -1067,7 +1067,7 @@ definition test1 :: \<open>bool list\<close>
 
 ML_val\<open>@{code test1}\<close>
 
-section\<open>Refining...\<close>
+section\<open>Refining (literally)...\<close>
 
 inductive ancestor''' :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
   where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T p c\<close>
@@ -1136,7 +1136,7 @@ lemma unique_parent_singletonI [intro!]:
 
 definition refines :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> (infix "\<preceq>" 50)
   where \<open>refines Rs Ss \<longleftrightarrow>
-           (\<forall>p m c. hm.lookup c Rs = Some (m, p)  \<longleftrightarrow> (p, m, c) \<in> Ss)\<close>
+           (\<forall>p m c. hm.lookup c Rs = Some (m, p) \<longleftrightarrow> (p, m, c) \<in> Ss)\<close>
 
 lemma refinesI [intro!]:
   assumes \<open>\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss\<close>
@@ -1223,19 +1223,40 @@ theorem ancestor'''_simp [simp]:
                 a = p \<or> ancestor''' T p a)\<close>
 using assms ancestor'''_simp1 ancestor'''_simp2 by blast
 
-definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
-  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor''' (set (hm.to_list t)) p c\<close>
+definition flip_triples :: \<open>('a \<times> 'b \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'a) list\<close>
+  where \<open>flip_triples xs \<equiv> map (\<lambda>(x, y, z). (z, y, x)) xs\<close>
 
-find_theorems \<open>hm.to_list ?x\<close>
+definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
+  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor''' (set (flip_triples (hm.to_list t))) p c\<close>
 
 lemma to_list_refines:
-  shows \<open>t \<preceq> set (hm.to_list t)\<close>
-  apply(rule refinesI)
-  apply(clarsimp simp add: hm.correct hm.to_list_correct)
-  sorry
+  shows \<open>t \<preceq> set (flip_triples (hm.to_list t))\<close>
+proof
+  fix p m c
+  assume *: \<open>hm.lookup c t = Some (m, p)\<close>
+  have \<open>hm_invar t\<close>
+    by auto
+  from this have \<open>map_of (hm.to_list t) = hm.\<alpha> t\<close>
+    by(auto simp add: hm.to_list_correct)
+  moreover from this have \<open>map_of (hm.to_list t) c = Some (m, p)\<close>
+    using * by(clarsimp simp add: hm.lookup_correct)
+  from this have \<open>(c, m, p) \<in> set (hm.to_list t)\<close>
+    using map_of_SomeD by metis
+  from this show \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
+    by(force simp add: flip_triples_def intro: rev_image_eqI)
+next
+  fix p m c
+  assume \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
+  from this have \<open>(c, m, p) \<in> set (hm.to_list t)\<close>
+    by(force simp add: flip_triples_def)
+  from this have \<open>map_of (hm.to_list t) c = Some (m, p)\<close>
+    by (force intro:  map_of_is_SomeI hm.to_list_correct)+
+  from this show \<open>hm.lookup c t = Some (m, p)\<close>
+    by(auto simp add: hm.to_list_correct hm.lookup_correct)
+qed
 
 lemma unique_parent_to_list:
-  shows \<open>unique_parent (set (hm.to_list t))\<close>
+  shows \<open>unique_parent (set (flip_triples (hm.to_list t)))\<close>
   sorry
 
 theorem efficient_ancestor_simp [code]:
