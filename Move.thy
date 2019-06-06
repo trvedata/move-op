@@ -1463,36 +1463,154 @@ definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Righta
 definition efficient_interp_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
   where \<open>efficient_interp_ops ops \<equiv> foldl (\<lambda>state oper. efficient_interp_op oper state) ([], (hm.empty ())) ops\<close>
 
-export_code efficient_interp_ops in SML
-
-lemma efficient_do_op_correct1:
-  assumes \<open>efficient_do_op (oper, tree) = (log_op, tree')\<close>
-   shows \<open>do_op (oper, (set (flip_triples (hm.to_list tree)))) = (log_op, set (flip_triples (hm.to_list tree')))\<close>
+lemma hm_restrict_refine:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
+  shows \<open>hm.restrict P t \<preceq> S\<close>
 using assms
-  apply(case_tac oper)
-  apply(clarify)
-  apply(unfold efficient_do_op.simps)
-  apply(clarify)
-  apply(unfold do_op.simps)
-  apply(case_tac \<open>ancestor (set (flip_triples (hm.to_list tree))) x4 x2 \<or> x4 = x2\<close>; clarify)
-  apply(subgoal_tac \<open>efficient_ancestor tree x4 x2 \<or> x4 = x2\<close>)
-prefer 2
+  apply -
+  apply(erule refinesE)
+  apply(intro refinesI)
+  apply(clarsimp simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split_asm)
+  apply(force simp add: unique_parent_def)
+  apply clarsimp
+  apply(clarsimp simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split)
+  done
+
+lemma hm_update_refine:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close> and \<open>S = { (p, m, c) \<in> T. c\<noteq>x } \<union> {(z, y, x)}\<close>
+  shows \<open>hm.update x (y, z) t \<preceq> S\<close>
+using assms
+  apply -
+  apply(erule refinesE)
+  apply(rule refinesI)
+  apply(clarsimp simp add: hm.update_correct hm.lookup_correct split: if_split_asm)
+  apply clarsimp
   apply(erule disjE)
-  apply(rule disjI1)
-  apply(subst efficient_ancestor_correct)
-  apply force+
-  apply(subst log_op.simps)
-  apply(intro conjI; force?)
-  apply(rule get_parent_refinement)
-  apply(rule unique_parent_to_list)
-  apply(rule to_list_refines)
-  apply(case_tac \<open>efficient_ancestor tree x4 x2\<close>; clarsimp)
-  apply(subst (asm) efficient_ancestor_correct)
-  apply(force simp add: flip_triples_def)
-  apply(case_tac \<open>ancestor (set (flip_triples (hm.to_list tree))) x4 x2\<close>; clarsimp)
-  apply(erule impE)
-  apply(rule get_parent_refinement, rule unique_parent_to_list, rule to_list_refines)
-  apply(erule notE) back back back
+  apply(clarsimp simp add: hm.lookup_correct hm.update_correct)+
+  done
+
+lemma if_refine:
+  assumes \<open>x \<Longrightarrow> t \<preceq> T\<close> and \<open>\<not> x \<Longrightarrow> u \<preceq> U\<close> and \<open>x \<longleftrightarrow> y\<close>
+  shows \<open>(if x then t else u) \<preceq> (if y then T else U)\<close>
+using assms by(case_tac x; clarsimp)
+
+lemma let_refine:
+  assumes \<open>t \<preceq> T\<close> and \<open>P\<^sub>t t \<preceq> P\<^sub>T T\<close>
+  shows \<open>(let x = t in P\<^sub>t x) \<preceq> (let x = T in P\<^sub>T x)\<close>
+using assms by clarsimp
+
+lemma ancestor'''_implies_existence:
+  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>\<exists>m q. hm.lookup c t = Some (m, q)\<close>
+using assms
+  apply(induction rule: ancestor'''.induct)
+  apply(drule get_parent_SomeD, force)
+  apply(force simp add: refines_def)
+  apply clarsimp
+  apply(erule disjE)
+  apply clarsimp
+  apply(drule get_parent_SomeD, force)
+  apply(force simp add: refines_def)
+  apply(drule get_parent_SomeD, force)
+  apply(force simp add: refines_def)
+  done
+
+lemma efficient_ancestor_refines:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
+using assms
 sorry
 
+lemma efficient_do_op_get_parent_technical:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
+using assms
+  apply(case_tac \<open>get_parent T c\<close>; case_tac \<open>hm.lookup c t\<close>; clarsimp) 
+  apply(clarsimp simp add: refines_def)
+  apply(drule get_parent_NoneD, force, force, force)
+  apply(clarsimp simp add: refines_def)
+  apply(drule get_parent_SomeD, force, force)
+  apply(drule get_parent_SomeD, force, force simp add: unique_parent_def refines_def)
+  done
+
+lemma unique_parent_downward_closure:
+  assumes \<open>unique_parent T\<close>
+    and \<open>S \<subseteq> T\<close>
+  shows \<open>unique_parent S\<close>
+using assms by(force simp add: unique_parent_def)
+
+lemma efficient_do_op_refines:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+    and \<open>efficient_do_op (oper, t) = (log1, u)\<close>
+    and \<open>do_op (oper, T) = (log2, U)\<close>
+  shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
+using assms
+  apply -
+  apply(case_tac oper; clarify)
+  apply(unfold efficient_do_op.simps, unfold do_op.simps)
+  apply(simp only: prod.simps, elim conjE, clarify)
+  apply(intro conjI)
+  apply(simp only: log_op.simps)
+  apply(intro conjI, force)
+  apply(rule efficient_do_op_get_parent_technical, force, force)
+  apply force
+  apply force
+  apply force
+  apply(rule if_refine)
+  apply force
+  apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x4}\<close> in hm_update_refine)
+  apply(rule hm_restrict_refine, assumption, assumption, force)
+  apply(rule unique_parent_downward_closure, assumption, force)
+  apply force
+  apply(subst efficient_ancestor_refines, assumption, force, force)
+  done
+
+lemma efficient_redo_op_refines:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+    and \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
+    and \<open>redo_op oper (opers, T) = (log2, U)\<close>
+  shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
+using assms
+  apply(case_tac \<open>oper\<close>; clarify)
+  apply(simp only: efficient_redo_op.simps redo_op.simps)
+  apply(intro conjI)
+  apply(simp only: Let_def split!:prod.split_asm)
+  apply(drule efficient_do_op_refines, force, assumption, assumption, force)
+  apply(simp only: Let_def split!:prod.split_asm)
+  apply(drule efficient_do_op_refines, force, assumption, assumption, force)
+  done
+
+lemma efficient_undo_op_refines:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>efficient_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
+using assms
+  apply(case_tac \<open>oper\<close>; clarsimp)
+  apply(case_tac \<open>x2\<close>; clarsimp)
+  apply(rule hm_restrict_refine, force, force)
+  apply force
+  apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x5}\<close> in hm_update_refine)
+  apply(rule hm_restrict_refine, assumption, assumption)
+  apply force
+  apply(rule unique_parent_downward_closure, force, force)
+  apply force
+  done
+
+lemma efficient_interp_op_refines:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+    and \<open>efficient_interp_op oper (log, t) = (log1, u)\<close>
+    and \<open>interp_op oper (log, T) = (log2, U)\<close>
+  shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
+using assms
+  apply(induction log)
+  apply(simp only: efficient_interp_op.simps interp_op.simps)
+  apply(intro conjI)
+  apply(clarsimp simp add: Let_def split!: prod.split_asm)
+  apply(erule conjE[OF efficient_do_op_refines], force, force, force, force)
+  apply(clarsimp simp add: Let_def split!: prod.split_asm)
+  apply(erule conjE[OF efficient_do_op_refines], force, force, force, force)
+  apply clarsimp
+  apply(case_tac \<open>move_time oper < log_time a\<close>; clarsimp)
+  apply(intro conjI)
+  apply(case_tac \<open>efficient_interp_op oper (log, efficient_undo_op (a, t))\<close>, clarsimp)
+  apply(case_tac \<open>interp_op oper (log, efficient_undo_op (a, t))\<close>, clarsimp)
 end
