@@ -1257,7 +1257,18 @@ qed
 
 lemma unique_parent_to_list:
   shows \<open>unique_parent (set (flip_triples (hm.to_list t)))\<close>
-  sorry
+apply(unfold unique_parent_def, intro allI impI conjI, elim conjE)
+apply(clarsimp simp add: flip_triples_def)
+apply(drule map_of_is_SomeI[rotated])+
+apply(force simp add: hm.to_list_correct)+
+apply(drule map_of_is_SomeI[rotated])+
+apply(force simp add: hm.to_list_correct)+
+apply(clarsimp simp add: flip_triples_def)
+apply(drule map_of_is_SomeI[rotated])+
+apply(force simp add: hm.to_list_correct)+
+apply(drule map_of_is_SomeI[rotated])+
+apply(force simp add: hm.to_list_correct)+
+done
 
 theorem efficient_ancestor_simp [code]:
   shows \<open>efficient_ancestor t p c \<longleftrightarrow>
@@ -1294,7 +1305,7 @@ value\<open>
         \<forall>i\<in>set[0..<bound]. efficient_ancestor hm (0, i) (0, (Suc i))]\<close>
 
 theorem efficient_ancestor_correct:
-  shows \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor (set (hm.to_list t)) p c\<close>
+  shows \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor (set (flip_triples (hm.to_list t))) p c\<close>
   apply(clarsimp simp add: efficient_ancestor_def)
   apply(subst ancestor_ancestor'''_equiv)
   apply(rule unique_parent_to_list)
