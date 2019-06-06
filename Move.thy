@@ -1093,6 +1093,23 @@ using assms
   using assms(1) assms(2) get_parent_SomeI apply fastforce
   done
   
+lemma get_parent_NoneD:
+  assumes \<open>get_parent T c = None\<close>
+    and \<open>unique_parent T\<close>
+    and \<open>(p, m, c) \<in> T\<close>
+  shows \<open>False\<close>
+using assms
+  apply(clarsimp simp add: get_parent_def unique_parent_def split: if_split_asm)
+  using assms(1) assms(2) get_parent_SomeI apply fastforce
+  done
+
+lemma get_parent_NoneI:
+  assumes \<open>unique_parent T\<close>
+    and \<open>\<And>p m. (p, m, c) \<notin> T\<close>
+  shows \<open>get_parent T c = None\<close>
+using assms
+  by(clarsimp simp add: unique_parent_def get_parent_def)
+
 lemma ancestor_ancestor''':
   assumes \<open>ancestor T p c\<close> and \<open>unique_parent T\<close>
     shows \<open>ancestor''' T p c\<close>
@@ -1144,9 +1161,15 @@ lemma refinesI [intro!]:
   shows \<open>Rs \<preceq> Ss\<close>
 using assms unfolding refines_def by meson
 
-lemma refinesE [elim]:
+lemma weak_refinesE:
   assumes \<open>Rs \<preceq> Ss\<close>
     and \<open>(\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss) \<Longrightarrow> (\<And>p m c. (p, m, c) \<in> Ss \<Longrightarrow> hm.lookup c Rs = Some (m, p)) \<Longrightarrow> P\<close>
+  shows P
+using assms by(auto simp add: refines_def)
+
+lemma refinesE [elim]:
+  assumes \<open>Rs \<preceq> Ss\<close>
+    and \<open>(\<And>p m c. (hm.lookup c Rs = Some (m, p)) \<longleftrightarrow> (p, m, c) \<in> Ss) \<Longrightarrow> P\<close>
   shows P
 using assms by(auto simp add: refines_def)
 
@@ -1154,7 +1177,7 @@ lemma empty_refinesI [intro!]:
   shows \<open>hm.empty () \<preceq> {}\<close>
   by(auto simp add: hm.correct)
 
-lemma get_parent_refinement:
+lemma get_parent_refinement_Some1:
   assumes \<open>get_parent T c = Some (p, m)\<close>
     and \<open>unique_parent T\<close>
     and \<open>t \<preceq> T\<close>
@@ -1163,15 +1186,69 @@ using assms
   apply -
   apply(erule refinesE)
   apply(drule get_parent_SomeD)
-  apply force
+  apply force             
   apply meson
   done
+
+lemma get_parent_refinement_Some2:
+  assumes \<open>hm.lookup c t = Some (m, p)\<close>
+    and \<open>unique_parent T\<close>
+    and \<open>t \<preceq> T\<close>
+    shows \<open>get_parent T c = Some (p, m)\<close>
+using assms
+  apply -
+  apply(erule refinesE)
+  apply(drule get_parent_SomeI)
+  apply force             
+  apply meson
+  done
+
+lemma get_parent_refinement_None1:
+  assumes \<open>get_parent T c = None\<close>
+    and \<open>unique_parent T\<close>
+    and \<open>t \<preceq> T\<close>
+    shows \<open>hm.lookup c t = None\<close>
+using assms
+  apply -
+  apply(erule refinesE)
+  apply(subgoal_tac \<open>\<forall>p m. (p, m, c) \<notin> T\<close>)
+  apply(force dest: get_parent_NoneD)
+  apply(intro allI notI)
+  apply(drule get_parent_NoneD)
+  apply force+
+  done
+
+lemma get_parent_refinement_None2:
+  assumes \<open>hm.lookup c t = None\<close>
+    and \<open>unique_parent T\<close>
+    and \<open>t \<preceq> T\<close>
+    shows \<open>get_parent T c = None\<close>
+using assms
+  apply -
+  apply(erule refinesE)
+  apply(rule get_parent_NoneI)
+  apply force+
+  done
+
+corollary get_parent_refinement:
+  fixes T :: \<open>('a::{hashable} \<times> 'b \<times> 'a) set\<close>
+  assumes \<open>unique_parent T\<close> and \<open>t \<preceq> T\<close>
+  shows \<open>get_parent T c = map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t)\<close>
+using assms
+  apply -
+  apply(case_tac \<open>get_parent T c\<close>; case_tac \<open>hm.lookup c t\<close>)
+  apply force
+  apply(frule get_parent_refinement_None1, force, force, force)
+  apply(case_tac a, clarify, frule get_parent_refinement_Some1, force, force, force)
+  apply(case_tac a, case_tac aa, clarify)
+  apply(frule get_parent_refinement_Some2, force, force, force)
+done
 
 lemma set_member_refine:
   assumes \<open>(p, m, c) \<in> T\<close>
     and \<open>t \<preceq> T\<close>
   shows \<open>hm.lookup c t = Some (m, p)\<close>
-using assms by (blast elim: refinesE)
+using assms by blast
 
 lemma ancestor'''_simp1:
   fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
@@ -1182,14 +1259,14 @@ lemma ancestor'''_simp1:
                 a = p \<or> ancestor''' T p a)\<close>
 using assms
   apply(induction rule: ancestor'''.induct)
-  apply(drule get_parent_refinement)
+  apply(drule get_parent_refinement_Some1)
   apply force
   apply force
   apply simp
   apply clarsimp
   apply(drule get_parent_SomeD)
   apply force
-  apply(erule refinesE)
+  apply(erule weak_refinesE)
   apply(erule_tac x=p in meta_allE, erule_tac x=m in meta_allE, erule_tac x=c in meta_allE, erule meta_impE, assumption) back
   apply clarsimp
   done
@@ -1203,7 +1280,7 @@ lemma ancestor'''_simp2:
   shows \<open>ancestor''' T p c\<close>
 using assms
   apply(clarsimp split: option.split_asm)
-  apply(erule refinesE)
+  apply(erule weak_refinesE)
   apply(erule_tac x=b in meta_allE, erule_tac x=a in meta_allE, erule_tac x=c in meta_allE, erule_tac meta_impE, assumption)
   apply(erule disjE)
   apply clarsimp
@@ -1314,5 +1391,108 @@ theorem efficient_ancestor_correct:
 
 export_code efficient_ancestor in SML
   file efficient_ancestor.ML
+
+(*
+fun do_op :: \<open>('t, 'n, 'm) operation \<times> ('n \<times> 'm \<times> 'n) set \<Rightarrow>
+              ('t, 'n, 'm) log_op \<times> ('n \<times> 'm \<times> 'n) set\<close> where
+  \<open>do_op (Move t newp m c, tree) =
+     (LogMove t (get_parent tree c) newp m c,
+      if ancestor tree c newp \<or> c = newp then tree
+      else {(p', m', c') \<in> tree. c' \<noteq> c} \<union> {(newp, m, c)})\<close>
+*)
+fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
+        ('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_do_op (Move t newp m c, tree) =
+           (LogMove t (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c tree)) newp m c,
+              if efficient_ancestor tree c newp \<or> c = newp then tree
+                else hm.update c (m, newp) (hm.restrict (\<lambda>(c', m', p'). c \<noteq> c') tree))\<close>
+
+(*
+fun undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n \<times> 'm \<times> 'n) set \<Rightarrow> ('n \<times> 'm \<times> 'n) set\<close> where
+  \<open>undo_op (LogMove t None newp m c, tree) = {(p', m', c') \<in> tree. c' \<noteq> c}\<close> |
+  \<open>undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
+     {(p', m', c') \<in> tree. c' \<noteq> c} \<union> {(oldp, oldm, c)}\<close>
+*)
+
+fun efficient_undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_undo_op (LogMove t None newp m c, tree) =
+          hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree\<close>
+      | \<open>efficient_undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
+          hm.update c (oldm, oldp) (hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree)\<close>
+(*
+fun redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow> ('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) state\<close> where
+  \<open>redo_op (LogMove t _ p m c) (ops, tree) =
+     (let (op2, tree2) = do_op (Move t p m c, tree)
+      in (op2 # ops, tree2))\<close>
+*)
+
+fun efficient_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
+            ('t, 'n, 'm) log_op list \<times> ('n, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_redo_op (LogMove t _ p m c) (ops, tree) =
+          (let (op2, tree2) = efficient_do_op (Move t p m c, tree) in
+             (op2#ops, tree2))\<close>
+
+(*
+fun interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
+                  ('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) state\<close> where
+  \<open>interp_op op1 ([], tree1) =
+     (let (op2, tree2) = do_op (op1, tree1)
+      in ([op2], tree2))\<close> |
+  \<open>interp_op op1 (logop # ops, tree1) =
+     (if move_time op1 < log_time logop
+      then redo_op logop (interp_op op1 (ops, undo_op (logop, tree1)))
+      else let (op2, tree2) = do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
+*)
+
+fun efficient_interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
+              ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
+            ('t, 'n, 'm) log_op list \<times> ('n, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_interp_op op1 ([], tree1) =
+          (let (op2, tree2) = efficient_do_op (op1, tree1)
+            in ([op2], tree2))\<close>
+      | \<open>efficient_interp_op op1 (logop#ops, tree1) =
+          (if move_time op1 < log_time logop
+            then efficient_redo_op logop (efficient_interp_op op1 (ops, efficient_undo_op (logop, tree1)))
+              else let (op2, tree2) = efficient_do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
+       
+(*
+definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightarrow> ('t, 'n, 'm) state\<close> where
+  \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
+*)
+
+definition efficient_interp_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_interp_ops ops \<equiv> foldl (\<lambda>state oper. efficient_interp_op oper state) ([], (hm.empty ())) ops\<close>
+
+export_code efficient_interp_ops in SML
+
+lemma efficient_do_op_correct1:
+  assumes \<open>efficient_do_op (oper, tree) = (log_op, tree')\<close>
+   shows \<open>do_op (oper, (set (flip_triples (hm.to_list tree)))) = (log_op, set (flip_triples (hm.to_list tree')))\<close>
+using assms
+  apply(case_tac oper)
+  apply(clarify)
+  apply(unfold efficient_do_op.simps)
+  apply(clarify)
+  apply(unfold do_op.simps)
+  apply(case_tac \<open>ancestor (set (flip_triples (hm.to_list tree))) x4 x2 \<or> x4 = x2\<close>; clarify)
+  apply(subgoal_tac \<open>efficient_ancestor tree x4 x2 \<or> x4 = x2\<close>)
+prefer 2
+  apply(erule disjE)
+  apply(rule disjI1)
+  apply(subst efficient_ancestor_correct)
+  apply force+
+  apply(subst log_op.simps)
+  apply(intro conjI; force?)
+  apply(rule get_parent_refinement)
+  apply(rule unique_parent_to_list)
+  apply(rule to_list_refines)
+  apply(case_tac \<open>efficient_ancestor tree x4 x2\<close>; clarsimp)
+  apply(subst (asm) efficient_ancestor_correct)
+  apply(force simp add: flip_triples_def)
+  apply(case_tac \<open>ancestor (set (flip_triples (hm.to_list tree))) x4 x2\<close>; clarsimp)
+  apply(erule impE)
+  apply(rule get_parent_refinement, rule unique_parent_to_list, rule to_list_refines)
+  apply(erule notE) back back back
+sorry
 
 end
