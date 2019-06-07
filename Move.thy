@@ -1581,6 +1581,8 @@ using assms
   apply(unfold efficient_ancestor_def)
   apply(subst ancestor_ancestor'''_equiv)
   apply(force intro: refines_unique_parent)
+  using efficient_ancestor_refines1_technical apply blast
+  done
 
 lemma efficient_ancestor_refines2:
   assumes \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
