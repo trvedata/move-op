@@ -57,8 +57,11 @@ fun interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
       then redo_op logop (interp_op op1 (ops, undo_op (logop, tree1)))
       else let (op2, tree2) = do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
 
-definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightarrow> ('t, 'n, 'm) state\<close> where
-  \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
+abbreviation interp_ops' :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightarrow> ('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) state\<close> where
+  \<open>interp_ops' ops initial \<equiv> foldl (\<lambda>state oper. interp_op oper state) initial ops\<close>
+
+definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightarrow> ('t, 'n, 'm) state\<close>
+  where \<open>interp_ops ops \<equiv> interp_ops' ops ([], {})\<close>
 
 definition unique_parent :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>unique_parent tree \<equiv> (\<forall>p1 p2 m1 m2 c. (p1, m1, c) \<in> tree \<and> (p2, m2, c) \<in> tree \<longrightarrow> p1 = p2 \<and> m1 = m2)\<close>
@@ -1469,24 +1472,38 @@ definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Righta
 definition efficient_interp_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
   where \<open>efficient_interp_ops ops \<equiv> foldl (\<lambda>state oper. efficient_interp_op oper state) ([], (hm.empty ())) ops\<close>
 
+lemma refines_unique_parent:
+  assumes \<open>t \<preceq> T\<close> shows \<open>unique_parent T\<close>
+using assms
+  apply(clarsimp simp add: unique_parent_def refines_def)
+  apply(subgoal_tac \<open>hm.lookup c t = Some (m1, p1)\<close>)
+  apply(subgoal_tac \<open>hm.lookup c t = Some (m2, p2)\<close>)
+  apply force+
+  done
+
 lemma hm_restrict_refine:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
+  assumes \<open>t \<preceq> T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
   shows \<open>hm.restrict P t \<preceq> S\<close>
 using assms
   apply -
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(erule refinesE)
   apply(intro refinesI)
   apply(clarsimp simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split_asm)
   apply(force simp add: unique_parent_def)
-  apply clarsimp
-  apply(clarsimp simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split)
+  apply(force simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split)
   done
 
 lemma hm_update_refine:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close> and \<open>S = { (p, m, c) \<in> T. c\<noteq>x } \<union> {(z, y, x)}\<close>
+  assumes \<open>t \<preceq> T\<close> and \<open>S = { (p, m, c) \<in> T. c\<noteq>x } \<union> {(z, y, x)}\<close>
   shows \<open>hm.update x (y, z) t \<preceq> S\<close>
 using assms
   apply -
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(erule refinesE)
   apply(rule refinesI)
   apply(clarsimp simp add: hm.update_correct hm.lookup_correct split: if_split_asm)
@@ -1506,9 +1523,12 @@ lemma let_refine:
 using assms by clarsimp
 
 lemma ancestor'''_implies_existence:
-  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close>
   shows \<open>\<exists>m q. hm.lookup c t = Some (m, q)\<close>
 using assms
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(induction rule: ancestor'''.induct)
   apply(drule get_parent_SomeD, force)
   apply(force simp add: refines_def)
@@ -1522,15 +1542,18 @@ using assms
   done
 
 lemma efficient_ancestor_refines:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
   shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
 using assms
 sorry
 
 lemma efficient_do_op_get_parent_technical:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
   shows \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
 using assms
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(case_tac \<open>get_parent T c\<close>; case_tac \<open>hm.lookup c t\<close>; clarsimp) 
   apply(clarsimp simp add: refines_def)
   apply(drule get_parent_NoneD, force, force, force)
@@ -1546,12 +1569,15 @@ lemma unique_parent_downward_closure:
 using assms by(force simp add: unique_parent_def)
 
 lemma efficient_do_op_refines:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
     and \<open>efficient_do_op (oper, t) = (log1, u)\<close>
     and \<open>do_op (oper, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms
   apply -
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(case_tac oper; clarify)
   apply(unfold efficient_do_op.simps, unfold do_op.simps)
   apply(simp only: prod.simps, elim conjE, clarify)
@@ -1561,60 +1587,62 @@ using assms
   apply(rule efficient_do_op_get_parent_technical, force, force)
   apply force
   apply force
-  apply force
   apply(rule if_refine)
   apply force
   apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x4}\<close> in hm_update_refine)
-  apply(rule hm_restrict_refine, assumption, assumption, force)
-  apply(rule unique_parent_downward_closure, assumption, force)
+  apply(rule hm_restrict_refine, assumption, force)
   apply force
-  apply(subst efficient_ancestor_refines, assumption, force, force)
+  apply(subst efficient_ancestor_refines, force, force)
   done
 
 lemma efficient_redo_op_refines:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
     and \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
     and \<open>redo_op oper (opers, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(case_tac \<open>oper\<close>; clarify)
   apply(simp only: efficient_redo_op.simps redo_op.simps)
   apply(intro conjI)
   apply(simp only: Let_def split!:prod.split_asm)
-  apply(drule efficient_do_op_refines, force, assumption, assumption, force)
+  apply(drule efficient_do_op_refines, assumption, assumption, force)
   apply(simp only: Let_def split!:prod.split_asm)
-  apply(drule efficient_do_op_refines, force, assumption, assumption, force)
+  apply(drule efficient_do_op_refines, assumption, assumption, force)
   done
 
 lemma efficient_undo_op_refines:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
   shows \<open>efficient_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
 using assms
   apply(case_tac \<open>oper\<close>; clarsimp)
   apply(case_tac \<open>x2\<close>; clarsimp)
-  apply(rule hm_restrict_refine, force, force)
+  apply(rule hm_restrict_refine, force)
   apply force
   apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x5}\<close> in hm_update_refine)
-  apply(rule hm_restrict_refine, assumption, assumption)
-  apply force
-  apply(rule unique_parent_downward_closure, force, force)
-  apply force
+  apply(rule hm_restrict_refine, assumption)
+  apply force+
   done
 
 (* this proof, lol *)
 lemma efficient_interp_op_refines:
-  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>t \<preceq> T\<close>
     and \<open>efficient_interp_op oper (log, t) = (log1, u)\<close>
     and \<open>interp_op oper (log, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
   apply(induction log arbitrary: T t log1 log2 u U)
   apply(simp only: efficient_interp_op.simps interp_op.simps)
   apply(intro conjI)
   apply(clarsimp simp add: Let_def split!: prod.split_asm)
-  apply(erule conjE[OF efficient_do_op_refines], force, force, force, force)
+  apply(erule conjE[OF efficient_do_op_refines], force, force, force)
   apply(clarsimp simp add: Let_def split!: prod.split_asm)
-  apply(erule conjE[OF efficient_do_op_refines], force, force, force, force)
+  apply(erule conjE[OF efficient_do_op_refines], force, force, force)
   apply clarsimp
   apply(case_tac \<open>move_time oper < log_time a\<close>; clarsimp)
   apply(case_tac \<open>efficient_interp_op oper (log, efficient_undo_op (a, t))\<close>)
@@ -1627,17 +1655,18 @@ using assms
   apply(erule_tac x=b in meta_allE)
   apply(erule_tac x=ba in meta_allE)
   apply(erule meta_impE)
-  apply(rule efficient_undo_op_refines, force, force)
+  apply(rule efficient_undo_op_refines, force)
   apply(erule meta_impE)
-  apply(rule undo_op_unique_parent_variant, force, rule refl)
-  apply(erule meta_impE, force)+
   apply(elim conjE)
   apply(subgoal_tac \<open>efficient_redo_op a (aa, b) = (log1, u)\<close>)
 prefer 2 apply force
   apply(subgoal_tac \<open>redo_op a (ab, ba) = (log2, U)\<close>)
 prefer 2 apply force
-  apply(drule efficient_redo_op_refines[rotated, rotated], force, force)
-defer
+  apply(drule efficient_redo_op_refines[rotated, rotated], force, force, force)
+  apply(erule conjE)
+  apply(drule efficient_redo_op_refines) back
+  apply force
+  apply force
   apply force
   apply(erule_tac x=\<open>undo_op (a, T)\<close> in meta_allE)
   apply(erule_tac x=\<open>efficient_undo_op (a, t)\<close> in meta_allE)
@@ -1646,27 +1675,62 @@ defer
   apply(erule_tac x=b in meta_allE)
   apply(erule_tac x=ba in meta_allE)
   apply(erule meta_impE)
-  apply(rule efficient_undo_op_refines, force, force)
+  apply(rule efficient_undo_op_refines, force)
+  apply(erule meta_impE, force)
+  apply(erule meta_impE, force)
   apply(erule meta_impE)
-  apply(rule undo_op_unique_parent_variant, force, rule refl)
-  apply(erule meta_impE, force)
-  apply(erule meta_impE, force)
-  apply force
-  apply(clarsimp split!: prod.split_asm)
-  apply(drule efficient_do_op_refines[rotated], force, force, force, force)
-  apply(rule interp_op_unique_parent)
 defer
   apply force
+  apply(clarsimp split!: prod.split_asm)
+  apply(drule efficient_do_op_refines[rotated], force, force, force)
   apply(rule undo_op_unique_parent_variant, assumption, force)
   done
+
+
+lemma efficient_interp_ops_refines_internal:
+  assumes \<open>t \<preceq> T\<close>
+    and \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) xs = (log1, u)\<close>
+    and \<open>foldl (\<lambda>state oper. interp_op oper state) (log, T) xs = (log2, U)\<close>
+  shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
+using assms
+  apply(induction xs arbitrary: log log1 log2 t T u U)
+  apply(clarsimp)
+  apply(case_tac \<open>a\<close>; clarsimp)
+  apply(case_tac \<open>efficient_interp_op (Move x1 x2 x3 x4) (log, t)\<close>)
+  apply(case_tac \<open>interp_op (Move x1 x2 x3 x4) (log, T)\<close>)
+  apply(erule_tac x=a in meta_allE)
+  apply(erule_tac x=log1 in meta_allE)
+  apply(erule_tac x=log2 in meta_allE)
+  apply(erule_tac x=b in meta_allE)
+  apply(erule_tac x=ba in meta_allE)
+  apply(erule_tac x=u in meta_allE)
+  apply(erule_tac x=U in meta_allE)
+  apply(erule_tac meta_impE)
+  apply(frule efficient_interp_op_refines, force, force, force)
+  apply clarsimp
+  apply(erule meta_impE)
+defer apply force
+  apply(subgoal_tac \<open>a=aa\<close>)
+  apply force
+  apply(drule efficient_interp_op_refines, force, force, force)
+done
 
 lemma efficient_interp_ops_refines:
   assumes \<open>efficient_interp_ops opers = (log1, u)\<close>
     and \<open>interp_ops opers = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms
-  apply(induction opers)
-  sorry
+  apply(unfold efficient_interp_ops_def)
+  apply(unfold interp_ops_def)
+  apply(rule efficient_interp_ops_refines_internal)
+defer
+  apply force+
+done
+
+(* should be easy, if I figure out what the introduction rule for hashmap equality is called *)
+lemma refines_same_eq:
+  shows \<open>ba \<preceq> bb \<Longrightarrow> bc \<preceq> bb \<Longrightarrow> ba = bc\<close>
+sorry
 
 theorem efficient_interp_ops_commutes:
   assumes \<open>set ops1 = set ops2\<close>
@@ -1678,6 +1742,15 @@ using assms
   apply(drule interp_ops_commutes, force, force)
   apply(case_tac\<open>interp_ops ops1\<close>)
   apply(case_tac\<open>efficient_interp_ops ops1\<close>)
-  apply(drule efficient_interp_ops_refines)
+  apply(frule efficient_interp_ops_refines, assumption)
+  apply(case_tac\<open>interp_ops ops2\<close>)
+  apply(case_tac\<open>efficient_interp_ops ops2\<close>)
+  apply(frule efficient_interp_ops_refines, assumption, force simp add: refines_same_eq)
+  done
   
+value \<open>
+  efficient_interp_ops [Move (1::nat) (1::nat) ''first'' (0::nat),
+                        Move (3::nat) (2::nat) ''third'' (0::nat),
+                        Move (2::nat) (1::nat) ''second'' (2::nat)]\<close>
+
 end
