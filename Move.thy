@@ -1787,6 +1787,9 @@ apply(clarsimp simp add: hm.lookup_correct)
 apply(subgoal_tac \<open>\<forall>c. hm.\<alpha> ba c = hm.\<alpha> bc c\<close>)
 prefer 2
 apply(clarsimp)
+apply(case_tac \<open>hm.\<alpha> ba c\<close>; case_tac \<open>hm.\<alpha> bc c\<close>; clarsimp)
+apply(erule_tac x=b in allE, erule_tac x=a in allE, erule_tac x=c in allE, force)
+apply clarsimp
 sorry (*wtf*)
 
 theorem efficient_interp_ops_commutes:
@@ -1802,8 +1805,32 @@ using assms
   apply(frule efficient_interp_ops_refines, assumption)
   apply(case_tac\<open>interp_ops ops2\<close>)
   apply(case_tac\<open>efficient_interp_ops ops2\<close>)
-  apply(frule efficient_interp_ops_refines, assumption, force simp add: refines_same_eq)
+  apply(frule efficient_interp_ops_refines, assumption) back
+  apply(force simp add: refines_same_eq)
   done
+
+theorem efficient_interp_ops_commutes':
+  assumes \<open>set ops1 = set ops2\<close>
+    and \<open>distinct (map move_time ops1)\<close>
+    and \<open>distinct (map move_time ops2)\<close>
+    and \<open>efficient_interp_ops ops1 = (log1, t)\<close>
+    and \<open>efficient_interp_ops ops2 = (log2, u)\<close>
+  shows \<open>log1 = log2 \<and> hm.lookup c t = hm.lookup c u\<close>
+using assms
+  apply -
+  apply(drule interp_ops_commutes, force, force)
+  apply(case_tac\<open>interp_ops ops1\<close>)
+  apply(case_tac\<open>efficient_interp_ops ops1\<close>)
+  apply(frule efficient_interp_ops_refines, assumption)
+  apply(case_tac\<open>interp_ops ops2\<close>)
+  apply(case_tac\<open>efficient_interp_ops ops2\<close>)
+  apply(drule efficient_interp_ops_refines, assumption)
+  apply(drule efficient_interp_ops_refines, assumption)
+  apply clarsimp
+  apply(case_tac \<open>hm.lookup c t\<close>; case_tac \<open>hm.lookup c u\<close>)
+  apply(clarsimp)
+  apply(force simp add: refines_def)+
+done
 
 text\<open>Test code extraction\<close>
 export_code efficient_interp_ops in SML
