@@ -1541,11 +1541,59 @@ prefer 2
   apply(force simp add: refines_def)
   done
 
+lemma efficient_ancestor_refines1_technical:
+  shows \<open>ancestor''' T' p c \<Longrightarrow> t \<preceq> T \<Longrightarrow> T' = (set (flip_triples (hm.to_list t))) \<Longrightarrow> ancestor''' T p c\<close>
+apply(induction rule: ancestor'''.induct)
+apply clarsimp
+apply(drule get_parent_SomeD)
+apply(rule_tac t=\<open>t\<close> in refines_unique_parent)
+apply(rule to_list_refines)
+apply(rule ancestor'''.intros(1))
+apply(rule get_parent_SomeI)
+apply(rule refines_unique_parent, force)
+defer
+apply clarsimp
+apply(rule ancestor'''.intros(2))
+apply(drule get_parent_SomeD)
+apply(rule_tac t=\<open>t\<close> in refines_unique_parent)
+apply(rule to_list_refines)
+apply(rule get_parent_SomeI)
+apply(rule refines_unique_parent, force)
+defer
+apply force
+apply(subgoal_tac \<open>hm.lookup c t = Some (m, p)\<close>)
+apply(force simp add: refines_def)
+apply(clarsimp simp add: flip_triples_def)
+apply(drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)
+apply(clarsimp simp add: hm.lookup_correct hm.to_list_correct)
+apply(subgoal_tac \<open>hm.lookup c t = Some (m, p)\<close>)
+apply(force simp add: refines_def)
+apply(clarsimp simp add: flip_triples_def)
+apply(drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)
+apply(clarsimp simp add: hm.lookup_correct hm.to_list_correct)
+done
+
+lemma efficient_ancestor_refines1:
+  assumes \<open>t \<preceq> T\<close>
+  and \<open>efficient_ancestor t p c\<close>
+  shows \<open>ancestor T p c\<close>
+using assms
+  apply(unfold efficient_ancestor_def)
+  apply(subst ancestor_ancestor'''_equiv)
+  apply(force intro: refines_unique_parent)
+
+lemma efficient_ancestor_refines2:
+  assumes \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
+  shows \<open>efficient_ancestor t p c\<close>
+using assms
+apply(induction rule: ancestor.induct)
+apply(force simp add: efficient_ancestor_simp)+
+done
+
 lemma efficient_ancestor_refines:
   assumes \<open>t \<preceq> T\<close>
   shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
-using assms
-sorry
+using assms efficient_ancestor_refines1 efficient_ancestor_refines2 by blast
 
 lemma efficient_do_op_get_parent_technical:
   assumes \<open>t \<preceq> T\<close>
@@ -1730,7 +1778,11 @@ done
 (* should be easy, if I figure out what the introduction rule for hashmap equality is called *)
 lemma refines_same_eq:
   shows \<open>ba \<preceq> bb \<Longrightarrow> bc \<preceq> bb \<Longrightarrow> ba = bc\<close>
-sorry
+apply(subgoal_tac \<open>\<forall>p m c. hm.lookup c ba = Some (m, p) \<longleftrightarrow> hm.lookup c bc = Some (m, p)\<close>)
+prefer 2
+apply(force simp add: refines_def)
+apply(clarsimp simp add: hm.lookup_correct)
+sorry (*wtf*)
 
 theorem efficient_interp_ops_commutes:
   assumes \<open>set ops1 = set ops2\<close>
