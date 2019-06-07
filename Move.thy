@@ -1777,70 +1777,45 @@ defer
   apply force+
 done
 
-(* should be easy, if I figure out what the introduction rule for hashmap equality is called *)
-lemma refines_same_eq:
-  shows \<open>ba \<preceq> bb \<Longrightarrow> bc \<preceq> bb \<Longrightarrow> ba = bc\<close>
-apply(subgoal_tac \<open>\<forall>p m c. hm.lookup c ba = Some (m, p) \<longleftrightarrow> hm.lookup c bc = Some (m, p)\<close>)
-prefer 2
-apply(force simp add: refines_def)
-apply(clarsimp simp add: hm.lookup_correct)
-apply(subgoal_tac \<open>\<forall>c. hm.\<alpha> ba c = hm.\<alpha> bc c\<close>)
-prefer 2
-apply(clarsimp)
-apply(case_tac \<open>hm.\<alpha> ba c\<close>; case_tac \<open>hm.\<alpha> bc c\<close>; clarsimp)
-apply(erule_tac x=b in allE, erule_tac x=a in allE, erule_tac x=c in allE, force)
-apply clarsimp
-sorry (*wtf*)
-
+text\<open>The main correctness theorem for the efficient algorithms.  This follows the
+     @{thm interp_ops_commutes} theorem for the abstract algorithms with one significant difference:
+     tbe states obtained from interpreting the two lists of operations, @{term ops1} and
+     @{term ops2} are no longer identical (the hash-maps may have a different representation in
+     memory, for instance), but contain the same set of key-value bindings:\<close>
 theorem efficient_interp_ops_commutes:
-  assumes \<open>set ops1 = set ops2\<close>
-    and \<open>distinct (map move_time ops1)\<close>
-    and \<open>distinct (map move_time ops2)\<close>
-  shows \<open>efficient_interp_ops ops1 = efficient_interp_ops ops2\<close>
-using assms
-  apply -
-  apply(drule interp_ops_commutes, force, force)
-  apply(case_tac\<open>interp_ops ops1\<close>)
-  apply(case_tac\<open>efficient_interp_ops ops1\<close>)
-  apply(frule efficient_interp_ops_refines, assumption)
-  apply(case_tac\<open>interp_ops ops2\<close>)
-  apply(case_tac\<open>efficient_interp_ops ops2\<close>)
-  apply(frule efficient_interp_ops_refines, assumption) back
-  apply(force simp add: refines_same_eq)
-  done
-
-theorem efficient_interp_ops_commutes':
-  assumes \<open>set ops1 = set ops2\<close>
-    and \<open>distinct (map move_time ops1)\<close>
-    and \<open>distinct (map move_time ops2)\<close>
-    and \<open>efficient_interp_ops ops1 = (log1, t)\<close>
-    and \<open>efficient_interp_ops ops2 = (log2, u)\<close>
+  assumes 1: \<open>set ops1 = set ops2\<close>
+    and 2: \<open>distinct (map move_time ops1)\<close>
+    and 3: \<open>distinct (map move_time ops2)\<close>
+    and 4: \<open>efficient_interp_ops ops1 = (log1, t)\<close>
+    and 5: \<open>efficient_interp_ops ops2 = (log2, u)\<close>
   shows \<open>log1 = log2 \<and> hm.lookup c t = hm.lookup c u\<close>
-using assms
-  apply -
-  apply(drule interp_ops_commutes, force, force)
-  apply(case_tac\<open>interp_ops ops1\<close>)
-  apply(case_tac\<open>efficient_interp_ops ops1\<close>)
-  apply(frule efficient_interp_ops_refines, assumption)
-  apply(case_tac\<open>interp_ops ops2\<close>)
-  apply(case_tac\<open>efficient_interp_ops ops2\<close>)
-  apply(drule efficient_interp_ops_refines, assumption)
-  apply(drule efficient_interp_ops_refines, assumption)
-  apply clarsimp
-  apply(case_tac \<open>hm.lookup c t\<close>; case_tac \<open>hm.lookup c u\<close>)
-  apply(clarsimp)
-  apply(force simp add: refines_def)+
-done
+proof -
+  from 1 2 3 have \<open>interp_ops ops1 = interp_ops ops2\<close>
+    using interp_ops_commutes by auto
+  from this obtain log1' log2' T U where 6: \<open>interp_ops ops1 = (log1', T)\<close>
+      and 7: \<open>interp_ops ops2 = (log2', U)\<close> and 8: \<open>log1' = log2'\<close> and 9: \<open>T = U\<close>
+    by fastforce
+  moreover from 4 5 6 7 have \<open>log1 = log1'\<close> and \<open>log2 = log2'\<close> and \<open>t \<preceq> T\<close> and \<open>u \<preceq> U\<close>
+    using efficient_interp_ops_refines by force+
+  moreover from 8 have \<open>log1 = log2\<close>
+    by(simp add: calculation)
+  moreover have \<open>hm.lookup c t = hm.lookup c u\<close>
+    using calculation by(cases \<open>hm.lookup c t\<close>; cases \<open>hm.lookup c u\<close>) (force simp add: refines_def)+
+  ultimately show \<open>?thesis\<close>
+    by auto
+qed
 
-text\<open>Test code extraction\<close>
-export_code efficient_interp_ops in SML
-export_code efficient_interp_ops in Scala
-export_code efficient_interp_ops in OCaml
-export_code efficient_interp_ops in Haskell
-  
-value \<open>
-  efficient_interp_ops [Move (1::nat) (1::nat) ''first'' (0::nat),
-                        Move (3::nat) (2::nat) ''third'' (0::nat),
-                        Move (2::nat) (1::nat) ''second'' (2::nat)]\<close>
+subsection\<open>Testing code generation\<close>
+
+text\<open>Check that all of the efficient algorithms produce executable code for all of Isabelle/HOL's
+     code generation targets:\<close>
+export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
+  efficient_interp_op efficient_interp_ops in SML
+export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
+  efficient_interp_op efficient_interp_ops in Scala
+export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
+  efficient_interp_op efficient_interp_ops in OCaml
+export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
+  efficient_interp_op efficient_interp_ops in Haskell
 
 end
