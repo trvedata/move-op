@@ -1784,6 +1784,9 @@ apply(subgoal_tac \<open>\<forall>p m c. hm.lookup c ba = Some (m, p) \<longleft
 prefer 2
 apply(force simp add: refines_def)
 apply(clarsimp simp add: hm.lookup_correct)
+apply(subgoal_tac \<open>\<forall>c. hm.\<alpha> ba c = hm.\<alpha> bc c\<close>)
+prefer 2
+apply(clarsimp)
 sorry (*wtf*)
 
 theorem efficient_interp_ops_commutes:
@@ -1801,6 +1804,12 @@ using assms
   apply(case_tac\<open>efficient_interp_ops ops2\<close>)
   apply(frule efficient_interp_ops_refines, assumption, force simp add: refines_same_eq)
   done
+
+text\<open>Test code extraction\<close>
+export_code efficient_interp_ops in SML
+export_code efficient_interp_ops in Scala
+export_code efficient_interp_ops in OCaml
+export_code efficient_interp_ops in Haskell
   
 value \<open>
   efficient_interp_ops [Move (1::nat) (1::nat) ''first'' (0::nat),
