@@ -1,5 +1,8 @@
 \documentclass[sigconf]{acmart}
 
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
 \usepackage{lineno}
 \usepackage{isabelle,isabellesym}
 \isabellestyle{tt}
@@ -103,7 +106,7 @@ For example:
     \item Personal \textbf{note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} explicitly present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
-In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
+In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple replicas.
 Moreover, we focus on \emph{optimistic replication}~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
 Such systems have the advantage that they can continue processing read and write requests even in the presence of arbitrary network partitions; in other words, they are \emph{available} and \emph{partition-tolerant} in the sense of the CAP theorem~\cite{Gilbert:2002il}.
 This approach is desirable since it enables disconnected operation in a mobile computing context, and high availability in geo-replicated settings.
@@ -124,12 +127,216 @@ Our contributions in this work are as follows:
     \item We formalise our algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant, and produce a computer-checked proof of correctness of our algorithm.
         In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency).
     \item To demonstrate the practical viability of the algorithm we extract a formally verified, executable implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
-    \item We perform experiments with replicated filesystem products such as Dropbox, Google Drive, and Microsoft OneDrive, and show that some of them exhibit problems that would be prevented by our algorithm.
+    \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
+
+\begin{figure*}
+\centering
+\begin{tikzpicture}
+  \tikzstyle{time}=[thick,->,gray]
+  \tikzstyle{network}=[thick,dashed,blue,-{Stealth[length=3mm]}]
+  \node [anchor=east] at (-1.8,3) {Replica 1:};
+  \node [anchor=east] at (-1.8,0) {Replica 2:};
+  \node [rectangle,draw] (start1) at (0,3) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 2}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}
+              child {node {$B$}}
+              child {node {$C$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (start2) at (0,0) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 2}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}
+              child {node {$B$}}
+              child {node {$C$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (change1) at (5,3) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 3}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$B$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}}
+              child {node {$C$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (change2) at (5,0) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 3}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$B$}}
+              child {node {$C$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw,inner sep=3mm] (merge1) at (8.2,3) {?};
+  \node [rectangle,draw,inner sep=3mm] (merge2) at (8.2,0) {?};
+  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $B$} (change1.west);
+  \draw [time] (change1.east) -- (merge1.west);
+  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $C$} (change2.west);
+  \draw [time] (change2.east) -- (merge2.west);
+  \draw [network] (6.5,0) to [out=90,in=270] (7.2,3);
+  \draw [network] (6.5,3) to [out=270,in=90] (7.2,0);
+  \node [rotate=90,blue,font=\footnotesize] at (7.5,1.5) {network communication};
+  %%%
+  \node at (9.85,4.04) {(\emph{a})};
+  \node at (14.15,4.04) {(\emph{b})};
+  \node at (9.85,1.04) {(\emph{c})};
+  \node at (14.15,1.04) {(\emph{d})};
+  \node [rectangle,draw] at (10.9,3) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=12mm]
+          \tikzstyle{level 3}=[sibling distance=4mm]
+          \node {$\mathsf{root}$}
+              child {node {$B$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}}
+              child {node {$C$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] at (13.5,3) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=12mm]
+          \node at (0,1.4) {$\mathsf{root}$} child {node (b) {$B$}} child {node (c) {$C$}};
+          \tikzstyle{level 1}=[sibling distance=6mm]
+          \node (a) at (0,0) {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}};
+          \draw (b) -- (a);
+          \draw (c) -- (a);
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] at (10.7,0) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 3}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$B$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}}
+              child {node {$C$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] at (13.3,0) {
+      \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{level 1}=[sibling distance=10mm]
+          \tikzstyle{level 3}=[sibling distance=6mm]
+          \node {$\mathsf{root}$}
+              child {node {$B$}}
+              child {node {$C$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}};
+      \end{tikzpicture}
+  };
+\end{tikzpicture}
+\caption{Replica 1 moves $A$ to be a child of $B$, while concurrently replica 2 moves the same node $A$ to be a child of $C$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}
+\label{fig:move-same-item}
+\Description{}
+\end{figure*}
+
+\begin{figure*}
+\centering
+\begin{tikzpicture}
+  \tikzstyle{time}=[thick,->,gray]
+  \tikzstyle{network}=[thick,dashed,blue,-{Stealth[length=3mm]}]
+  \node [anchor=east] at (-1.2,3) {Replica 1:};
+  \node [anchor=east] at (-1.2,0) {Replica 2:};
+  \node [rectangle,draw] (start1) at (0,3) {
+      \begin{tikzpicture}[level distance=7mm]
+      \node {$\mathsf{root}$} child {node {$A$} child {node {$C$}}} child {node {$B$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (start2) at (0,0) {
+      \begin{tikzpicture}[level distance=7mm]
+      \node {$\mathsf{root}$} child {node {$A$} child {node {$C$}}} child {node {$B$}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (change1) at (4.5,3) {
+      \begin{tikzpicture}[level distance=7mm]
+      \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (change2) at (4.5,0) {
+      \begin{tikzpicture}[level distance=7mm]
+      \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw,inner sep=3mm] (merge1) at (8,3) {?};
+  \node [rectangle,draw,inner sep=3mm] (merge2) at (8,0) {?};
+  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $B$ to be a child of $A$} (change1.west);
+  \draw [time] (change1.east) -- (merge1.west);
+  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $B$} (change2.west);
+  \draw [time] (change2.east) -- (merge2.west);
+  \draw [network] (6.0,0) to [out=90,in=270] (6.7,3);
+  \draw [network] (6.0,3) to [out=270,in=90] (6.7,0);
+  \node [rotate=90,blue,font=\footnotesize] at (7.0,1.5) {network communication};
+  %%%%%
+  \node [rectangle,draw] at (10.95,3) {
+      \begin{tikzpicture}[level distance=7mm]
+      \useasboundingbox (-1.3,-1.3) rectangle (1,1.2);
+      \node at (-1.1,1.0) {(\emph{a})};
+      \node at (0,1) {$\mathsf{root}$};
+      \node (a1) {$A$} child {node (b1) {$B$}} child {node {$C$}};
+      \draw (b1.south west) .. controls (-2,-2) and (0,1.5) .. (a1.north);
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] at (13.8,3) {
+      \begin{tikzpicture}[level distance=7mm]
+      \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
+      \node at (0.95,0.0) {(\emph{b})};
+      \node {$\mathsf{root}$} child {node (a2) {$A$} child {node {$B$}}} child {node {$B'$} child {node {$A'$} child {node (c2) {$C$}}}};
+      \draw (a2) -- (c2);
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (start) at (10.95,0) {
+      \begin{tikzpicture}[level distance=7mm]
+      \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
+      \node at (-0.95,0.0) {(\emph{c})};
+      \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
+      \end{tikzpicture}
+  };
+  \node [rectangle,draw] (right) at (13.8,0) {
+      \begin{tikzpicture}[level distance=7mm]
+      \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
+      \node at (0.95,0.0) {(\emph{d})};
+      \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
+      \end{tikzpicture}
+  };
+\end{tikzpicture}
+\caption{Initially, $A$ and $B$ are siblings. $B$ is moved to be a child of $A$, while concurrently $A$ is moved to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
+\Description{Visualisation of trees with concurrent move operations}
+\end{figure*}
+
+\begin{figure*}
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
+  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations described in Section~\ref{sec:move-cycle}.}
+  \label{fig:gdrive-error}
+  \Description{Screenshot showing the errors ``Can't remove files with changes pending. Try again after sync is complete.'' and ``An unknown error occurred.''}
+\end{figure*}
 
 \section{Why a move operation is hard}\label{sec:move-is-hard}
 
+Applications that rely on a tree data model often need to move a node from one location to another location within the tree, whereby all children of the moved node move along with it.
+For example:
+\begin{itemize}
+    \item In a filesystem, any file or directory can be moved to a different parent directory.
+        Moreover, renaming a file is equivalent to moving the file to a new name without changing its parent directory.
+    \item In a rich text editor, a paragraph node can be turned into a bullet point.
+        This corresponds to creating a new bullet list node, creating a new bullet point node within it, and then moving the paragraph node to be a child of the new bullet point node.
+    \item In presentation software, grouping two graphical objects corresponds to creating a new group node, and then moving the two objects to be children of the new group node.
+\end{itemize}
+As these operations are so common, it is not obvious why a move operation should be difficult in a replicated setting.
+In this section we demonstrate some of those problems by example, before proceeding to our solution in Section~\ref{sec:algorithm}.
+
+\subsection{Concurrent moves of the same node}\label{sec:move-same-item}
+
+The first difficulty arises when a node is moved to a new location on one replica, and concurrently the same node is moved to a different location on a different replica.
+
+\subsection{Moving a node to be a descendant of itself}\label{sec:move-cycle}
+
 Errors in Google Drive
+
+
+\section{The replicated move operation}\label{sec:algorithm}
 
 % - No Synchronisation or consensus required. Available in the sense of CAP
 % - Rely only on uniqueness of node IDs, e.g. inode numbers
@@ -215,6 +422,7 @@ Errors in Google Drive
 \end{isabellebody}
 \caption{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \label{fig:code}
+\Description{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \end{figure*}
 
 \section{Related work}\label{sec:relwork}
