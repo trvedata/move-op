@@ -1663,18 +1663,46 @@ prefer 2
   apply(drule efficient_do_op_refines, assumption, assumption, force)
   done
 
+text\<open>The efficient and abstract versions of @{term undo_op} map related concrete and abstract states
+     to related concrete and abstract states when applied to the same operation:\<close>
 lemma efficient_undo_op_refines:
-  assumes \<open>t \<preceq> T\<close>
+  assumes 1: \<open>t \<preceq> T\<close>
   shows \<open>efficient_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
-using assms
-  apply(case_tac \<open>oper\<close>; clarsimp)
-  apply(case_tac \<open>x2\<close>; clarsimp)
-  apply(rule hm_restrict_refine, force)
-  apply force
-  apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x5}\<close> in hm_update_refine)
-  apply(rule hm_restrict_refine, assumption)
-  apply force+
-  done
+using assms proof(cases \<open>oper\<close>)           
+  case (LogMove time opt_old_parent new_parent meta child)
+    assume 2: \<open>oper = LogMove time opt_old_parent new_parent meta child\<close>
+    {
+      assume \<open>opt_old_parent = None\<close>
+      from this and 2 have 3: \<open>oper = LogMove time None new_parent meta child\<close>
+        by simp
+      moreover from this have \<open>efficient_undo_op (oper, t) = hm.restrict (\<lambda>(c, m, p). c \<noteq> child) t\<close>
+        by force
+      moreover have \<open>... \<preceq> {(p', m', c') \<in> T. c' \<noteq> child}\<close>
+        by(rule hm_restrict_refine[OF 1]) auto
+      moreover have \<open>... = undo_op (oper, T)\<close>
+        using 3 by force
+      ultimately have ?thesis
+        by metis
+    }
+    note L = this
+    {
+      fix old_meta old_parent
+      assume \<open>opt_old_parent = Some (old_parent, old_meta)\<close>
+      from this and 2 have 3: \<open>oper = LogMove time (Some (old_parent, old_meta)) new_parent meta child\<close>
+        by simp
+      moreover from this have \<open>efficient_undo_op (oper, t) =
+          hm.update child (old_meta, old_parent) (hm.restrict (\<lambda>(c, m, p). c \<noteq> child) t)\<close>
+        by auto
+      moreover have \<open>... \<preceq> {(p, m, c) \<in> T. c \<noteq> child} \<union> {(old_parent, old_meta, child)}\<close>
+        by(rule hm_update_refine, rule hm_restrict_refine[OF 1], force, force)
+      moreover have \<open>... = undo_op (oper, T)\<close>
+        using 3 by auto
+      ultimately have ?thesis
+        by metis
+    }
+    from this and L show \<open>?thesis\<close>
+      by(cases opt_old_parent) force+
+qed
 
 (* this proof, lol *)
 lemma efficient_interp_op_refines:
@@ -1765,17 +1793,24 @@ defer apply force
   apply(drule efficient_interp_op_refines, force, force, force)
 done
 
+text\<open>The efficient and abstract versions of @{term interp_ops} produce identical operation logs and
+     produce related concrete and abstract states:\<close>
 lemma efficient_interp_ops_refines:
-  assumes \<open>efficient_interp_ops opers = (log1, u)\<close>
-    and \<open>interp_ops opers = (log2, U)\<close>
+  assumes 1: \<open>efficient_interp_ops opers = (log1, u)\<close>
+    and 2: \<open>interp_ops opers = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
-using assms
-  apply(unfold efficient_interp_ops_def)
-  apply(unfold interp_ops_def)
-  apply(rule efficient_interp_ops_refines_internal)
-defer
-  apply force+
-done
+proof -
+  have \<open>hm.empty () \<preceq> {}\<close>
+    by auto
+  moreover have \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) ([], hm.empty ()) opers = (log1, u)\<close>
+    using 1 by(auto simp add: efficient_interp_ops_def)
+  moreover have \<open>foldl (\<lambda>state oper. interp_op oper state) ([], {}) opers = (log2, U)\<close>
+    using 2 by(auto simp add: interp_ops_def)
+  moreover have \<open>log1 = log2\<close> and \<open>u \<preceq> U\<close>
+    using calculation efficient_interp_ops_refines_internal by blast+
+  ultimately show \<open>?thesis\<close>
+    by auto
+qed
 
 text\<open>The main correctness theorem for the efficient algorithms.  This follows the
      @{thm interp_ops_commutes} theorem for the abstract algorithms with one significant difference:
