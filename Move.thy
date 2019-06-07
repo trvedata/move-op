@@ -213,6 +213,12 @@ next
     using subset_union_unique_parent assms(1) by fastforce
 qed
 
+corollary undo_op_unique_parent_variant:
+  assumes \<open>unique_parent tree1\<close>
+    and \<open>undo_op (oper, tree1) = tree2\<close>
+  shows \<open>unique_parent tree2\<close>
+using assms by(cases oper, auto simp add: undo_op_unique_parent)
+
 lemma redo_op_unique_parent:
   assumes \<open>unique_parent tree1\<close>
     and \<open>redo_op oper (ops1, tree1) = (ops2, tree2)\<close>
@@ -1595,13 +1601,14 @@ using assms
   apply force
   done
 
+(* this proof, lol *)
 lemma efficient_interp_op_refines:
   assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
     and \<open>efficient_interp_op oper (log, t) = (log1, u)\<close>
     and \<open>interp_op oper (log, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms
-  apply(induction log)
+  apply(induction log arbitrary: T t log1 log2 u U)
   apply(simp only: efficient_interp_op.simps interp_op.simps)
   apply(intro conjI)
   apply(clarsimp simp add: Let_def split!: prod.split_asm)
@@ -1610,7 +1617,67 @@ using assms
   apply(erule conjE[OF efficient_do_op_refines], force, force, force, force)
   apply clarsimp
   apply(case_tac \<open>move_time oper < log_time a\<close>; clarsimp)
-  apply(intro conjI)
-  apply(case_tac \<open>efficient_interp_op oper (log, efficient_undo_op (a, t))\<close>, clarsimp)
-  apply(case_tac \<open>interp_op oper (log, efficient_undo_op (a, t))\<close>, clarsimp)
+  apply(case_tac \<open>efficient_interp_op oper (log, efficient_undo_op (a, t))\<close>)
+  apply(case_tac \<open>interp_op oper (log, undo_op (a, T))\<close>)
+  apply(subgoal_tac \<open>ab = aa \<and> b \<preceq> ba\<close>)
+  apply(erule_tac x=\<open>undo_op (a, T)\<close> in meta_allE)
+  apply(erule_tac x=\<open>efficient_undo_op (a, t)\<close> in meta_allE)
+  apply(erule_tac x=aa in meta_allE)
+  apply(erule_tac x=ab in meta_allE)
+  apply(erule_tac x=b in meta_allE)
+  apply(erule_tac x=ba in meta_allE)
+  apply(erule meta_impE)
+  apply(rule efficient_undo_op_refines, force, force)
+  apply(erule meta_impE)
+  apply(rule undo_op_unique_parent_variant, force, rule refl)
+  apply(erule meta_impE, force)+
+  apply(elim conjE)
+  apply(subgoal_tac \<open>efficient_redo_op a (aa, b) = (log1, u)\<close>)
+prefer 2 apply force
+  apply(subgoal_tac \<open>redo_op a (ab, ba) = (log2, U)\<close>)
+prefer 2 apply force
+  apply(drule efficient_redo_op_refines[rotated, rotated], force, force)
+defer
+  apply force
+  apply(erule_tac x=\<open>undo_op (a, T)\<close> in meta_allE)
+  apply(erule_tac x=\<open>efficient_undo_op (a, t)\<close> in meta_allE)
+  apply(erule_tac x=aa in meta_allE)
+  apply(erule_tac x=ab in meta_allE)
+  apply(erule_tac x=b in meta_allE)
+  apply(erule_tac x=ba in meta_allE)
+  apply(erule meta_impE)
+  apply(rule efficient_undo_op_refines, force, force)
+  apply(erule meta_impE)
+  apply(rule undo_op_unique_parent_variant, force, rule refl)
+  apply(erule meta_impE, force)
+  apply(erule meta_impE, force)
+  apply force
+  apply(clarsimp split!: prod.split_asm)
+  apply(drule efficient_do_op_refines[rotated], force, force, force, force)
+  apply(rule interp_op_unique_parent)
+defer
+  apply force
+  apply(rule undo_op_unique_parent_variant, assumption, force)
+  done
+
+lemma efficient_interp_ops_refines:
+  assumes \<open>efficient_interp_ops opers = (log1, u)\<close>
+    and \<open>interp_ops opers = (log2, U)\<close>
+  shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
+using assms
+  apply(induction opers)
+  sorry
+
+theorem efficient_interp_ops_commutes:
+  assumes \<open>set ops1 = set ops2\<close>
+    and \<open>distinct (map move_time ops1)\<close>
+    and \<open>distinct (map move_time ops2)\<close>
+  shows \<open>efficient_interp_ops ops1 = efficient_interp_ops ops2\<close>
+using assms
+  apply -
+  apply(drule interp_ops_commutes, force, force)
+  apply(case_tac\<open>interp_ops ops1\<close>)
+  apply(case_tac\<open>efficient_interp_ops ops1\<close>)
+  apply(drule efficient_interp_ops_refines)
+  
 end
