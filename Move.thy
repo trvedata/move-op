@@ -1645,23 +1645,33 @@ prefer 2
   apply(subst efficient_ancestor_refines, force, force)
   done
 
+text\<open>The efficient and abstract @{term redo_op} functins take related concrete and abstract states
+     and produce identical logics and related concrete and abstract states:\<close>
 lemma efficient_redo_op_refines:
-  assumes \<open>t \<preceq> T\<close>
-    and \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
-    and \<open>redo_op oper (opers, T) = (log2, U)\<close>
+  assumes 1: \<open>t \<preceq> T\<close>
+    and 2: \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
+    and 3: \<open>redo_op oper (opers, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
-using assms
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(case_tac \<open>oper\<close>; clarify)
-  apply(simp only: efficient_redo_op.simps redo_op.simps)
-  apply(intro conjI)
-  apply(simp only: Let_def split!:prod.split_asm)
-  apply(drule efficient_do_op_refines, assumption, assumption, force)
-  apply(simp only: Let_def split!:prod.split_asm)
-  apply(drule efficient_do_op_refines, assumption, assumption, force)
-  done
+proof(cases oper)
+  case (LogMove time opt_old_parent new_parent meta child)
+    assume 4: \<open>oper = LogMove time opt_old_parent new_parent meta child\<close>
+    obtain entry1 and v where \<open>efficient_do_op (Move time new_parent meta child, t) = (entry1, v)\<close>
+      by auto
+    moreover obtain entry2 and V where \<open>do_op (Move time new_parent meta child, T) = (entry2, V)\<close>
+      by auto
+    moreover have 5: \<open>entry1 = entry2\<close> and 6: \<open>v \<preceq> V\<close>
+      using calculation efficient_do_op_refines[OF 1] by blast+
+    from 4 have \<open>efficient_redo_op oper (opers, t) = (entry1#opers, v)\<close>
+      using calculation by clarsimp
+    moreover have \<open>log1 = entry1#opers\<close> and \<open>u = v\<close>
+      using 2 calculation by auto
+    moreover from 4 have \<open>redo_op oper (opers, T) = (entry2#opers, V)\<close>
+      using calculation by simp
+    moreover have \<open>log2 = entry2#opers\<close> and \<open>U = V\<close>
+      using 3 calculation by auto
+    ultimately show \<open>?thesis\<close>
+      using 5 6 by metis
+qed
 
 text\<open>The efficient and abstract versions of @{term undo_op} map related concrete and abstract states
      to related concrete and abstract states when applied to the same operation:\<close>
