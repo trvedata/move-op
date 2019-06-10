@@ -1612,6 +1612,8 @@ prefer 2
   apply(drule get_parent_SomeD, force, force simp add: unique_parent_def refines_def)
   done
 
+text\<open>The @{term unique_parent} predicate is ``downward-closed'' in the sense that all subsets of a
+     set with the @{term unique_parent} property also possess this property:\<close>
 lemma unique_parent_downward_closure:
   assumes \<open>unique_parent T\<close>
     and \<open>S \<subseteq> T\<close>
@@ -1774,34 +1776,52 @@ defer
   apply(rule undo_op_unique_parent_variant, assumption, force)
   done
 
+text\<open>The internal workings of abstract and concrete implementations of the @{term interp_ops}
+     function map related states to related states, and produce identical logs, when passed
+     identical lists of actions to perform.
 
+     Note this lemma is necessary as the @{term interp_ops} function specifies a particular starting
+     state (the empty state) to start the iterated application of the @{term interp_op} function
+     from, meaning that an inductive proof using this definition directly becomes impossible, as the
+     inductive hypothesis will be over constrained in the step case.  By introducing this lemma, we
+     show that the required property holds for any starting states (as long as they are related by
+     the simulation relation) and then specialise to the empty starting state in the next lemma,
+     below.\<close>
 lemma efficient_interp_ops_refines_internal:
-  assumes \<open>t \<preceq> T\<close>
-    and \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) xs = (log1, u)\<close>
+  assumes \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) xs = (log1, u)\<close>
     and \<open>foldl (\<lambda>state oper. interp_op oper state) (log, T) xs = (log2, U)\<close>
+    and \<open>t \<preceq> T\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
-using assms
-  apply(induction xs arbitrary: log log1 log2 t T u U)
-  apply(clarsimp)
-  apply(case_tac \<open>a\<close>; clarsimp)
-  apply(case_tac \<open>efficient_interp_op (Move x1 x2 x3 x4) (log, t)\<close>)
-  apply(case_tac \<open>interp_op (Move x1 x2 x3 x4) (log, T)\<close>)
-  apply(erule_tac x=a in meta_allE)
-  apply(erule_tac x=log1 in meta_allE)
-  apply(erule_tac x=log2 in meta_allE)
-  apply(erule_tac x=b in meta_allE)
-  apply(erule_tac x=ba in meta_allE)
-  apply(erule_tac x=u in meta_allE)
-  apply(erule_tac x=U in meta_allE)
-  apply(erule_tac meta_impE)
-  apply(frule efficient_interp_op_refines, force, force, force)
-  apply clarsimp
-  apply(erule meta_impE)
-defer apply force
-  apply(subgoal_tac \<open>a=aa\<close>)
-  apply force
-  apply(drule efficient_interp_op_refines, force, force, force)
-done
+using assms proof(induction xs arbitrary: log log1 log2 t T u U)
+  case Nil
+  assume \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) [] = (log1, u)\<close>
+    and \<open>interp_ops' [] (log, T) = (log2, U)\<close>
+    and *: \<open>t \<preceq> T\<close>
+  from this have \<open>log = log2\<close> and \<open>T = U\<close> and \<open>log = log1\<close> and \<open>t = u\<close>
+    by auto
+  from this show \<open>log1 = log2 \<and> u \<preceq> U\<close>
+    using * by auto
+next
+  case (Cons x xs)
+  fix xs :: \<open>('a, 'b, 'c) operation list\<close> and x log log1 log2 t T u U
+  assume IH: \<open>\<And>log log1 log2 t T u U.
+           foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) xs = (log1, u) \<Longrightarrow>
+           interp_ops' xs (log, T) = (log2, U) \<Longrightarrow> t \<preceq> T \<Longrightarrow> log1 = log2 \<and> u \<preceq> U\<close>
+    and 1: \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log, t) (x#xs) = (log1, u)\<close>
+    and 2: \<open>interp_ops' (x#xs) (log, T) = (log2, U)\<close>
+    and 3: \<open>t \<preceq> T\<close>
+  obtain log1' log2' U' u' where 4: \<open>efficient_interp_op x (log, t) = (log1', u')\<close>
+      and 5: \<open>interp_op x (log, T) = (log2', U')\<close>
+    by fastforce
+  moreover from this have \<open>log1' = log2'\<close> and \<open>u' \<preceq> U'\<close>
+    using efficient_interp_op_refines[OF 3] by blast+
+  moreover have \<open>foldl (\<lambda>state oper. efficient_interp_op oper state) (log1', u') xs = (log1, u)\<close>
+    using 1 and 4 by simp
+  moreover have \<open>interp_ops' xs (log2', U') = (log2, U)\<close>
+    using 2 and 5 by simp
+  ultimately show \<open>log1 = log2 \<and> u \<preceq> U\<close>
+    by(auto simp add: IH)
+qed
 
 text\<open>The efficient and abstract versions of @{term interp_ops} produce identical operation logs and
      produce related concrete and abstract states:\<close>
@@ -1824,9 +1844,12 @@ qed
 
 text\<open>The main correctness theorem for the efficient algorithms.  This follows the
      @{thm interp_ops_commutes} theorem for the abstract algorithms with one significant difference:
-     tbe states obtained from interpreting the two lists of operations, @{term ops1} and
-     @{term ops2} are no longer identical (the hash-maps may have a different representation in
-     memory, for instance), but contain the same set of key-value bindings:\<close>
+     the states obtained from interpreting the two lists of operations, @{term ops1} and
+     @{term ops2}, are no longer identical (the hash-maps may have a different representation in
+     memory, for instance), but contain the same set of key-value bindings.  If we take equality of
+     finite maps (hash-maps included) to be extensional---i.e. two finite maps are equal when they
+     contain the same key-value bindings---then this theorem coincides exactly with the
+     @{thm interp_ops_commutes}:\<close>
 theorem efficient_interp_ops_commutes:
   assumes 1: \<open>set ops1 = set ops2\<close>
     and 2: \<open>distinct (map move_time ops1)\<close>
@@ -1853,7 +1876,12 @@ qed
 subsection\<open>Testing code generation\<close>
 
 text\<open>Check that all of the efficient algorithms produce executable code for all of Isabelle/HOL's
-     code generation targets:\<close>
+     code generation targets (Standard ML, Scala, OCaml, Haskell).  Note that the Isabelle code
+     generation mechanism recursively extracts all necessary material from the HOL library required
+     to successfully compile our own definitions, here.  As a result, the first section of each
+     extraction is material extracted from the Isabelle libraries---our material is towards the
+     bottom.  (View it in the Output buffer of the Isabelle/JEdit IDE.)\<close>
+
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
   efficient_interp_op efficient_interp_ops in SML
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
@@ -1863,4 +1891,31 @@ export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
   efficient_interp_op efficient_interp_ops in Haskell
 
+text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
+     an SML/Scala/OCaml/Haskell compiler, as appropriate, we can show that this code compiles and
+     executes relatively quickly from within Isabelle itself, by making use of Isabelle's
+     quotations/anti-quotations, and its tight coupling with the underlying PolyML process.
+
+     First define a @{term unit_test} definition that makes use of our @{term efficient_interp_ops}
+     function on a variety of inputs:\<close>
+
+definition unit_test :: \<open>((nat, nat, nat) log_op list \<times> (nat, nat \<times> nat) HashMap.hashmap) list\<close>
+  where \<open>unit_test \<equiv>
+          [efficient_interp_ops [],
+           efficient_interp_ops [Move 1 0 0 0],
+           efficient_interp_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
+          ]\<close>
+
+text\<open>Then, we can use @{command ML_val} to ask Isabelle to:
+      \<^enum> Generate executable code for our @{term unit_test} definition above, using the SML code
+        generation target,
+      \<^enum> Execute this code within the underlying Isabelle/ML process, and display the resulting SML
+        values back to us within the Isabelle/JEdit IDE.\<close>
+
+ML_val\<open>@{code unit_test}\<close>
+
+text\<open>Note, there is a slight lag when performing this action as the executable code is first
+     extracted to SML, dynamically compiled, and then the result of the computation reflected back
+     to us.  Nevertheless, on a Macbook Pro (2017 edition) this procedure takes 2 seconds, at the
+     most.\<close>
 end
