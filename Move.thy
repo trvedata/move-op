@@ -915,168 +915,7 @@ using assms proof(induction ops1 arbitrary: ops2 rule: List.rev_induct, simp)
     by (metis append_assoc interp_ops_step pre_suf)
 qed
 
-section\<open>Code generation\<close>
-
-text\<open>First, using Isabelle's naive sets\<dots>\<close>
-
-fun ancestor' :: \<open>'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close>
-  where \<open>ancestor' parent child t = ancestor t parent child\<close>
-
-text\<open>Collects all of the metadata that may appear in the move-operation database\<close>
-definition meta :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'm set\<close>
-  where \<open>meta T \<equiv> \<Union>(p, m, c) \<in> T. {m}\<close>
-
-text\<open>Collects all of the nodes that may appear in a child position, along with their associated
-     metadata, in the move operation database\<close>
-definition meta_children :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> ('m \<times> 'n) set\<close>
-  where \<open>meta_children T \<equiv> \<Union>(p, m, c) \<in> T. {(m, c)}\<close>
-
-text\<open>A more convenient introduction rule for the transitive step of the ancestor relation, for use
-     in the next proof below\<close>
-lemma ancestor_intro_alt:
-  assumes \<open>ancestor tree p c\<close>
-      and \<open>(anc, m, p) \<in> tree\<close>
-  shows \<open>ancestor tree anc c\<close>
-using assms by (induction rule: ancestor.induct) (force intro: ancestor.intros)+
-
-text\<open>A manual unwinding of the ancestor' function, expressing the relation recursively.  The code
-     attribute means that this gets picked up the code-generation mechanism which uses the theorem
-     to extract executable code for the ancestor' function, even though its definition is given in
-     terms of the ancestor inductive relation\<close>
-lemma ancestor'_simps [simp, code]:
-  shows \<open>ancestor' parent child tree \<longleftrightarrow>
-           ((\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-           (\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree))\<close> (is \<open>?L \<longleftrightarrow> ?R\<close>)
-proof
-  assume \<open>?L\<close>
-  from this have \<open>ancestor tree parent child\<close>
-    by simp
-  from this show \<open>?R\<close>
-  proof(induction rule: ancestor.induct)
-    case (1 parent m child tree)
-    from this show ?case
-      by(auto simp add: meta_def)
-  next
-    case (2 parent m child tree anc)
-      {
-        assume \<open>\<exists>m\<in>meta tree. (anc, m, parent) \<in> tree\<close>
-          and \<open>(parent, m, child) \<in> tree\<close>
-        from this also have \<open>ancestor tree parent child\<close>
-          by(auto intro: ancestor.intros)
-        ultimately have \<open>?case\<close>
-          by(clarsimp simp add: meta_children_def meta_def split: prod.split) blast            
-      }
-      note L = this
-      {
-        assume \<open>\<exists>(m, anca)\<in>meta_children tree. (anc, m, anca) \<in> tree \<and> ancestor' anca parent tree\<close>
-          and *: \<open>(parent, m, child) \<in> tree\<close>
-        from this obtain m anca where \<open>(m, anca) \<in> meta_children tree\<close> and \<open>(anc, m, anca) \<in> tree\<close>
-            and **: \<open>ancestor tree anca parent\<close>
-          by auto
-        from this also have \<open>ancestor tree anca parent\<close>
-          using ancestor_intro_alt by(auto simp add: meta_children_def)
-        moreover from this and * have \<open>ancestor tree anca child\<close>
-          by(auto intro: ancestor.intros) 
-        ultimately have \<open>?case\<close>
-          by auto
-      }
-      from this and L show \<open>?case\<close>
-        using "2.IH" and "2.hyps" by blast
-    qed
-next
-  assume *: \<open>(\<exists>m\<in>meta tree. (parent, m, child) \<in> tree) \<or>
-    (\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree)\<close>
-  {
-    assume \<open>\<exists>m\<in>meta tree. (parent, m, child) \<in> tree\<close>
-    from this have \<open>ancestor tree parent child\<close>
-    by(auto simp add: meta_def intro: ancestor.intros)
-  }
-  note P = this
-  {
-    assume \<open>\<exists>(m, anc)\<in>meta_children tree. (parent, m, anc) \<in> tree \<and> ancestor' anc child tree\<close>
-    from this have \<open>ancestor tree parent child\<close>
-    by(auto simp add: meta_children_def intro: ancestor.intros ancestor_intro_alt)
-  }
-  from this and P and * show \<open>ancestor' parent child tree\<close>
-    by auto
-qed
-
-text\<open>Construct the degenerate tree with a single branch 26-elements long consisting of pairs
-     (0, (0, 1), 1), (1, (1, 2), 2), \<dots> (26, (26, 27), 27) and use this to test how quickly the
-     ancestor relation executes.  It seems quite fast (executing within Isabelle/HOL).  Note the
-     value command uses the code-generation mechanism under-the-surface:\<close>
-value \<open>
-  let counter = [0..26];
-      offset  = [1..27];
-      pairs   = zip counter offset;
-      triples = \<Union>(f, s)\<in>set pairs. {(f, (f, s), s)}
-    in [ancestor' 0 26 triples, ancestor' 23 25 triples, ancestor' 22 4 triples, ancestor' 0 0 triples]\<close>
-
-text\<open>Check code is produced for all targets...\<close>
-export_code ancestor' in SML
-export_code ancestor' in Haskell
-export_code ancestor' in Scala
-export_code ancestor' in OCaml
-text\<open>...and finally save the SML that is generated above to a specific file\<close>
-export_code ancestor' in SML module_name Ancestor file ancestor.ML
-export_code ancestor' in Haskell module_name Ancestor
-
-text\<open>Now, try using sets backed by more efficient containers.  ``hs'' is the type of Hash Sets from
-     the Isabelle Collections Framework.  Also, try: ``rb'' for Red-Black Trees (changed the
-     hashable constraint to a linorder) and ``ahs'' for Array-backed Hash Sets (change the constant
-     prefixes in the obvious way, e.g. hs.to_list becomes rb.to_list, etc.)\<close>
-
-definition ancestor'' :: \<open>'n \<Rightarrow> 'n \<Rightarrow> ('n::{hashable} \<times> 'm::{hashable} \<times> 'n) hs \<Rightarrow> bool\<close>
-  where \<open>ancestor'' p c tree = ancestor (set (hs.to_list tree)) p c\<close>
-
-(* TODO *)
-lemma ancestor''_simp [simp, code]:
-  shows \<open>ancestor'' p c tree \<longleftrightarrow>
-           (hs.bex tree (\<lambda>(p', m', c'). p' = p \<and> c' = c)) \<or>
-           (hs.bex tree (\<lambda>(p', m', a'). p' = p \<and> hs.memb (p', m', a') tree \<and>
-               ancestor'' a' c (hs.delete (p', m', a') tree)))\<close>
-sorry
-
-text\<open>Replay the same test before, just using Isabelle's naive (mathematical) sets, with a set with
-     a single, very-long branch, this time using hash-sets.  Note, the ICF is pretty picky about
-     code-generation so we need to wrap this up in an explicit definition and then call it with
-     ``ML_val''.\<close>
-definition test0 :: \<open>bool list\<close>
-  where \<open>test0 \<equiv>
-  let counter = [0..26];
-      offset  = [1..27];
-      pairs   = zip counter offset;
-      triples = foldr hs.union (map (\<lambda>(f, s). hs.sng (f, (f, s), s)) pairs) (hs.empty ())
-    in [ancestor'' 0 26 triples, ancestor'' 23 25 triples, ancestor'' 22 4 triples]\<close>
-
-ML_val\<open>@{code test0}\<close>
-
-text\<open>Another test, this time with a very dense, bushy tree repreresented as a set.  This is a
-     function to produce such a set\<close>
-fun generate :: \<open>nat \<Rightarrow> (nat \<times> unit \<times> nat) hs\<close>
-  where \<open>generate 0 = hs.empty ()\<close>
-      | \<open>generate (Suc m) =
-           (let count = List.upt 0 (Suc m);
-                offst = List.upt 1 (Suc (Suc m));
-                pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y];
-                sngs  = map (\<lambda>(f, s). (f, (), s)) pairs
-             in foldr (\<lambda>x y. hs.union (hs.sng x) y) sngs (generate m))\<close>
-
-text\<open>You can see (and hear from your computer fan) that the size of this grows quite quickly...\<close>
-value\<open>generate 1\<close>
-value\<open>generate 2\<close>
-value\<open>generate 10\<close>
-value\<open>generate 20\<close>
-
-text\<open>Do some ancestry testing on this set:\<close>
-definition test1 :: \<open>bool list\<close>
-  where \<open>test1 \<equiv>
-           let tree = generate 5 in
-             [ancestor'' 0 8 tree, ancestor'' 23 25 tree, ancestor'' 8 4 tree]\<close>
-
-ML_val\<open>@{code test1}\<close>
-
-section\<open>Refining (literally)...\<close>
+section\<open>Code generation: an efficient implementation\<close>
 
 inductive ancestor''' :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
   where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T p c\<close>
@@ -1369,46 +1208,6 @@ theorem efficient_ancestor_simp [code]:
   apply force
   done
 
-definition test2
-  where \<open>test2 \<equiv> efficient_ancestor (hm.empty () :: (bool, unit \<times> bool) hm) True False\<close>
-
-ML_val \<open>@{code test2}\<close>
-
-fun generate' :: \<open>nat \<Rightarrow> (nat \<times> nat, unit \<times> nat \<times> nat) hm\<close>
-  where \<open>generate' 0 = hm.empty ()\<close>
-      | \<open>generate' (Suc m) =
-           (let count = List.upt 0 (Suc m);
-                offst = List.upt 1 (Suc (Suc m));
-                pairs = [ (x, y). x \<leftarrow> count, y \<leftarrow> offst, x < y]
-             in foldr (\<lambda>x y. hm.update x ((), snd x, fst x) y) pairs (generate' m))\<close>
-                                 
-value\<open>generate' 150\<close>
-
-value\<open>
-  let bound = 150;
-      hm    = generate' bound
-   in [efficient_ancestor hm (0, 1) (0, 1), efficient_ancestor hm (0, 1) (1, 0),
-        \<forall>i\<in>set[0..<bound]. efficient_ancestor hm (0, i) (0, (Suc i))]\<close>
-
-theorem efficient_ancestor_correct:
-  shows \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor (set (flip_triples (hm.to_list t))) p c\<close>
-  apply(clarsimp simp add: efficient_ancestor_def)
-  apply(subst ancestor_ancestor'''_equiv)
-  apply(rule unique_parent_to_list)
-  apply force
-  done
-
-export_code efficient_ancestor in SML
-  file efficient_ancestor.ML
-
-(*
-fun do_op :: \<open>('t, 'n, 'm) operation \<times> ('n \<times> 'm \<times> 'n) set \<Rightarrow>
-              ('t, 'n, 'm) log_op \<times> ('n \<times> 'm \<times> 'n) set\<close> where
-  \<open>do_op (Move t newp m c, tree) =
-     (LogMove t (get_parent tree c) newp m c,
-      if ancestor tree c newp \<or> c = newp then tree
-      else {(p', m', c') \<in> tree. c' \<noteq> c} \<union> {(newp, m, c)})\<close>
-*)
 fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
         ('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
   where \<open>efficient_do_op (Move t newp m c, tree) =
@@ -1416,42 +1215,18 @@ fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, '
               if efficient_ancestor tree c newp \<or> c = newp then tree
                 else hm.update c (m, newp) (hm.restrict (\<lambda>(c', m', p'). c \<noteq> c') tree))\<close>
 
-(*
-fun undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n \<times> 'm \<times> 'n) set \<Rightarrow> ('n \<times> 'm \<times> 'n) set\<close> where
-  \<open>undo_op (LogMove t None newp m c, tree) = {(p', m', c') \<in> tree. c' \<noteq> c}\<close> |
-  \<open>undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
-     {(p', m', c') \<in> tree. c' \<noteq> c} \<union> {(oldp, oldm, c)}\<close>
-*)
-
 fun efficient_undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n, 'm \<times> 'n) hm\<close>
   where \<open>efficient_undo_op (LogMove t None newp m c, tree) =
           hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree\<close>
       | \<open>efficient_undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
           hm.update c (oldm, oldp) (hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree)\<close>
-(*
-fun redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow> ('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) state\<close> where
-  \<open>redo_op (LogMove t _ p m c) (ops, tree) =
-     (let (op2, tree2) = do_op (Move t p m c, tree)
-      in (op2 # ops, tree2))\<close>
-*)
 
-fun efficient_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
+fun efficient_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow>
+            ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
             ('t, 'n, 'm) log_op list \<times> ('n, 'm \<times> 'n) hm\<close>
   where \<open>efficient_redo_op (LogMove t _ p m c) (ops, tree) =
           (let (op2, tree2) = efficient_do_op (Move t p m c, tree) in
              (op2#ops, tree2))\<close>
-
-(*
-fun interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
-                  ('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) state\<close> where
-  \<open>interp_op op1 ([], tree1) =
-     (let (op2, tree2) = do_op (op1, tree1)
-      in ([op2], tree2))\<close> |
-  \<open>interp_op op1 (logop # ops, tree1) =
-     (if move_time op1 < log_time logop
-      then redo_op logop (interp_op op1 (ops, undo_op (logop, tree1)))
-      else let (op2, tree2) = do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
-*)
 
 fun efficient_interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
               ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
@@ -1463,23 +1238,25 @@ fun efficient_interp_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarro
           (if move_time op1 < log_time logop
             then efficient_redo_op logop (efficient_interp_op op1 (ops, efficient_undo_op (logop, tree1)))
               else let (op2, tree2) = efficient_do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
-       
-(*
-definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightarrow> ('t, 'n, 'm) state\<close> where
-  \<open>interp_ops ops \<equiv> foldl (\<lambda>state oper. interp_op oper state) ([], {}) ops\<close>
-*)
 
-definition efficient_interp_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow> ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_interp_ops ops \<equiv> foldl (\<lambda>state oper. efficient_interp_op oper state) ([], (hm.empty ())) ops\<close>
+definition efficient_interp_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow>
+        ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
+  where \<open>efficient_interp_ops ops \<equiv>
+      foldl (\<lambda>state oper. efficient_interp_op oper state) ([], (hm.empty ())) ops\<close>
 
+text\<open>Any abstract set that is simulated by a hash-map must necessarily have the
+     @{term unique_parent} property:\<close>
 lemma refines_unique_parent:
   assumes \<open>t \<preceq> T\<close> shows \<open>unique_parent T\<close>
-using assms
-  apply(clarsimp simp add: unique_parent_def refines_def)
-  apply(subgoal_tac \<open>hm.lookup c t = Some (m1, p1)\<close>)
-  apply(subgoal_tac \<open>hm.lookup c t = Some (m2, p2)\<close>)
-  apply force+
-  done
+using assms unfolding unique_parent_def
+proof(intro allI impI, elim conjE)
+  fix p1 p2 m1 m2 c
+  assume \<open>(p1, m1, c) \<in> T\<close> and \<open>(p2, m2, c) \<in> T\<close>
+  from this have \<open>hm.lookup c t = Some (m1, p1)\<close> and \<open>hm.lookup c t = Some (m2, p2)\<close>
+    using assms by(auto simp add: refines_def)
+  from this show \<open>p1 = p2 \<and> m1 = m2\<close>
+    by force
+qed
 
 lemma hm_restrict_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
@@ -1517,85 +1294,75 @@ lemma if_refine:
   shows \<open>(if x then t else u) \<preceq> (if y then T else U)\<close>
 using assms by(case_tac x; clarsimp)
 
-lemma let_refine:
-  assumes \<open>t \<preceq> T\<close> and \<open>P\<^sub>t t \<preceq> P\<^sub>T T\<close>
-  shows \<open>(let x = t in P\<^sub>t x) \<preceq> (let x = T in P\<^sub>T x)\<close>
-using assms by clarsimp
+text\<open>The @{term ancestor} relation can be extended ``one step downwards'' using @{term get_parent}:\<close>
+lemma ancestor_get_parent_extend:
+  assumes \<open>ancestor T a p\<close> and \<open>unique_parent T\<close>
+    and \<open>get_parent T c = Some (p, m)\<close>
+  shows \<open>ancestor T a c\<close>
+using assms proof(induction arbitrary: c m rule: ancestor.induct)
+  case (1 parent meta child tree)
+  assume 1: \<open>(parent, meta, child) \<in> tree\<close> and \<open>unique_parent tree\<close>
+    and \<open>get_parent tree c = Some (child, m)\<close>
+  from this have \<open>(child, m, c) \<in> tree\<close>
+    by(force simp add: unique_parent_def dest: get_parent_SomeD)
+  from this and 1 show ?case
+    by(blast intro: ancestor.intros)
+next
+  case (2 parent meta child tree anc)
+  assume 1: \<open>(parent, meta, child) \<in> tree\<close> and 2: \<open>unique_parent tree\<close>
+    and \<open>get_parent tree c = Some (child, m)\<close>
+    and IH: \<open>\<And>c m. unique_parent tree \<Longrightarrow> get_parent tree c = Some (parent, m) \<Longrightarrow> ancestor tree anc c\<close>
+  from this have \<open>(child, m, c) \<in> tree\<close>
+    by(force dest: get_parent_SomeD)
+  from this and 1 and 2 and IH show ?case
+    by(blast intro: ancestor.intros(2) IH get_parent_SomeI)
+qed
 
-lemma ancestor'''_implies_existence:
-  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close>
-  shows \<open>\<exists>m q. hm.lookup c t = Some (m, q)\<close>
-using assms
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(induction rule: ancestor'''.induct)
-  apply(drule get_parent_SomeD, force)
-  apply(force simp add: refines_def)
-  apply clarsimp
-  apply(erule disjE)
-  apply clarsimp
-  apply(drule get_parent_SomeD, force)
-  apply(force simp add: refines_def)
-  apply(drule get_parent_SomeD, force)
-  apply(force simp add: refines_def)
-  done
-
-lemma efficient_ancestor_refines1_technical:
-  shows \<open>ancestor''' T' p c \<Longrightarrow> t \<preceq> T \<Longrightarrow> T' = (set (flip_triples (hm.to_list t))) \<Longrightarrow> ancestor''' T p c\<close>
-apply(induction rule: ancestor'''.induct)
-apply clarsimp
-apply(drule get_parent_SomeD)
-apply(rule_tac t=\<open>t\<close> in refines_unique_parent)
-apply(rule to_list_refines)
-apply(rule ancestor'''.intros(1))
-apply(rule get_parent_SomeI)
-apply(rule refines_unique_parent, force)
-defer
-apply clarsimp
-apply(rule ancestor'''.intros(2))
-apply(drule get_parent_SomeD)
-apply(rule_tac t=\<open>t\<close> in refines_unique_parent)
-apply(rule to_list_refines)
-apply(rule get_parent_SomeI)
-apply(rule refines_unique_parent, force)
-defer
-apply force
-apply(subgoal_tac \<open>hm.lookup c t = Some (m, p)\<close>)
-apply(force simp add: refines_def)
-apply(clarsimp simp add: flip_triples_def)
-apply(drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)
-apply(clarsimp simp add: hm.lookup_correct hm.to_list_correct)
-apply(subgoal_tac \<open>hm.lookup c t = Some (m, p)\<close>)
-apply(force simp add: refines_def)
-apply(clarsimp simp add: flip_triples_def)
-apply(drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)
-apply(clarsimp simp add: hm.lookup_correct hm.to_list_correct)
-done
-
-lemma efficient_ancestor_refines1:
-  assumes \<open>t \<preceq> T\<close>
-  and \<open>efficient_ancestor t p c\<close>
-  shows \<open>ancestor T p c\<close>
-using assms
-  apply(unfold efficient_ancestor_def)
-  apply(subst ancestor_ancestor'''_equiv)
-  apply(force intro: refines_unique_parent)
-  using efficient_ancestor_refines1_technical apply blast
-  done
-
-lemma efficient_ancestor_refines2:
-  assumes \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
-  shows \<open>efficient_ancestor t p c\<close>
-using assms
-apply(induction rule: ancestor.induct)
-apply(force simp add: efficient_ancestor_simp)+
-done
-
+text\<open>The efficient and abstract @{term ancestor} relations agree for all ancestry queries between a
+     prospective ancestor and child node when applied to related states:\<close>
 lemma efficient_ancestor_refines:
   assumes \<open>t \<preceq> T\<close>
   shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
-using assms efficient_ancestor_refines1 efficient_ancestor_refines2 by blast
+using assms proof(intro iffI)
+  assume 1: \<open>efficient_ancestor t p c\<close>
+    and 2: \<open>t \<preceq> T\<close>
+  obtain u where 3: \<open>u = set (flip_triples (hm.to_list t))\<close>
+    by force
+  from this and 1 have \<open>ancestor''' u p c\<close>
+    by(force simp add: efficient_ancestor_def)
+  from this and 2 and 3 show \<open>ancestor T p c\<close>
+  proof(induction rule: ancestor'''.induct)
+    case (1 T' c p m)
+    assume \<open>get_parent T' c = Some (p, m)\<close> and \<open>T' = set (flip_triples (hm.to_list t))\<close>
+    from this have \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
+      by(force dest: get_parent_SomeD intro: unique_parent_to_list)
+    from this have \<open>(p, m, c) \<in> T\<close>
+      using \<open>t \<preceq> T\<close> by(force simp add: hm.correct hm.to_list_correct refines_def
+                flip_triples_def dest: map_of_is_SomeI[rotated])
+    then show ?case
+      by(force intro: ancestor.intros)
+  next
+    case (2 T' c p m a)
+    assume 1: \<open>get_parent T' c = Some (p, m)\<close>
+      and IH: \<open>t \<preceq> T \<Longrightarrow> T' = set (flip_triples (hm.to_list t)) \<Longrightarrow> ancestor T a p\<close>
+      and 2: \<open>t \<preceq> T\<close> and 3: \<open>T' = set (flip_triples (hm.to_list t))\<close>
+    from this have 4: \<open>ancestor T a p\<close>
+      by auto
+    from this have \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
+      using 1 and 3 by(auto dest!: get_parent_SomeD simp add: unique_parent_to_list)
+    from this have \<open>(c, m, p) \<in> set (hm.to_list t)\<close>
+      by(auto simp add: flip_triples_def)
+    from this and 2 have \<open>get_parent T c = Some (p, m)\<close>
+      by(auto intro!: get_parent_SomeI refines_unique_parent[OF 2]
+          simp add: hm.correct hm.to_list_correct dest!: map_of_is_SomeI[rotated])
+    from this and 2 and 4 show ?case
+      by(auto intro!: ancestor_get_parent_extend[OF 4] refines_unique_parent)
+  qed
+next
+  assume \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
+  from this show \<open>efficient_ancestor t p c\<close>
+    by(induction rule: ancestor.induct) (force simp add: efficient_ancestor_simp)+
+qed
 
 lemma efficient_do_op_get_parent_technical:
   assumes \<open>t \<preceq> T\<close>
@@ -1901,9 +1668,9 @@ text\<open>Without resorting to saving the generated code above to a separate fi
 
 definition unit_test :: \<open>((nat, nat, nat) log_op list \<times> (nat, nat \<times> nat) HashMap.hashmap) list\<close>
   where \<open>unit_test \<equiv>
-          [efficient_interp_ops [],
-           efficient_interp_ops [Move 1 0 0 0],
-           efficient_interp_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
+          [ efficient_interp_ops []
+          , efficient_interp_ops [Move 1 0 0 0]
+          , efficient_interp_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
           ]\<close>
 
 text\<open>Then, we can use @{command ML_val} to ask Isabelle to:
