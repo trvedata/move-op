@@ -123,7 +123,7 @@ We explain in Section~\ref{sec:move-is-hard} why this move operation is so chall
 Our contributions in this work are as follows:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
-        As discussed in Section~\ref{sec:move-is-hard}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
+        As discussed in Section~\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
     \item We formalise our algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant, and produce a computer-checked proof of correctness of our algorithm.
         In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency).
     \item To demonstrate the practical viability of the algorithm we extract a formally verified, executable implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
@@ -285,8 +285,11 @@ Our contributions in this work are as follows:
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
       \node [fill=red!15] at (0.97,0.05) {(\emph{b})};
-      \node {$\mathsf{root}$} child {node (a2) {$A$} child {node {$B$}}} child {node {$B'$} child {node {$A'$} child {node (c2) {$C$}}}};
-      \draw (a2) -- (c2);
+      \tikzstyle{level 1}=[sibling distance=12mm]
+      \tikzstyle{level 2}=[sibling distance=6mm]
+      \node {$\mathsf{root}$}
+          child {node {$A$} child {node {$B$}} child {node {$C$}}}
+          child {node {$B'$} child {node {$A'$} child {node {$C'$}}}};
       \end{tikzpicture}
   };
   \node [rectangle,draw] (start) at (10.95,0) {
@@ -311,7 +314,7 @@ Our contributions in this work are as follows:
 \begin{figure*}
   \centering
   \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
-  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations described in Section~\ref{sec:move-cycle}.}
+  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}.}
   \label{fig:gdrive-error}
   \Description{Screenshot showing the errors ``Can't remove files with changes pending. Try again after sync is complete.'' and ``An unknown error occurred.''}
 \end{figure*}
@@ -346,7 +349,7 @@ POSIX filesystems to not allow this outcome, since they allow hardlinks only to 
 
 In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:move-same-item}c and~\ref{fig:move-same-item}d: the moved subtree appears either in replica 1's destination location or in replica 2's destination location, but not in both.
 Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
-For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule (TODO citation).
+For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
 All replicas pick the same operation as winner, and effectively ignore the conflicting operation.
 
 We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
@@ -360,16 +363,38 @@ For example, if \texttt{b} is a subdirectory of \texttt{a}, then the Unix shell 
 This restriction is required because allowing this operation would introduce a cycle into the directory graph, and so the filesystem would no longer be a tree.
 The same restriction is required in any other tree structure that supports a move operation.
 
-In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, the move operation must be rejected.
+In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, then the move operation must be rejected.
 However, in a replicated setting a new problem arises: different replicas may perform operations that individually are safe, but whose combination leads to a cycle.
 
 One example of such a scenario is illustrated in Figure~\ref{fig:move-cycle}.
 Here, replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$.
 As each replica propagates its operation to the other replica, a careless implementation might end up in the state shown in Figure~\ref{fig:move-cycle}a, in which $A$ and $B$ have become locked in a cycle and detached from the tree.
 
+Another possible resolution is shown in Figure~\ref{fig:move-cycle}b: the nodes involved in the concurrent moves (and their children) could be duplicated, so that both ``$A$ as a child of $B$'' and ``$B$ as a child of $A$'' can exist in the tree.
+However, such duplication is undesirable for the same reasons as in Section~\ref{sec:move-same-item}.
 
-Errors in Google Drive
+In our opinion, the best way of handling the conflicting operations of Figure~\ref{fig:move-cycle} is to choose either Figure~\ref{fig:move-cycle}c or~\ref{fig:move-cycle}d: that is, either the result of applying replica 1's operation and ignoring replica 2's operation, or vice versa.
+Like in Section~\ref{sec:move-same-item}, the winning operation can be picked based on an operation timestamp.
 
+As before, we tested this scenario with Google Drive and Dropbox.
+In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed the ``unknown error'' message shown in Figure~\ref{fig:gdrive-error}.
+The replica in error state refused to sync the conflicting directory, and its filesystem state remained inconsistent with the other replica.
+This error state persisted until the directories on the erroring replica were manually moved to match the state of the other replica.
+
+On the other hand, Dropbox exhibits the duplication behaviour shown in Figure~\ref{fig:move-cycle}b.
+
+\subsection{The impossibility of a highly-available move operation}\label{sec:impossibility}
+
+Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} have previously implemented a replicated filesystem with a move operation, and analysed the case of concurrent move operations introducing a cycle, as in Section~\ref{sec:move-cycle}.
+Using the CISE ('Cause I'm Strong Enough) proof tool~\cite{DBLP:conf/popl/GotsmanYFNS16,Najafzadeh:2016fi} the authors confirm that it is not sufficient for the replica that generates a move operation to check whether the operation introduces a cycle: like in Figure~\ref{fig:move-cycle}, two concurrent operations may be safe individually, but introduce a cycle when combined.
+
+Najafzadeh et al. propose two solutions to this problem: either to duplicate tree nodes, as in Figure~\ref{fig:move-cycle}b, or to execute a synchronous locking protocol that prevents two move operations concurrently modifying the same part of the tree.
+The downside of a locking protocol is that the move operation is no longer highly available in the presence of network partitions, since it must wait for communication with other replicas.
+
+While these solutions are valid, the authors go on to claim that these are the only possible options, asserting that ``no file system can support an unsynchronised move without anomalies, such as loss or duplication''~\cite{Najafzadeh:2018bw}.
+We revise that claim in this paper: our algorithm does not perform any locking, coordination or synchronisation among replicas, but it nevertheless ensures that the tree invariants are always satisified (in particular, it never introduces cycles), and it never duplicates any tree nodes.
+To our knowledge, our algorithm is the first to provide all of these properties simultaneously.
+We give a precise specification of our algorithm's consistency properties in Section~\ref{sec:proof}.
 
 \section{The replicated move operation}\label{sec:algorithm}
 
@@ -459,6 +484,8 @@ Errors in Google Drive
 \label{fig:code}
 \Description{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \end{figure*}
+
+\section{Proof of correctness}\label{sec:proof}
 
 \section{Related work}\label{sec:relwork}
 
