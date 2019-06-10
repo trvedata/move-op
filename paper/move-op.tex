@@ -184,18 +184,20 @@ Our contributions in this work are as follows:
   \draw [network] (6.5,0) to [out=90,in=270] (7.2,3);
   \draw [network] (6.5,3) to [out=270,in=90] (7.2,0);
   \node [rotate=90,blue,font=\footnotesize] at (7.5,1.5) {network communication};
+  \path [draw,dotted] (-3.1,1.5) -- (8.7,1.5);
   %%%
-  \node at (9.85,4.04) {(\emph{a})};
-  \node at (14.15,4.04) {(\emph{b})};
-  \node at (9.85,1.04) {(\emph{c})};
-  \node at (14.15,1.04) {(\emph{d})};
+  \node [fill=red!15] at (9.83,4.10) {(\emph{a})};
+  \node [fill=red!15] at (14.18,4.10) {(\emph{b})};
+  \node [fill=red!15] at (9.84,1.10) {(\emph{c})};
+  \node [fill=red!15] at (14.15,1.10) {(\emph{d})};
   \node [rectangle,draw] at (10.9,3) {
       \begin{tikzpicture}[level distance=7mm]
+          \tikzstyle{every node}=[text height=5pt,text depth=0pt]
           \tikzstyle{level 1}=[sibling distance=12mm]
           \tikzstyle{level 3}=[sibling distance=4mm]
           \node {$\mathsf{root}$}
               child {node {$B$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}}
-              child {node {$C$} child {node {$A$} child {node {$a_1$}} child {node {$a_2$}} child {node {$a_3$}}}};
+              child {node {$C$} child {node {$A'$} child {node {$a_1'$}} child {node {$a_2'$}} child {node {$a_3'$}}}};
       \end{tikzpicture}
   };
   \node [rectangle,draw] at (13.5,3) {
@@ -268,11 +270,12 @@ Our contributions in this work are as follows:
   \draw [network] (6.0,0) to [out=90,in=270] (6.7,3);
   \draw [network] (6.0,3) to [out=270,in=90] (6.7,0);
   \node [rotate=90,blue,font=\footnotesize] at (7.0,1.5) {network communication};
+  \path [draw,dotted] (-2.5,1.6) -- (8.5,1.6);
   %%%%%
   \node [rectangle,draw] at (10.95,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.3,-1.3) rectangle (1,1.2);
-      \node at (-1.1,1.0) {(\emph{a})};
+      \node [fill=red!15] at (-1.12,1.05) {(\emph{a})};
       \node at (0,1) {$\mathsf{root}$};
       \node (a1) {$A$} child {node (b1) {$B$}} child {node {$C$}};
       \draw (b1.south west) .. controls (-2,-2) and (0,1.5) .. (a1.north);
@@ -281,27 +284,27 @@ Our contributions in this work are as follows:
   \node [rectangle,draw] at (13.8,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node at (0.95,0.0) {(\emph{b})};
+      \node [fill=red!15] at (0.97,0.05) {(\emph{b})};
       \node {$\mathsf{root}$} child {node (a2) {$A$} child {node {$B$}}} child {node {$B'$} child {node {$A'$} child {node (c2) {$C$}}}};
       \draw (a2) -- (c2);
       \end{tikzpicture}
   };
   \node [rectangle,draw] (start) at (10.95,0) {
       \begin{tikzpicture}[level distance=7mm]
-      \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node at (-0.95,0.0) {(\emph{c})};
+      \useasboundingbox (-1.17,-2.3) rectangle (1.15,0.2);
+      \node [fill=red!15] at (-1.00,0.05) {(\emph{c})};
       \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
       \end{tikzpicture}
   };
   \node [rectangle,draw] (right) at (13.8,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node at (0.95,0.0) {(\emph{d})};
+      \node [fill=red!15] at (0.96,0.05) {(\emph{d})};
       \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
       \end{tikzpicture}
   };
 \end{tikzpicture}
-\caption{Initially, $A$ and $B$ are siblings. $B$ is moved to be a child of $A$, while concurrently $A$ is moved to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
+\caption{Initially, nodes $A$ and $B$ are siblings. Replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
 \Description{Visualisation of trees with concurrent move operations}
 \end{figure*}
 
@@ -319,19 +322,51 @@ Applications that rely on a tree data model often need to move a node from one l
 For example:
 \begin{itemize}
     \item In a filesystem, any file or directory can be moved to a different parent directory.
-        Moreover, renaming a file is equivalent to moving the file to a new name without changing its parent directory.
+        Moreover, renaming a file or directory is equivalent to moving it to a new name without changing its parent directory.
     \item In a rich text editor, a paragraph node can be turned into a bullet point.
-        This corresponds to creating a new bullet list node, creating a new bullet point node within it, and then moving the paragraph node to be a child of the new bullet point node.
+        In the DOM tree this corresponds to creating a new bullet list node, creating a new bullet point node within it, and then moving the paragraph node to be a child of the new bullet point node.
     \item In presentation software, grouping two graphical objects corresponds to creating a new group node, and then moving the two objects to be children of the new group node.
 \end{itemize}
 As these operations are so common, it is not obvious why a move operation should be difficult in a replicated setting.
-In this section we demonstrate some of those problems by example, before proceeding to our solution in Section~\ref{sec:algorithm}.
+In this section we demonstrate by example some of the problems that arise with replicated trees, before proceeding to our solution in Section~\ref{sec:algorithm}.
 
 \subsection{Concurrent moves of the same node}\label{sec:move-same-item}
 
 The first difficulty arises when a node is moved to a new location on one replica, and concurrently the same node is moved to a different location on a different replica.
+This scenario is illustrated in Figure~\ref{fig:move-same-item}, where replica 1 moves node $A$ to be a child of $B$, while concurrently replica 2 moves $A$ to be a child of $C$.
+After the replicas communicate these operations to each other, what should the merged state of the tree be?
+
+If a move operation is implemented by deleting the moved subtree from its old location, and then re-creating it at the new location, the merged state will be as shown in Figure~\ref{fig:move-same-item}a: the concurrent moves will duplicate the moved subtree, since each concurrent move independently recreates the subtree in each destination location.
+We believe that this duplication is undesirable, since subsequent edits to nodes in the duplicated subtree will apply to only one of the copies.
+Two users who believe they are collaborating on the same file may in fact be editing two different copies, which will then become inconsistent with each other.
+
+Rather than duplicating the moved subtree, another possible resolution is for the destination locations of both moves to refer to the same node, as shown in Figure~\ref{fig:move-same-item}b.
+However, the result is a DAG, not a tree.
+POSIX filesystems to not allow this outcome, since they allow hardlinks only to files, but not to directories.
+
+In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:move-same-item}c and~\ref{fig:move-same-item}d: the moved subtree appears either in replica 1's destination location or in replica 2's destination location, but not in both.
+Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
+For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule (TODO citation).
+All replicas pick the same operation as winner, and effectively ignore the conflicting operation.
+
+We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
+To test concurrent operations, we turned off the network interface on both computers, performed a move operation on the local filesystem of each computer, then reconnected both computers to the Internet and waited for them to sync.}
+Dropbox exhibited the undesirable duplication behaviour of Figure~\ref{fig:move-same-item}a, while the outcome on Google Drive was as in Figure~\ref{fig:move-same-item}c/d.
 
 \subsection{Moving a node to be a descendant of itself}\label{sec:move-cycle}
+
+On a filesystem, the destination directory of a move operation must not be a subdirectory of the directory being moved.
+For example, if \texttt{b} is a subdirectory of \texttt{a}, then the Unix shell command \texttt{mv a a/b/} will fail with an error.
+This restriction is required because allowing this operation would introduce a cycle into the directory graph, and so the filesystem would no longer be a tree.
+The same restriction is required in any other tree structure that supports a move operation.
+
+In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, the move operation must be rejected.
+However, in a replicated setting a new problem arises: different replicas may perform operations that individually are safe, but whose combination leads to a cycle.
+
+One example of such a scenario is illustrated in Figure~\ref{fig:move-cycle}.
+Here, replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$.
+As each replica propagates its operation to the other replica, a careless implementation might end up in the state shown in Figure~\ref{fig:move-cycle}a, in which $A$ and $B$ have become locked in a cycle and detached from the tree.
+
 
 Errors in Google Drive
 
