@@ -65,7 +65,18 @@ definition interp_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Righta
 
 definition unique_parent :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>unique_parent tree \<equiv> (\<forall>p1 p2 m1 m2 c. (p1, m1, c) \<in> tree \<and> (p2, m2, c) \<in> tree \<longrightarrow> p1 = p2 \<and> m1 = m2)\<close>
+lemma interp_ops_base [simp]:
+  shows \<open>interp_ops [Move t1 p1 m1 c1, Move t2 p2 m2 c2] =
+                    interp_op (Move t2 p2 m2 c2) (interp_op (Move t1 p1 m1 c1) ([], {}))\<close>
+  by (clarsimp simp add: interp_ops_def)
 
+lemma interp_ops_step [simp]:
+  shows \<open>interp_ops (xs @ [x]) = interp_op x (interp_ops xs)\<close>
+  by (clarsimp simp add: interp_ops_def)
+
+lemma interp_ops_Nil [simp]:
+  shows \<open>interp_ops [] = ([], {})\<close>
+  by (clarsimp simp add: interp_ops_def)
 
 section \<open>undo-op is the inverse of do-op\<close>
 
@@ -448,6 +459,11 @@ lemma anc_path_eq:
   shows \<open>ancestor T p c \<longleftrightarrow> (\<exists>xs. path T p c xs)\<close>
   by (meson anc_path path_anc)
 
+lemma cyclic_path_eq:
+  shows \<open>cyclic T \<longleftrightarrow> (\<exists>n xs. path T n n xs)\<close>
+  by (meson anc_path cyclic_def path_anc)
+
+
 lemma rem_edge_path:
   assumes \<open>path T m n xs\<close>
     and \<open>T = insert (p, x, c) S\<close>
@@ -523,9 +539,215 @@ next
     using cyclic_def by auto
 qed
 
+lemma redo_op_acyclic_var:
+  assumes \<open>\<not> cyclic tree1\<close>
+    and \<open>redo_op (LogMove t oldp p m c) (log1, tree1) = (log2, tree2)\<close>
+  shows \<open>\<not> cyclic tree2\<close>
+  using assms by (subst (asm) redo_op.simps) (rule do_op_acyclic, assumption, fastforce)
+
+corollary redo_op_acyclic:
+  assumes \<open>\<not> cyclic tree1\<close>
+    and \<open>redo_op logop (log1, tree1) = (log2, tree2)\<close>
+  shows \<open>\<not> cyclic tree2\<close>
+  using assms by (cases logop) (metis redo_op_acyclic_var)
+
+lemma undo_op_acyclic_helper2:
+\<open>path tree2 n n xs \<Longrightarrow> \<not> cyclic tree1 \<Longrightarrow>
+           tree2 = insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c} \<Longrightarrow>
+           \<exists>xs. path tree2 c c xs\<close>
+  apply (erule path_indcases)
+   apply clarsimp
+   apply (erule disjE1)
+    apply clarsimp
+    apply (rule_tac x="[(c, c)]" in exI)
+    apply (rule path.intros)
+    apply force
+   apply clarsimp
+   apply (meson cyclic_path_eq path.intros(1))
+  apply clarsimp
+  apply (erule disjE1)
+   apply clarsimp
+   apply (subgoal_tac "\<exists>ysa. path (insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c}) oldp c ysa")
+    apply clarsimp
+    apply (meson anc_path ancestor_transitive path_anc)
+   apply (rule_tac x="[(oldp, c)]" in exI)
+   apply (rule path.intros)
+   apply force
+  apply clarsimp
+  oops
+
+lemma undo_op_acyclic_helper2:
+\<open>path tree2 n m xs \<Longrightarrow> n = m \<Longrightarrow> \<not> cyclic tree1 \<Longrightarrow>
+           tree2 = insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c} \<Longrightarrow>
+           \<exists>xs. path tree2 c c xs\<close>
+  apply (induction rule: path.induct)
+   apply clarsimp
+   apply (erule disjE1)
+    apply clarsimp
+    apply (rule_tac x="[(c, c)]" in exI)
+    apply (rule path.intros)
+    apply force
+   apply clarsimp
+   apply (meson cyclic_path_eq path.intros(1))
+  apply clarsimp
+  apply (erule disjE1)
+   apply clarsimp
+   apply (subgoal_tac "\<exists>ysa. path (insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c}) oldp c ysa")
+    apply clarsimp
+    apply (meson anc_path ancestor_transitive path_anc)
+   apply (rule_tac x="[(oldp, c)]" in exI)
+   apply (rule path.intros)
+   apply force
+  apply clarsimp
+  oops
+
+
+(*
+  apply (induction xs rule: rev_induct)
+  using empty_path apply force
+  apply clarsimp
+  apply (erule path_indcases)
+   apply clarsimp
+   apply (erule disjE1)
+    apply clarsimp
+    apply (rule_tac x="[(c, c)]" in exI)
+    apply (rule path.intros)
+    apply force
+   apply clarsimp
+   apply (meson cyclic_path_eq path.intros(1))
+  apply clarsimp
+  apply (erule disjE1)
+   apply clarsimp
+   apply (subgoal_tac "\<exists>ysa. path (insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c}) oldp c ysa")
+    apply clarsimp
+    apply (meson anc_path ancestor_transitive path_anc)
+   apply (rule_tac x="[(oldp, c)]" in exI)
+   apply (rule path.intros)
+   apply force
+  apply clarsimp
+  *)
+
+lemma undo_op_acyclic_helper:
+  assumes \<open>\<not> cyclic tree1\<close>
+  and \<open>undo_op (LogMove t (Some (oldp, oldm)) p m c, tree1) = tree2\<close>
+  and \<open>cyclic tree2\<close>
+shows \<open>\<exists>xs. path tree2 oldp oldp xs\<close>
+  using assms apply clarsimp
+  apply (subst (asm) cyclic_path_eq) back
+  apply clarsimp
+  oops
+
+lemma undo_op_acyclic:
+  assumes \<open>\<not> cyclic tree1\<close>
+  and \<open>undo_op (LogMove t (Some (oldp, oldm)) p m c, tree1) = tree2\<close>
+  shows \<open>\<not> cyclic tree2 \<or> (\<exists>xs. path tree2 oldp oldp xs \<and> (\<forall>(n, _) \<in> set xs. \<not> (\<exists>ys. path tree2 n n ys)))\<close>
+  using assms apply clarsimp
+  apply (subst (asm) cyclic_path_eq) back
+  apply clarsimp
+  apply (rule_tac x=x in exI)
+  apply (rule conjI)
+  defer
+   apply clarsimp
+  oops
+
+lemma
+  assumes \<open>\<not> cyclic tree1\<close>
+    and \<open>\<forall>log1 tree1 log2 tree2. interp_op x (log1, tree1) = (log2, tree2) \<and> \<not> cyclic tree1 \<longrightarrow> \<not> cyclic tree2\<close>
+    and \<open>redo_op a (interp_op x (log1, undo_op (a, tree1))) = (log2, tree2)\<close>
+  shows \<open>\<not> cyclic tree2\<close>
+  using assms
+  apply (induction log1 arbitrary: a tree1 log2 tree2)
+   apply clarsimp
+   apply (case_tac "do_op (x, undo_op (a, tree1))")
+   apply clarsimp
+   apply (subgoal_tac "\<not> cyclic b")
+  using redo_op_acyclic apply blast
+   apply clarsimp
+   apply (case_tac a)
+   apply clarsimp
+   apply (case_tac x2)
+    apply clarsimp
+    apply (subgoal_tac "\<not> cyclic {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> x5}")
+     apply (smt do_op_acyclic operation.exhaust snd_conv)
+    apply (rule acyclic_subset)
+     apply assumption
+    apply force
+  apply clarsimp
+   apply (case_tac x)
+  apply clarsimp
+
+
+  oops
+
+
+
+
+
+
+(*
+lemma \<open>\<exists>log2. redo_op a (interp_op x (log1, undo_op (a, tree1))) = (log2, tree1)\<close>
+  *)
+
+lemma interp_op_acyclic:
+  assumes \<open>\<not> cyclic tree1\<close>
+    and \<open>interp_op x (log1, tree1) = (log2, tree2)\<close>
+  shows \<open>\<not> cyclic tree2\<close>
+  using assms
+  apply (induction log1 arbitrary: log2 tree1 tree2)
+   apply clarsimp
+   apply (case_tac "do_op (x, tree1)")
+   apply clarsimp
+   apply (metis do_op_acyclic operation.exhaust)
+  apply clarsimp
+  apply (case_tac "move_time x < log_time a")
+   defer
+   apply clarsimp
+   apply (case_tac "do_op (x, tree1)")
+   apply clarsimp
+   apply (metis do_op_acyclic operation.exhaust)
+  apply clarsimp
+  apply (case_tac a)
+  apply clarsimp
+  apply (case_tac x2)
+   apply clarsimp
+   apply (case_tac "interp_op x (log1, {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> x5})")
+   apply (erule_tac x=a in meta_allE)
+   apply (erule_tac x="{(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> x5}" in meta_allE)
+   apply (erule_tac x=b in meta_allE)
+   apply (erule meta_impE)
+    apply (rule acyclic_subset)
+     apply assumption
+  apply force
+    apply (erule meta_impE, force)
+   apply (simp add: redo_op_acyclic_var)
+  apply clarsimp
+  apply (case_tac x)
+  apply clarsimp
+  oops
+
+
+
 theorem interp_ops_acyclic:
   assumes \<open>interp_ops ops = (log, tree)\<close>
   shows \<open>\<not> cyclic tree\<close>
+  using assms
+  apply (induction ops arbitrary: log tree rule: List.rev_induct)
+   apply force
+  apply simp
+  apply (case_tac "interp_ops xs")
+  apply (erule_tac x=a in meta_allE)
+  apply (erule_tac x=b in meta_allE)
+  apply clarsimp
+  apply (case_tac a)
+   apply clarsimp
+   apply (case_tac "do_op (x, b)")
+   apply clarsimp
+   apply (metis do_op_acyclic operation.exhaust)
+  apply clarsimp
+  apply (case_tac "move_time x < log_time aa")
+   apply clarsimp
+  sorry
+(*
 using assms proof(induction ops arbitrary: log tree rule: List.rev_induct)
   case Nil
   then show ?case by (simp add: cyclic_def interp_ops_def)
@@ -534,26 +756,13 @@ next
   then obtain log1 tree1 where \<open>interp_ops xs = (log1, tree1)\<close>
     by fastforce
   moreover from this have \<open>interp_ops (xs @ [x]) = interp_op x (log1, tree1)\<close>
-    by (metis (no_types) foldl_Cons foldl_Nil foldl_append interp_ops_def)
+    by simp
   ultimately show ?case
     sorry (* TODO: need to generalise do_op_acyclic to hold for interp_op *)
 qed
-
+*)
 
 section \<open>Commutativity of move operation\<close>
-
-lemma interp_ops_base [simp]:
-  shows \<open>interp_ops [Move t1 p1 m1 c1, Move t2 p2 m2 c2] =
-                    interp_op (Move t2 p2 m2 c2) (interp_op (Move t1 p1 m1 c1) ([], {}))\<close>
-  by (clarsimp simp add: interp_ops_def)
-
-lemma interp_ops_step [simp]:
-  shows \<open>interp_ops (xs @ [x]) = interp_op x (interp_ops xs)\<close>
-  by (clarsimp simp add: interp_ops_def)
-
-lemma interp_ops_Nil [simp]:
-  shows \<open>interp_ops [] = ([], {})\<close>
-  by (clarsimp simp add: interp_ops_def)
 
 lemma distinct_list_pick1:
   assumes \<open>set (xs @ [x]) = set (ys @ [x] @ zs)\<close>
