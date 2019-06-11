@@ -311,14 +311,14 @@ section \<open>Preserving the invariant that the tree contains no cycles\<close>
 
 inductive_cases ancestor_indcases: \<open>ancestor \<T> m p\<close>
 
-definition cyclic :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close>
-  where \<open>cyclic \<T> \<longleftrightarrow> (\<exists>n. ancestor \<T> n n)\<close>
+definition acyclic :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
+  \<open>acyclic tree \<equiv> (\<nexists>n. ancestor tree n n)\<close>
 
-lemma cyclicE [elim]:
-  assumes \<open>cyclic \<T>\<close>
-    and \<open>(\<exists>n. ancestor \<T> n n) \<Longrightarrow> P\<close>
+lemma acyclicE [elim]:
+  assumes \<open>acyclic \<T>\<close>
+    and \<open>(\<nexists>n. ancestor \<T> n n) \<Longrightarrow> P\<close>
   shows \<open>P\<close>
-  using assms by (auto simp add: cyclic_def)
+  using assms by (auto simp add: acyclic_def)
 
 lemma ancestor_empty_False [simp]:
   shows \<open>ancestor {} p c = False\<close>
@@ -331,10 +331,10 @@ lemma ancestor_superset_closed:
   using assms by (induction rule: ancestor.induct) (auto intro: ancestor.intros)
 
 lemma acyclic_subset:
-  assumes \<open>\<not> cyclic T\<close>
+  assumes \<open>acyclic T\<close>
     and \<open>S \<subseteq> T\<close>
-  shows \<open>\<not> cyclic S\<close>
-  using assms ancestor_superset_closed by (metis cyclic_def)
+  shows \<open>acyclic S\<close>
+  using assms ancestor_superset_closed by (metis acyclic_def)
 
 inductive path :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'n) list \<Rightarrow> bool\<close> where
   \<open>\<lbrakk>(b, x, e) \<in> T\<rbrakk> \<Longrightarrow> path T b e [(b, e)]\<close> |
@@ -460,9 +460,9 @@ lemma anc_path_eq:
   shows \<open>ancestor T p c \<longleftrightarrow> (\<exists>xs. path T p c xs)\<close>
   by (meson anc_path path_anc)
 
-lemma cyclic_path_eq:
-  shows \<open>cyclic T \<longleftrightarrow> (\<exists>n xs. path T n n xs)\<close>
-  by (meson anc_path cyclic_def path_anc)
+lemma acyclic_path_eq:
+  shows \<open>acyclic T \<longleftrightarrow> (\<nexists>n xs. path T n n xs)\<close>
+  by (meson anc_path acyclic_def path_anc)
 
 
 lemma rem_edge_path:
@@ -505,19 +505,19 @@ next
 qed
 
 lemma cyclic_ancestor:
-  assumes \<open>cyclic (S \<union> {(p, x, c)})\<close>
-    and \<open>\<not> (cyclic S)\<close> 
+  assumes \<open>\<not> acyclic (S \<union> {(p, x, c)})\<close>
+    and \<open>acyclic S\<close> 
     and \<open>c \<noteq> p\<close>
   shows \<open>ancestor S c p\<close>
-using assms anc_path cyclic_def cyclic_path_technical by fastforce
+using assms anc_path acyclic_def cyclic_path_technical by fastforce
 
 lemma do_op_acyclic:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
     and \<open>do_op (Move t newp m c, tree1) = (log_oper, tree2)\<close>
-  shows \<open>\<not> cyclic tree2\<close>
+  shows \<open>acyclic tree2\<close>
 proof(cases \<open>ancestor tree1 c newp \<or> c = newp\<close>)
   case True
-  then show \<open>\<not> cyclic tree2\<close>
+  then show \<open>acyclic tree2\<close>
     using assms by auto
 next
   case False
@@ -525,35 +525,35 @@ next
     using assms(2) by auto
   moreover have \<open>{(p', m', c') \<in> tree1. c' \<noteq> c} \<subseteq> tree1\<close>
     by blast
-  moreover have \<open>\<not> (cyclic tree1)\<close>
-    using assms and cyclic_def by auto
-  moreover have B: \<open>\<not> (cyclic {(p', m', c') \<in> tree1. c' \<noteq> c})\<close>
+  moreover have \<open>acyclic tree1\<close>
+    using assms and acyclic_def by auto
+  moreover have B: \<open>acyclic {(p', m', c') \<in> tree1. c' \<noteq> c}\<close>
     using acyclic_subset calculation(2) calculation(3) by blast
   {
-    assume \<open>cyclic tree2\<close>
-    have \<open>ancestor {(p', m', c') \<in> tree1. c' \<noteq> c} c newp\<close>
-      using cyclic_ancestor False A B \<open>cyclic tree2\<close> by force
+    assume \<open>\<not> acyclic tree2\<close>
+    hence \<open>ancestor {(p', m', c') \<in> tree1. c' \<noteq> c} c newp\<close>
+      using cyclic_ancestor False A B by force
     from this have \<open>False\<close>
       using False ancestor_superset_closed calculation(2) by fastforce
   }
-  from this show \<open>\<not> cyclic tree2\<close>
-    using cyclic_def by auto
+  from this show \<open>acyclic tree2\<close>
+    using acyclic_def by auto
 qed
 
 lemma redo_op_acyclic_var:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
     and \<open>redo_op (LogMove t oldp p m c) (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>\<not> cyclic tree2\<close>
+  shows \<open>acyclic tree2\<close>
   using assms by (subst (asm) redo_op.simps) (rule do_op_acyclic, assumption, fastforce)
 
 corollary redo_op_acyclic:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
     and \<open>redo_op logop (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>\<not> cyclic tree2\<close>
+  shows \<open>acyclic tree2\<close>
   using assms by (cases logop) (metis redo_op_acyclic_var)
 
 lemma undo_op_acyclic_helper2:
-\<open>path tree2 n n xs \<Longrightarrow> \<not> cyclic tree1 \<Longrightarrow>
+\<open>path tree2 n n xs \<Longrightarrow> acyclic tree1 \<Longrightarrow>
            tree2 = insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c} \<Longrightarrow>
            \<exists>xs. path tree2 c c xs\<close>
   apply (erule path_indcases)
@@ -564,7 +564,7 @@ lemma undo_op_acyclic_helper2:
     apply (rule path.intros)
     apply force
    apply clarsimp
-   apply (meson cyclic_path_eq path.intros(1))
+   apply (meson acyclic_path_eq path.intros(1))
   apply clarsimp
   apply (erule disjE1)
    apply clarsimp
@@ -578,7 +578,7 @@ lemma undo_op_acyclic_helper2:
   oops
 
 lemma undo_op_acyclic_helper2:
-\<open>path tree2 n m xs \<Longrightarrow> n = m \<Longrightarrow> \<not> cyclic tree1 \<Longrightarrow>
+\<open>path tree2 n m xs \<Longrightarrow> n = m \<Longrightarrow> acyclic tree1 \<Longrightarrow>
            tree2 = insert (oldp, oldm, c) {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> c} \<Longrightarrow>
            \<exists>xs. path tree2 c c xs\<close>
   apply (induction rule: path.induct)
@@ -589,7 +589,7 @@ lemma undo_op_acyclic_helper2:
     apply (rule path.intros)
     apply force
    apply clarsimp
-   apply (meson cyclic_path_eq path.intros(1))
+   apply (meson acyclic_path_eq path.intros(1))
   apply clarsimp
   apply (erule disjE1)
    apply clarsimp
@@ -615,7 +615,7 @@ lemma undo_op_acyclic_helper2:
     apply (rule path.intros)
     apply force
    apply clarsimp
-   apply (meson cyclic_path_eq path.intros(1))
+   apply (meson acyclic_path_eq path.intros(1))
   apply clarsimp
   apply (erule disjE1)
    apply clarsimp
@@ -629,46 +629,40 @@ lemma undo_op_acyclic_helper2:
   *)
 
 lemma undo_op_acyclic_helper:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
   and \<open>undo_op (LogMove t (Some (oldp, oldm)) p m c, tree1) = tree2\<close>
-  and \<open>cyclic tree2\<close>
+  and \<open>\<not> acyclic tree2\<close>
 shows \<open>\<exists>xs. path tree2 oldp oldp xs\<close>
   using assms apply clarsimp
-  apply (subst (asm) cyclic_path_eq) back
+  apply (subst (asm) acyclic_path_eq) back
   apply clarsimp
   oops
 
 lemma undo_op_acyclic:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
   and \<open>undo_op (LogMove t (Some (oldp, oldm)) p m c, tree1) = tree2\<close>
-  shows \<open>\<not> cyclic tree2 \<or> (\<exists>xs. path tree2 oldp oldp xs \<and> (\<forall>(n, _) \<in> set xs. \<not> (\<exists>ys. path tree2 n n ys)))\<close>
+  shows \<open>acyclic tree2 \<or> (\<exists>xs. path tree2 oldp oldp xs \<and> (\<forall>(n, _) \<in> set xs. \<not> (\<exists>ys. path tree2 n n ys)))\<close>
   using assms apply clarsimp
-  apply (subst (asm) cyclic_path_eq) back
-  apply clarsimp
-  apply (rule_tac x=x in exI)
-  apply (rule conjI)
-  defer
-   apply clarsimp
+  apply (subst (asm) acyclic_path_eq)
   oops
 
 lemma
-  assumes \<open>\<not> cyclic tree1\<close>
-    and \<open>\<forall>log1 tree1 log2 tree2. apply_op x (log1, tree1) = (log2, tree2) \<and> \<not> cyclic tree1 \<longrightarrow> \<not> cyclic tree2\<close>
+  assumes \<open>acyclic tree1\<close>
+    and \<open>\<forall>log1 tree1 log2 tree2. apply_op x (log1, tree1) = (log2, tree2) \<and> acyclic tree1 \<longrightarrow> acyclic tree2\<close>
     and \<open>redo_op a (apply_op x (log1, undo_op (a, tree1))) = (log2, tree2)\<close>
-  shows \<open>\<not> cyclic tree2\<close>
+  shows \<open>acyclic tree2\<close>
   using assms
   apply (induction log1 arbitrary: a tree1 log2 tree2)
    apply clarsimp
    apply (case_tac "do_op (x, undo_op (a, tree1))")
    apply clarsimp
-   apply (subgoal_tac "\<not> cyclic b")
+   apply (subgoal_tac "acyclic b")
   using redo_op_acyclic apply blast
-   apply clarsimp
    apply (case_tac a)
    apply clarsimp
    apply (case_tac x2)
     apply clarsimp
-    apply (subgoal_tac "\<not> cyclic {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> x5}")
+    apply (subgoal_tac "acyclic {(p', m', c'). (p', m', c') \<in> tree1 \<and> c' \<noteq> x5}")
      apply (smt do_op_acyclic operation.exhaust snd_conv)
     apply (rule acyclic_subset)
      apply assumption
@@ -690,9 +684,9 @@ lemma \<open>\<exists>log2. redo_op a (apply_op x (log1, undo_op (a, tree1))) = 
   *)
 
 lemma apply_op_acyclic:
-  assumes \<open>\<not> cyclic tree1\<close>
+  assumes \<open>acyclic tree1\<close>
     and \<open>apply_op x (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>\<not> cyclic tree2\<close>
+  shows \<open>acyclic tree2\<close>
   using assms
   apply (induction log1 arbitrary: log2 tree1 tree2)
    apply clarsimp
@@ -730,10 +724,10 @@ lemma apply_op_acyclic:
 
 theorem apply_ops_acyclic:
   assumes \<open>apply_ops ops = (log, tree)\<close>
-  shows \<open>\<not> cyclic tree\<close>
+  shows \<open>acyclic tree\<close>
   using assms
   apply (induction ops arbitrary: log tree rule: List.rev_induct)
-   apply force
+  using acyclic_def apply fastforce
   apply simp
   apply (case_tac "apply_ops xs")
   apply (erule_tac x=a in meta_allE)
@@ -751,7 +745,7 @@ theorem apply_ops_acyclic:
 (*
 using assms proof(induction ops arbitrary: log tree rule: List.rev_induct)
   case Nil
-  then show ?case by (simp add: cyclic_def apply_ops_def)
+  then show ?case by (simp add: acyclic_def apply_ops_def)
 next
   case (snoc x xs)
   then obtain log1 tree1 where \<open>apply_ops xs = (log1, tree1)\<close>
