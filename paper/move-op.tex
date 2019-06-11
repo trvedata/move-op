@@ -7,8 +7,9 @@
 \usepackage{isabelle,isabellesym}
 \isabellestyle{tt}
 \renewenvironment{isabelle}{%
-  \bigbreak\noindent\hspace{\parindent}%
-  \begin{minipage}{\textwidth-\parindent}% use minipage to prevent page breaks
+  \bigbreak\noindent%
+  \renewcommand{\isanewline}{\\}%
+  \begin{minipage}{\columnwidth}% use minipage to prevent page breaks
   \begin{isabellebody}%
   \begin{tabbing}%
 }{%
@@ -468,7 +469,11 @@ We give a precise specification of our algorithm's consistency properties in Sec
 \isanewline
 \isacommand{definition}\isamarkupfalse%
 \ unique{\isacharunderscore}parent\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ bool{\isacartoucheclose}\ \isakeyword{where}\isanewline
-\ \ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree\ {\isasymequiv}\ {\isacharparenleft}{\isasymforall}p{\isadigit{1}}\ p{\isadigit{2}}\ m{\isadigit{1}}\ m{\isadigit{2}}\ c{\isachardot}\ {\isacharparenleft}p{\isadigit{1}}{\isacharcomma}\ m{\isadigit{1}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymand}\ {\isacharparenleft}p{\isadigit{2}}{\isacharcomma}\ m{\isadigit{2}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymlongrightarrow}\ p{\isadigit{1}}\ {\isacharequal}\ p{\isadigit{2}}\ {\isasymand}\ m{\isadigit{1}}\ {\isacharequal}\ m{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}%
+\ \ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree\ {\isasymequiv}\ {\isacharparenleft}{\isasymforall}p{\isadigit{1}}\ p{\isadigit{2}}\ m{\isadigit{1}}\ m{\isadigit{2}}\ c{\isachardot}\ {\isacharparenleft}p{\isadigit{1}}{\isacharcomma}\ m{\isadigit{1}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymand}\ {\isacharparenleft}p{\isadigit{2}}{\isacharcomma}\ m{\isadigit{2}}{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ tree\ {\isasymlongrightarrow}\ p{\isadigit{1}}\ {\isacharequal}\ p{\isadigit{2}}\ {\isasymand}\ m{\isadigit{1}}\ {\isacharequal}\ m{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}\isanewline%
+\isanewline
+\isacommand{definition}\isamarkupfalse%
+\ acyclic\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ bool{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ \ {\isacartoucheopen}acyclic\ tree\ {\isasymequiv}\ {\isacharparenleft}{\isasymnexists}n{\isachardot}\ ancestor\ tree\ n\ n{\isacharparenright}{\isacartoucheclose}
 \end{isabellebody}
 \caption{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \label{fig:code}
@@ -596,6 +601,36 @@ This logic ensures that the log is maintained in descending timestamp order, wit
 % - Garbage collection: discard causally stable prefix
 
 \section{Proof of correctness}\label{sec:proof}
+
+We now discuss the correctness properties of the algorithm from Section~\ref{sec:algorithm}.
+All theorems stated here have been formally proved and mechanically checked using Isabelle.
+For space reasons we give only a brief sketch of the proofs in this paper, but the full details can be found in the Isabelle files of our open source proof development.\footnote{\url{https://github.com/trvedata/move-op}}
+
+\subsection{Tree invariants}\label{sec:tree-invariants}
+
+A tree is an acyclic graph in which every node has exactly one parent, except for the root, which has no parent.
+To prove that our algorithm always maintains a tree structure, no matter which operations are applied, we need to prove that these invariants hold.
+
+In fact, we slightly generalise this property: we allow more than one root to exist, so the graph is actually a forest.
+This allows an application to move nodes between multiple trees, if desired.
+For example, the ``trash'' node used for deletion (Section~\ref{sec:ops-trees}) can be separate from the main tree.
+If the 
+
+\begin{isabelle}
+\isacommand{theorem}\isamarkupfalse%
+\ apply{\isacharunderscore}ops{\isacharunderscore}unique{\isacharunderscore}parent{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}
+\end{isabelle}
+
+\begin{isabelle}
+\isacommand{theorem}\isamarkupfalse%
+\ apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}acyclic\ tree{\isacartoucheclose}
+\end{isabelle}
+
+
 
 \section{Evaluation}\label{sec:evaluation}
 
