@@ -763,11 +763,11 @@ text\<open>Check that all of the efficient algorithms produce executable code fo
      bottom.  (View it in the Output buffer of the Isabelle/JEdit IDE.)\<close>
 
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in SML
+  efficient_apply_op efficient_apply_ops in SML file generated.SML
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in Scala
+  efficient_apply_op efficient_apply_ops in Scala file generated.scala
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in OCaml
+  efficient_apply_op efficient_apply_ops in OCaml file generated.ml
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
   efficient_apply_op efficient_apply_ops in Haskell
 
@@ -782,7 +782,7 @@ text\<open>Without resorting to saving the generated code above to a separate fi
 definition unit_test :: \<open>((nat, nat, nat) log_op list \<times> (nat, nat \<times> nat) HashMap.hashmap) list\<close>
   where \<open>unit_test \<equiv>
           [ efficient_apply_ops []
-          , efficient_apply_ops [Move 1 0 0 0]
+          , efficient_apply_ops [Move 1 0 0 1]
           , efficient_apply_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
           ]\<close>
 
@@ -793,7 +793,7 @@ text\<open>Then, we can use @{command ML_val} to ask Isabelle to:
         values back to us within the Isabelle/JEdit IDE.\<close>
 
 ML_val\<open>@{code unit_test}\<close>
-
+value unit_test
 text\<open>Note, there is a slight lag when performing this action as the executable code is first
      extracted to SML, dynamically compiled, and then the result of the computation reflected back
      to us.  Nevertheless, on a Macbook Pro (2017 edition) this procedure takes 2 seconds, at the
