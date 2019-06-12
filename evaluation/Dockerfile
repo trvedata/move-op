@@ -6,7 +6,22 @@ RUN set -x \
     && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823 \
     && apt-get update \
     && apt-get install -y openjdk-8-jdk sbt
+
 ADD . evaluation/
+
 RUN set -x \
     && cd evaluation \
     && sbt run
+
+# https://www.yourkit.com/docs/java/help/docker.jsp
+RUN apt-get install -y wget unzip \
+    && wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2019.1-docker.zip -P /tmp/ \
+    && unzip /tmp/YourKit-JavaProfiler-2019.1-docker.zip -d /usr/local \
+    && rm /tmp/YourKit-JavaProfiler-2019.1-docker.zip
+
+# To connect to the port inside the container, start it like this:
+# docker run -p 10001:10001 <image-id>
+EXPOSE 10001
+
+# To profile inside the Docker container:
+# sbt run -J-agentpath:/usr/local/YourKit-JavaProfiler-2019.1/bin/linux-x86-64/libyjpagent.so=port=10001,listen=all
