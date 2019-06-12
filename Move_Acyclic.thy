@@ -10,7 +10,7 @@ inductive_cases steps_indcases [elim]: \<open>steps ss\<close>
 
 inductive steps' :: \<open>(('t, 'n, 'm) log_op list \<times> ('n \<times> 'm \<times> 'n) set) list \<Rightarrow> bool\<close> where
   \<open>\<lbrakk>do_op (oper, {}) = (logop, tree)\<rbrakk> \<Longrightarrow> steps' [([logop], tree)]\<close> |
-  \<open>\<lbrakk>steps' (ss @ [(log, tree)]); do_op (oper, tree) = (logop, tree2)\<rbrakk> \<Longrightarrow> steps' (ss @ [(log, tree), (logop # log, tree2)])\<close>
+  \<open>\<lbrakk>steps' (ss @ [(log, tree)]); do_op (oper, tree) = (logop, tree2); x=[(log, tree), (logop # log, tree2)]\<rbrakk> \<Longrightarrow> steps' (ss @ x)\<close>
 
 inductive_cases steps'_indcases [elim]: \<open>steps' ss\<close>
 inductive_cases steps'_snoc_indcases [elim]: \<open>steps' (ss@[s])\<close>
@@ -23,7 +23,16 @@ lemma steps'_empty:
    apply force+
   done
 
-lemma
+lemma steps'_unique_parent:
+  assumes \<open>steps' ss\<close>
+  and \<open>ss = ss'@[(log, tree)]\<close>
+  shows \<open>unique_parent tree\<close>
+  using assms
+  apply(induction arbitrary: ss' log tree rule: steps'.induct)
+  apply(clarsimp, metis do_op_unique_parent emptyE operation.exhaust_sel unique_parentI)+
+  done
+
+lemma apply_op_steps'_exist:
   assumes \<open>apply_op oper (log1, tree1) = (log2, tree2)\<close>
     and \<open>steps' (ss@[(log1, tree1)])\<close>
   shows \<open>\<exists>ss'. steps' (ss'@[(log2,tree2)])\<close>
@@ -33,16 +42,53 @@ using assms proof(induction log1 arbitrary: tree1 log2 tree2 ss)
 next
   case (Cons logop ops)
   then show ?case
-    apply -
-    apply(erule steps'_snoc_indcases)
-     apply(clarsimp split!: if_split_asm prod.split_asm)
-   
   proof(cases \<open>move_time oper < log_time logop\<close>)
     case True
     hence \<open>apply_op oper (logop # ops, tree1) =
            redo_op logop (apply_op oper (ops, undo_op (logop, tree1)))\<close>
       by simp
-    then show ?thesis sorry
+    from this and Cons show ?thesis
+      apply -
+      apply(erule steps'_snoc_indcases)
+       apply(subgoal_tac \<open>logop = logopa \<and> ops = [] \<and> tree1 = tree\<close>)
+        prefer 2 apply force
+       apply(elim conjE, clarify)
+       apply(subgoal_tac \<open>undo_op (logop, tree1) = {}\<close>)
+      prefer 2 
+        apply (metis apply_ops_Nil apply_ops_unique_parent do_op.cases do_undo_op_inv old.prod.inject)
+      using True apply(clarsimp split!: prod.split_asm)
+       apply(subgoal_tac \<open>steps' ([([x1], x2)] @ [(log2, tree2)])\<close>)
+        apply blast
+       apply clarsimp
+        apply(cases logop, clarsimp simp del: do_op.simps)
+        apply(case_tac \<open>do_op (Move x1a x3 x4 x5, x2)\<close>)
+      apply(subgoal_tac \<open>steps' ([] @ [([x1], x2), (log2, tree2)])\<close>)
+        apply force
+       apply(rule steps'.intros(2))
+      apply(clarsimp simp del: do_op.simps)
+         apply(rule steps'.intros(1))
+         apply assumption back
+        apply assumption
+       apply force
+      apply(rename_tac ss' log tree opera logopa tree2)
+      apply(subgoal_tac "logop = logopa \<and> ops = log \<and> tree1 = tree2")
+       apply(elim conjE, clarify)
+       prefer 2 apply force
+      apply(subgoal_tac \<open>undo_op (logop, tree1) = tree\<close>)
+       prefer 2 using do_undo_op_inv steps'_unique_parent apply (metis operation.exhaust_sel)
+      using True apply clarsimp
+      apply(case_tac \<open>apply_op oper (ops, undo_op (logop, tree1))\<close>)
+      apply clarsimp
+      apply(erule_tac x=\<open>undo_op (logop, tree1)\<close> in meta_allE)
+      apply(erule_tac x=a in meta_allE)
+      apply(erule_tac x=b in meta_allE)
+      apply(erule_tac x=ss' in meta_allE)
+      apply clarsimp
+      apply(rule_tac x=\<open>ss'a @ [(a, b)]\<close> in exI)
+      apply clarsimp
+        apply(cases logop, clarsimp simp del: do_op.simps split!: prod.split_asm)
+      apply(rule steps'.intros, assumption, assumption, force)
+      done
   next
     case False
     hence \<open>apply_op oper (logop # ops, tree1) =
