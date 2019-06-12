@@ -2,93 +2,93 @@ theory Move_SEC
   imports Move CRDT.Network
 begin
 
-definition interp_op' :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow> ('t, 'n, 'm) state \<rightharpoonup> ('t, 'n, 'm) state\<close> where
-  \<open>interp_op' x s \<equiv> case s of (log, tree) \<Rightarrow>
+definition apply_op' :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow> ('t, 'n, 'm) state \<rightharpoonup> ('t, 'n, 'm) state\<close> where
+  \<open>apply_op' x s \<equiv> case s of (log, tree) \<Rightarrow>
     if unique_parent tree \<and> distinct (map log_time log @ [move_time x]) then
-      Some (interp_op x s)
+      Some (apply_op x s)
     else None\<close>
 
 fun valid_move_opers :: "('t, 'n, 'm) state \<Rightarrow> 't \<times>('t, 'n, 'm) operation \<Rightarrow> bool" where
   \<open>valid_move_opers _ (i, Move t _ _ _) = (i = t)\<close>
 
-locale move = network_with_constrained_ops _ "interp_op'" "([], {})" valid_move_opers
+locale move = network_with_constrained_ops _ "apply_op'" "([], {})" valid_move_opers
 begin
 
-lemma kleisli_interp_op' [iff]:
-  shows \<open>interp_op' (x :: ('t :: {linorder}, 'n, 'm) operation) \<rhd> interp_op' y = interp_op' y \<rhd> interp_op' x\<close>
+lemma kleisli_apply_op' [iff]:
+  shows \<open>apply_op' (x :: ('t :: {linorder}, 'n, 'm) operation) \<rhd> apply_op' y = apply_op' y \<rhd> apply_op' x\<close>
 proof (unfold kleisli_def, rule ext, clarify)
   fix log :: \<open>('t, 'n, 'm) log_op list\<close> and tree :: \<open>('n \<times> 'm \<times> 'n) set\<close>
   { assume *: \<open>unique_parent tree\<close> \<open>distinct (map log_time log @ [move_time x])\<close> \<open>distinct (map log_time log @ [move_time y])\<close> \<open>move_time x \<noteq> move_time y\<close>
-    obtain logx treex where 1: \<open>interp_op x (log, tree) = (logx, treex)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain logx treex where 1: \<open>apply_op x (log, tree) = (logx, treex)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     hence \<open>set (map log_time logx) = {move_time x} \<union> set (map log_time log)\<close>
-      using * by (cases x) (rule interp_op_timestampI2; force)
+      using * by (cases x) (rule apply_op_timestampI2; force)
     moreover have \<open>distinct (map log_time logx)\<close>
-      using * 1 by (cases x) (rule interp_op_timestampI1; force)
+      using * 1 by (cases x) (rule apply_op_timestampI1; force)
     ultimately have 2: \<open>distinct (map log_time logx @ [move_time y])\<close>
       using * by simp
-    obtain logy treey where 3: \<open>interp_op y (log, tree) = (logy, treey)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain logy treey where 3: \<open>apply_op y (log, tree) = (logy, treey)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     hence \<open>set (map log_time logy) = {move_time y} \<union> set (map log_time log)\<close>
-      using * by (cases y) (rule interp_op_timestampI2; force)
+      using * by (cases y) (rule apply_op_timestampI2; force)
     moreover have \<open>distinct (map log_time logy)\<close>
-      using * 3 by (cases y) (rule interp_op_timestampI1, force, force)
+      using * 3 by (cases y) (rule apply_op_timestampI1, force, force)
     ultimately have 4: \<open>distinct (map log_time logy @ [move_time x])\<close>
       using * by simp
     have \<open>unique_parent treex\<close> \<open>unique_parent treey\<close>
-      using * 1 3 interp_op_unique_parent by blast+
-    hence \<open>interp_op' x (log, tree) \<bind> interp_op' y = interp_op' y (log, tree) \<bind> interp_op' x\<close>
-      using * 1 2 3 4 by (cases x, cases y, clarsimp simp: interp_op'_def) (rule interp_op_commute2I; force)
+      using * 1 3 apply_op_unique_parent by blast+
+    hence \<open>apply_op' x (log, tree) \<bind> apply_op' y = apply_op' y (log, tree) \<bind> apply_op' x\<close>
+      using * 1 2 3 4 by (cases x, cases y, clarsimp simp: apply_op'_def) (rule apply_op_commute2I; force)
   }
   moreover {
     assume *: \<open>unique_parent tree\<close> \<open>distinct (map log_time log @ [move_time x])\<close> \<open>distinct (map log_time log @ [move_time y])\<close> \<open>move_time x = move_time y\<close>
-    obtain logx treex where 1: \<open>interp_op x (log, tree) = (logx, treex)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain logx treex where 1: \<open>apply_op x (log, tree) = (logx, treex)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     hence \<open>set (map log_time logx) = {move_time x} \<union> set (map log_time log)\<close>
-      using * by (cases x) (rule interp_op_timestampI2; force)
+      using * by (cases x) (rule apply_op_timestampI2; force)
     hence 2: \<open>\<not> distinct (map log_time logx @ [move_time y])\<close>
       using * by simp
-    obtain logy treey where 3: \<open>interp_op y (log, tree) = (logy, treey)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain logy treey where 3: \<open>apply_op y (log, tree) = (logy, treey)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     hence \<open> set (map log_time logy) = {move_time y} \<union> set (map log_time log)\<close>
-      using * by (cases y) (rule interp_op_timestampI2; force)
+      using * by (cases y) (rule apply_op_timestampI2; force)
     hence 4: \<open>\<not> distinct (map log_time logy @ [move_time x])\<close>
       using * by simp
-    have \<open>interp_op' x (log, tree) \<bind> interp_op' y = interp_op' y (log, tree) \<bind> interp_op' x\<close>
-      using * 1 2 3 4 by (clarsimp simp: interp_op'_def)
+    have \<open>apply_op' x (log, tree) \<bind> apply_op' y = apply_op' y (log, tree) \<bind> apply_op' x\<close>
+      using * 1 2 3 4 by (clarsimp simp: apply_op'_def)
   }
   moreover {
     assume *: \<open>unique_parent tree\<close> \<open>\<not> distinct (map log_time log @ [move_time x])\<close> \<open>distinct (map log_time log @ [move_time y])\<close>
     then have **: \<open>move_time x \<in> set (map log_time log)\<close>
       by auto 
-    obtain log1 tree1 where \<open>interp_op y (log, tree) = (log1, tree1)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain log1 tree1 where \<open>apply_op y (log, tree) = (log1, tree1)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     moreover hence \<open> set (map log_time log1) = {move_time y} \<union> set (map log_time log)\<close>
-      using * by (cases y) (rule interp_op_timestampI2; force)
+      using * by (cases y) (rule apply_op_timestampI2; force)
     hence \<open>move_time x \<in> set (map log_time log1)\<close>
       using ** by blast
     moreover hence \<open>\<not> distinct (map log_time log1 @ [move_time x])\<close>
       by simp
-    ultimately have \<open>interp_op' x (log, tree) \<bind> interp_op' y = interp_op' y (log, tree) \<bind> interp_op' x\<close>
-      using * by (clarsimp simp: interp_op'_def)
+    ultimately have \<open>apply_op' x (log, tree) \<bind> apply_op' y = apply_op' y (log, tree) \<bind> apply_op' x\<close>
+      using * by (clarsimp simp: apply_op'_def)
   }
   moreover {
     assume *: \<open>unique_parent tree\<close> \<open>distinct (map log_time log @ [move_time x])\<close> \<open>\<not> distinct (map log_time log @ [move_time y])\<close>
     then have **: \<open>move_time y \<in> set (map log_time log)\<close>
       by auto 
-    obtain log1 tree1 where \<open>interp_op x (log, tree) = (log1, tree1)\<close>
-      using * by (clarsimp simp: interp_op'_def)  (metis surj_pair)
+    obtain log1 tree1 where \<open>apply_op x (log, tree) = (log1, tree1)\<close>
+      using * by (clarsimp simp: apply_op'_def)  (metis surj_pair)
     moreover hence \<open> set (map log_time log1) = {move_time x} \<union> set (map log_time log)\<close>
-      using * by (cases x) (rule interp_op_timestampI2; force)
+      using * by (cases x) (rule apply_op_timestampI2; force)
     hence \<open>move_time y \<in> set (map log_time log1)\<close>
       using ** by blast
     moreover hence \<open>\<not> distinct (map log_time log1 @ [move_time y])\<close>
       by simp
-    ultimately have \<open>interp_op' x (log, tree) \<bind> interp_op' y = interp_op' y (log, tree) \<bind> interp_op' x\<close>
-      using * by (clarsimp simp: interp_op'_def)
+    ultimately have \<open>apply_op' x (log, tree) \<bind> apply_op' y = apply_op' y (log, tree) \<bind> apply_op' x\<close>
+      using * by (clarsimp simp: apply_op'_def)
   }
-  ultimately show \<open>interp_op' x (log, tree) \<bind> interp_op' y = interp_op' y (log, tree) \<bind> interp_op' x\<close>
-    by (clarsimp simp: interp_op'_def) fastforce
+  ultimately show \<open>apply_op' x (log, tree) \<bind> apply_op' y = apply_op' y (log, tree) \<bind> apply_op' x\<close>
+    by (clarsimp simp: apply_op'_def) fastforce
 qed
   
 lemma concurrent_operations_commute:
@@ -131,18 +131,18 @@ using assms proof (induct xs arbitrary: log tree rule: rev_induct, clarsimp)
       by force
     hence "interp_msg (t, oper) (log1, tree1) = Some (log, tree)"
       using \<open>apply_operations xs = Some (log1, tree1)\<close> snoc.prems(2) 1 2 by simp
-    hence 4: "interp_op' oper (log1, tree1) = Some (log, tree)"
-      by (clarsimp simp: interp_msg_def interp_op'_def)
+    hence 4: "apply_op' oper (log1, tree1) = Some (log, tree)"
+      by (clarsimp simp: interp_msg_def apply_op'_def)
     hence "distinct ((map log_time log1) @ [move_time oper])"
-      by (clarsimp simp: interp_op'_def) (meson option.distinct(1))
-    moreover hence 5: "interp_op oper (log1, tree1) = (log, tree)"
-      using 4 ** by (clarsimp simp: interp_op'_def)
+      by (clarsimp simp: apply_op'_def) (meson option.distinct(1))
+    moreover hence 5: "apply_op oper (log1, tree1) = (log, tree)"
+      using 4 ** by (clarsimp simp: apply_op'_def)
     ultimately have "distinct (map log_time log)"
       apply (case_tac oper, clarsimp)
-      apply (rule interp_op_timestampI1, assumption)
+      apply (rule apply_op_timestampI1, assumption)
       by (clarsimp simp add: \<open>distinct (map log_time log1)\<close>)
     thus "distinct (map log_time log) \<and> unique_parent tree"
-      using ** 5 interp_op_unique_parent by blast
+      using ** 5 apply_op_unique_parent by blast
   qed
 qed
 
@@ -186,7 +186,7 @@ lemma apply_opers_idx_elems:
    apply clarsimp
   apply (case_tac "apply_operations xs")
   apply force
-  apply (clarsimp simp: interp_msg_def interp_op'_def)
+  apply (clarsimp simp: interp_msg_def apply_op'_def)
   apply (subgoal_tac "unique_parent ba \<and> distinct (map log_time aa)")
    prefer 2
    apply (simp add: log_tree_invariant)
@@ -198,7 +198,7 @@ lemma apply_opers_idx_elems:
   apply clarsimp
   apply (subgoal_tac "set (map log_time log) = {x1} \<union> set (map log_time aa)")
    prefer 2
-   apply (rule interp_op_timestampI2)
+   apply (rule apply_op_timestampI2)
     apply assumption
    apply force
   apply (subgoal_tac "a = x1")
@@ -272,7 +272,7 @@ using assms proof(induct xs rule: rev_induct, clarsimp)
     using log_tree_invariant snoc.prems by blast
   ultimately show ?case
     using log_time_invariant snoc.prems
-    by (cases x; clarsimp simp: interp_msg_def) (clarsimp simp: interp_op'_def)
+    by (cases x; clarsimp simp: interp_msg_def) (clarsimp simp: apply_op'_def)
 qed
 
 sublocale sec: strong_eventual_consistency weak_hb hb interp_msg
