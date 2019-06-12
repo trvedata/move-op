@@ -323,6 +323,9 @@ section \<open>Preserving the invariant that the tree contains no cycles\<close>
 definition acyclic :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>acyclic tree \<equiv> (\<nexists>n. ancestor tree n n)\<close>
 
+lemma acyclic_empty [simp]: \<open>acyclic {}\<close>
+  by (meson Move.acyclic_def ancestor_indcases empty_iff)
+
 lemma acyclicE [elim]:
   assumes \<open>acyclic \<T>\<close>
     and \<open>(\<nexists>n. ancestor \<T> n n) \<Longrightarrow> P\<close>
@@ -548,6 +551,12 @@ next
   from this show \<open>acyclic tree2\<close>
     using acyclic_def by auto
 qed
+
+lemma do_op_acyclic_var:
+  assumes \<open>acyclic tree1\<close>
+    and \<open>do_op (oper, tree1) = (log_oper, tree2)\<close>
+  shows \<open>acyclic tree2\<close>
+  using assms by (metis do_op_acyclic operation.exhaust_sel)
 
 lemma redo_op_acyclic_var:
   assumes \<open>acyclic tree1\<close>
