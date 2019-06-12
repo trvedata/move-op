@@ -315,13 +315,13 @@ fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, '
   where \<open>efficient_do_op (Move t newp m c, tree) =
            (LogMove t (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c tree)) newp m c,
               if efficient_ancestor tree c newp \<or> c = newp then tree
-                else hm.update c (m, newp) (hm.restrict (\<lambda>(c', m', p'). c \<noteq> c') tree))\<close>
+                else hm.update c (m, newp) tree)\<close>
 
 fun efficient_undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n, 'm \<times> 'n) hm\<close>
   where \<open>efficient_undo_op (LogMove t None newp m c, tree) =
-          hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree\<close>
+          hm.delete c tree\<close>
       | \<open>efficient_undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
-          hm.update c (oldm, oldp) (hm.restrict (\<lambda>(c', m', p'). c' \<noteq> c) tree)\<close>
+          hm.update c (oldm, oldp) tree\<close>
 
 fun efficient_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow>
             ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
