@@ -29,6 +29,8 @@ inductive ancestor :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \
   \<open>\<lbrakk>(parent, meta, child) \<in> tree\<rbrakk> \<Longrightarrow> ancestor tree parent child\<close> |
   \<open>\<lbrakk>(parent, meta, child) \<in> tree; ancestor tree anc parent\<rbrakk> \<Longrightarrow> ancestor tree anc child\<close>
 
+inductive_cases ancestor_indcases: \<open>ancestor \<T> m p\<close>
+
 fun do_op :: \<open>('t, 'n, 'm) operation \<times> ('n \<times> 'm \<times> 'n) set \<Rightarrow>
               ('t, 'n, 'm) log_op \<times> ('n \<times> 'm \<times> 'n) set\<close> where
   \<open>do_op (Move t newp m c, tree) =
@@ -64,6 +66,10 @@ definition apply_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightar
 
 definition unique_parent :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>unique_parent tree \<equiv> (\<forall>p1 p2 m1 m2 c. (p1, m1, c) \<in> tree \<and> (p2, m2, c) \<in> tree \<longrightarrow> p1 = p2 \<and> m1 = m2)\<close>
+
+lemma unique_parent_empty[simp]:
+  shows \<open>unique_parent {}\<close>
+  by (auto simp: unique_parent_def)
 
 lemma unique_parentD [dest]:
   assumes \<open>unique_parent T\<close>
@@ -126,14 +132,8 @@ proof(cases \<open>\<exists>par meta. (par, meta, c) \<in> tree\<close>)
   {
     fix p' m' c'
     assume 3: \<open>(p', m', c') \<in> tree\<close>
-    have \<open>(p', m', c') \<in> undo_op (do_op (Move t p m c, tree))\<close>
-    proof(cases \<open>c = c'\<close>)
-      case True
-      then show ?thesis using 1 2 3 assms unique_parent_def by fastforce
-    next
-      case False
-      then show ?thesis using 2 3 by auto
-    qed
+    hence \<open>(p', m', c') \<in> undo_op (do_op (Move t p m c, tree))\<close>
+      using 1 2 assms unique_parent_def by (cases \<open>c = c'\<close>; fastforce) 
   }
   hence \<open>tree \<subseteq> undo_op (do_op (Move t p m c, tree))\<close>
     by auto
@@ -319,8 +319,6 @@ qed
 
 
 section \<open>Preserving the invariant that the tree contains no cycles\<close>
-
-inductive_cases ancestor_indcases: \<open>ancestor \<T> m p\<close>
 
 definition acyclic :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>acyclic tree \<equiv> (\<nexists>n. ancestor tree n n)\<close>
