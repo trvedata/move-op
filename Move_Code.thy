@@ -771,6 +771,16 @@ export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_
 export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
   efficient_apply_op efficient_apply_ops in Haskell
 
+definition example_apply_op ::
+    \<open>((int \<times> String.literal), String.literal, String.literal) operation \<Rightarrow>
+     ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
+       (String.literal, String.literal \<times> String.literal) HashMap.hashmap \<Rightarrow>
+     ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
+       (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
+ where \<open>example_apply_op = efficient_apply_op\<close>
+
+export_code example_apply_op in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
+
 text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
      an SML/Scala/OCaml/Haskell compiler, as appropriate, we can show that this code compiles and
      executes relatively quickly from within Isabelle itself, by making use of Isabelle's
