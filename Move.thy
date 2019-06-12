@@ -66,6 +66,18 @@ definition apply_ops :: \<open>('t::{linorder}, 'n, 'm) operation list \<Rightar
 definition unique_parent :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
   \<open>unique_parent tree \<equiv> (\<forall>p1 p2 m1 m2 c. (p1, m1, c) \<in> tree \<and> (p2, m2, c) \<in> tree \<longrightarrow> p1 = p2 \<and> m1 = m2)\<close>
 
+lemma unique_parentD [dest]:
+  assumes \<open>unique_parent T\<close>
+      and \<open>(p1, m1, c) \<in> T\<close>
+      and \<open>(p2, m2, c) \<in> T\<close>
+    shows \<open>p1 = p2 \<and> m1 = m2\<close>
+using assms by(force simp add: unique_parent_def)
+
+lemma unique_parentI [intro]:
+  assumes \<open>\<And>p1 p2 m1 m2 c. (p1, m1, c) \<in> T \<Longrightarrow> (p2, m2, c) \<in> T \<Longrightarrow> p1 = p2 \<and> m1 = m2\<close>
+  shows \<open>unique_parent T\<close>
+using assms by(force simp add: unique_parent_def)
+
 lemma apply_ops_base [simp]:
   shows \<open>apply_ops [Move t1 p1 m1 c1, Move t2 p2 m2 c2] =
                     apply_op (Move t2 p2 m2 c2) (apply_op (Move t1 p1 m1 c1) ([], {}))\<close>
@@ -1121,30 +1133,42 @@ qed
 
 section\<open>Code generation: an efficient implementation\<close>
 
-inductive ancestor''' :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
-  where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T p c\<close>
-      | \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor''' T a p \<Longrightarrow> ancestor''' T a c\<close>
+inductive ancestor_alt :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
+  where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor_alt T p c\<close>
+      | \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor_alt T a p \<Longrightarrow> ancestor_alt T a c\<close>
 
-lemma get_parent_SomeI:
+lemma get_parent_SomeI [intro]:
   assumes \<open>unique_parent T\<close>
     and \<open>(p, m, c) \<in> T\<close>
   shows \<open>get_parent T c = Some (p, m)\<close>
-using assms
-  apply(clarsimp simp add: unique_parent_def get_parent_def)
-  apply(rule conjI)
-  apply(rule_tac a=p in ex1I, rule_tac a=m in ex1I)
-  apply force+
-  done
+using assms by(auto simp add: get_parent_def)
 
 lemma get_parent_SomeD:
-  assumes \<open>get_parent T c = Some (p, m)\<close>
-    and \<open>unique_parent T\<close>
+  assumes 1: \<open>get_parent T c = Some (p, m)\<close>
+    and 2: \<open>unique_parent T\<close>
   shows \<open>(p, m, c) \<in> T\<close>
-using assms
-  apply(clarsimp simp add: get_parent_def unique_parent_def split: if_split_asm)
-  using assms(1) assms(2) get_parent_SomeI apply fastforce
-  done
-  
+proof -
+  {
+    assume 3: \<open>\<exists>!parent. \<exists>!meta. (parent, meta, c) \<in> T\<close>
+    from this have \<open>get_parent T c = Some (THE (parent, meta). (parent, meta, c) \<in> T)\<close>
+      by(auto simp add: get_parent_def)
+    from this and 1 have \<open>(THE (parent, meta). (parent, meta, c) \<in> T) = (p, m)\<close>
+      by force
+    from this and 1 and 2 and 3 have \<open>(p, m, c) \<in> T\<close>
+      using get_parent_SomeI by fastforce
+  }
+  note L = this
+  {
+    assume \<open>\<not> (\<exists>!parent. \<exists>!meta. (parent, meta, c) \<in> T)\<close>
+    from this have \<open>get_parent T c = None\<close>
+      by(auto simp add: get_parent_def)
+    from this and 1 have \<open>(p, m, c) \<in> T\<close>
+      by simp
+  }
+  from this and L show ?thesis
+    by blast
+qed
+
 lemma get_parent_NoneD:
   assumes \<open>get_parent T c = None\<close>
     and \<open>unique_parent T\<close>
@@ -1162,25 +1186,25 @@ lemma get_parent_NoneI:
 using assms
   by(clarsimp simp add: unique_parent_def get_parent_def)
 
-lemma ancestor_ancestor''':
+lemma ancestor_ancestor_alt:
   assumes \<open>ancestor T p c\<close> and \<open>unique_parent T\<close>
-    shows \<open>ancestor''' T p c\<close>
+    shows \<open>ancestor_alt T p c\<close>
 using assms
   apply(induction rule: ancestor.induct)
-  apply(rule ancestor'''.intros)
+  apply(rule ancestor_alt.intros)
   apply(rule get_parent_SomeI)
   apply force+
   apply(clarsimp)
-  apply(rule ancestor'''.intros(2))
+  apply(rule ancestor_alt.intros(2))
   apply(rule get_parent_SomeI)
   apply force+
   done
 
-lemma ancestor'''_ancestor:
-  assumes \<open>ancestor''' T p c\<close> and \<open>unique_parent T\<close>
+lemma ancestor_alt_ancestor:
+  assumes \<open>ancestor_alt T p c\<close> and \<open>unique_parent T\<close>
     shows \<open>ancestor T p c\<close>
 using assms
-  apply(induction rule: ancestor'''.induct)
+  apply(induction rule: ancestor_alt.induct)
   apply(drule get_parent_SomeD, assumption)
   apply(rule ancestor.intros(1))
   apply force
@@ -1190,10 +1214,10 @@ using assms
   apply force+
   done
 
-theorem ancestor_ancestor'''_equiv [simp]:
+theorem ancestor_ancestor_alt_iff [simp]:
   assumes \<open>unique_parent T\<close>
-  shows \<open>ancestor T p c \<longleftrightarrow> ancestor''' T p c\<close>
-using assms ancestor_ancestor''' ancestor'''_ancestor by metis
+  shows \<open>ancestor T p c \<longleftrightarrow> ancestor_alt T p c\<close>
+using assms ancestor_ancestor_alt ancestor_alt_ancestor by metis
 
 lemma unique_parent_emptyI [intro!]:
   shows \<open>unique_parent {}\<close>
@@ -1302,15 +1326,15 @@ lemma set_member_refine:
   shows \<open>hm.lookup c t = Some (m, p)\<close>
 using assms by blast
 
-lemma ancestor'''_simp1:
+lemma ancestor_alt_simp1:
   fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
-  assumes \<open>ancestor''' T p c\<close> and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  assumes \<open>ancestor_alt T p c\<close> and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
     shows \<open>(case hm.lookup c t of
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
-                a = p \<or> ancestor''' T p a)\<close>
+                a = p \<or> ancestor_alt T p a)\<close>
 using assms
-  apply(induction rule: ancestor'''.induct)
+  apply(induction rule: ancestor_alt.induct)
   apply(drule get_parent_refinement_Some1)
   apply force
   apply force
@@ -1323,40 +1347,40 @@ using assms
   apply clarsimp
   done
 
-lemma ancestor'''_simp2:
+lemma ancestor_alt_simp2:
   assumes \<open>(case hm.lookup c t of
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
-                a = p \<or> ancestor''' T p a)\<close>
+                a = p \<or> ancestor_alt T p a)\<close>
     and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
-  shows \<open>ancestor''' T p c\<close>
+  shows \<open>ancestor_alt T p c\<close>
 using assms
   apply(clarsimp split: option.split_asm)
   apply(erule weak_refinesE)
   apply(erule_tac x=b in meta_allE, erule_tac x=a in meta_allE, erule_tac x=c in meta_allE, erule_tac meta_impE, assumption)
   apply(erule disjE)
   apply clarsimp
-  apply(rule ancestor'''.intros(1))
+  apply(rule ancestor_alt.intros(1))
   apply(rule get_parent_SomeI, force, force)
-  apply(rule ancestor'''.intros(2))
+  apply(rule ancestor_alt.intros(2))
   apply(rule get_parent_SomeI, force, force, force)
   done
 
-theorem ancestor'''_simp [simp]:
+theorem ancestor_alt_simp [simp]:
   fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
   assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
-  shows \<open>ancestor''' T p c \<longleftrightarrow>
+  shows \<open>ancestor_alt T p c \<longleftrightarrow>
            (case hm.lookup c t of
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
-                a = p \<or> ancestor''' T p a)\<close>
-using assms ancestor'''_simp1 ancestor'''_simp2 by blast
+                a = p \<or> ancestor_alt T p a)\<close>
+using assms ancestor_alt_simp1 ancestor_alt_simp2 by blast
 
 definition flip_triples :: \<open>('a \<times> 'b \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'a) list\<close>
   where \<open>flip_triples xs \<equiv> map (\<lambda>(x, y, z). (z, y, x)) xs\<close>
 
 definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
-  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor''' (set (flip_triples (hm.to_list t))) p c\<close>
+  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor_alt (set (flip_triples (hm.to_list t))) p c\<close>
 
 lemma to_list_refines:
   shows \<open>t \<preceq> set (flip_triples (hm.to_list t))\<close>
@@ -1406,7 +1430,7 @@ theorem efficient_ancestor_simp [code]:
             | Some (m, a) \<Rightarrow>
                 a = p \<or> efficient_ancestor t p a)\<close>
   apply(unfold efficient_ancestor_def)
-  apply(subst ancestor'''_simp)
+  apply(subst ancestor_alt_simp)
   apply(rule to_list_refines)
   apply(rule unique_parent_to_list)
   apply force
@@ -1532,10 +1556,10 @@ using assms proof(intro iffI)
     and 2: \<open>t \<preceq> T\<close>
   obtain u where 3: \<open>u = set (flip_triples (hm.to_list t))\<close>
     by force
-  from this and 1 have \<open>ancestor''' u p c\<close>
+  from this and 1 have \<open>ancestor_alt u p c\<close>
     by(force simp add: efficient_ancestor_def)
   from this and 2 and 3 show \<open>ancestor T p c\<close>
-  proof(induction rule: ancestor'''.induct)
+  proof(induction rule: ancestor_alt.induct)
     case (1 T' c p m)
     assume \<open>get_parent T' c = Some (p, m)\<close> and \<open>T' = set (flip_triples (hm.to_list t))\<close>
     from this have \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
@@ -1687,65 +1711,76 @@ using assms proof(cases \<open>oper\<close>)
       by(cases opt_old_parent) force+
 qed
 
-(* this proof, lol *)
+text\<open>The efficient and abstract @{term apply_op} algorithms map related concrete and abstract
+     states to related concrete and abstract states when applied to the same operation and input
+     log, and also produce identical output logs:\<close>
 lemma efficient_apply_op_refines:
   assumes \<open>t \<preceq> T\<close>
     and \<open>efficient_apply_op oper (log, t) = (log1, u)\<close>
     and \<open>apply_op oper (log, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
-using assms
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(induction log arbitrary: T t log1 log2 u U)
-  apply(simp only: efficient_apply_op.simps apply_op.simps)
-  apply(intro conjI)
-  apply(clarsimp simp add: Let_def split!: prod.split_asm)
-  apply(erule conjE[OF efficient_do_op_refines], force, force, force)
-  apply(clarsimp simp add: Let_def split!: prod.split_asm)
-  apply(erule conjE[OF efficient_do_op_refines], force, force, force)
-  apply clarsimp
-  apply(case_tac \<open>move_time oper < log_time a\<close>; clarsimp)
-  apply(case_tac \<open>efficient_apply_op oper (log, efficient_undo_op (a, t))\<close>)
-  apply(case_tac \<open>apply_op oper (log, undo_op (a, T))\<close>)
-  apply(subgoal_tac \<open>ab = aa \<and> b \<preceq> ba\<close>)
-  apply(erule_tac x=\<open>undo_op (a, T)\<close> in meta_allE)
-  apply(erule_tac x=\<open>efficient_undo_op (a, t)\<close> in meta_allE)
-  apply(erule_tac x=aa in meta_allE)
-  apply(erule_tac x=ab in meta_allE)
-  apply(erule_tac x=b in meta_allE)
-  apply(erule_tac x=ba in meta_allE)
-  apply(erule meta_impE)
-  apply(rule efficient_undo_op_refines, force)
-  apply(erule meta_impE)
-  apply(elim conjE)
-  apply(subgoal_tac \<open>efficient_redo_op a (aa, b) = (log1, u)\<close>)
-prefer 2 apply force
-  apply(subgoal_tac \<open>redo_op a (ab, ba) = (log2, U)\<close>)
-prefer 2 apply force
-  apply(drule efficient_redo_op_refines[rotated, rotated], force, force, force)
-  apply(erule conjE)
-  apply(drule efficient_redo_op_refines) back
-  apply force
-  apply force
-  apply force
-  apply(erule_tac x=\<open>undo_op (a, T)\<close> in meta_allE)
-  apply(erule_tac x=\<open>efficient_undo_op (a, t)\<close> in meta_allE)
-  apply(erule_tac x=aa in meta_allE)
-  apply(erule_tac x=ab in meta_allE)
-  apply(erule_tac x=b in meta_allE)
-  apply(erule_tac x=ba in meta_allE)
-  apply(erule meta_impE)
-  apply(rule efficient_undo_op_refines, force)
-  apply(erule meta_impE, force)
-  apply(erule meta_impE, force)
-  apply(erule meta_impE)
-defer
-  apply force
-  apply(clarsimp split!: prod.split_asm)
-  apply(drule efficient_do_op_refines[rotated], force, force, force)
-  apply(rule undo_op_unique_parent_variant, assumption, force)
-  done
+using assms proof(induction log arbitrary: T t log1 log2 u U)
+  case Nil
+  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>efficient_apply_op oper ([], t) = (log1, u)\<close>
+    and 3: \<open>apply_op oper ([], T) = (log2, U)\<close>
+  obtain action1 action2 t' T' where 4: \<open>efficient_do_op (oper, t) = (action1, t')\<close>
+      and 5: \<open>do_op (oper, T) = (action2, T')\<close>
+    by fastforce
+  moreover from 4 and 5 have \<open>action1 = action2\<close> and \<open>t' \<preceq> T'\<close>
+    using efficient_do_op_refines[OF 1] by blast+
+  moreover from 2 and 4 have \<open>log1 = [action1]\<close> and \<open>u = t'\<close>
+    by auto
+  moreover from 3 and 5 have \<open>log2 = [action2]\<close> and \<open>U = T'\<close>
+    by auto
+  ultimately show ?case
+    by auto
+next
+  case (Cons logop logops)
+  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>efficient_apply_op oper (logop # logops, t) = (log1, u)\<close>
+    and 3: \<open>apply_op oper (logop # logops, T) = (log2, U)\<close>
+    and IH: \<open>(\<And>T t log1 log2 u U. t \<preceq> T \<Longrightarrow> efficient_apply_op oper (logops, t) = (log1, u) \<Longrightarrow>
+                apply_op oper (logops, T) = (log2, U) \<Longrightarrow> log1 = log2 \<and> u \<preceq> U)\<close>
+  {
+    assume 4: \<open>move_time oper < log_time logop\<close>
+    obtain action1 and action1' and u' and u'' and u''' where 5: \<open>efficient_undo_op (logop, t) = u'\<close> and
+        6: \<open>efficient_apply_op oper (logops, u') = (action1, u'')\<close> and
+          7: \<open>efficient_redo_op logop (action1, u'') = (action1', u''')\<close>
+      by force
+    obtain action2 and action2' and U' and U'' and U''' where 8: \<open>undo_op (logop, T) = U'\<close> and
+        9: \<open>apply_op oper (logops, U') = (action2, U'')\<close> and
+          10: \<open>redo_op logop (action2, U'') = (action2', U''')\<close>
+      by force
+    from 5 and 8 have \<open>u' \<preceq> U'\<close>
+      using efficient_undo_op_refines[OF 1] by blast
+    moreover from 6 and 9 have \<open>action1 = action2\<close> and \<open>u'' \<preceq> U''\<close>
+      using IH[OF \<open>u' \<preceq> U'\<close>] by blast+
+    moreover from this and 7 and 10 have \<open>action1' = action2'\<close> and \<open>u''' \<preceq> U'''\<close>
+      using efficient_redo_op_refines by blast+
+    moreover from 2 and 4 and 5 and 6 and 7 have \<open>log1 = action1'\<close> and \<open>u = u'''\<close>
+      by auto
+    moreover from 3 and 4 and 8 and 9 and 10 have \<open>log2 = action2'\<close> and \<open>U = U'''\<close>
+      by auto
+    ultimately have ?case
+      by auto
+  }
+  note L = this
+  {
+    assume 4: \<open>\<not> (move_time oper < log_time logop)\<close>
+    obtain action1 action2 u' U' where 5: \<open>efficient_do_op (oper, t) = (action1, u')\<close>
+        and 6: \<open>do_op (oper, T) = (action2, U')\<close>
+      by fastforce
+    from this have \<open>action1 = action2\<close> and \<open>u' \<preceq> U'\<close>
+      using efficient_do_op_refines[OF 1] by blast+
+    moreover from 2 and 4 and 5 have \<open>log1 = action1#logop#logops\<close> and \<open>u' = u\<close>
+      by auto
+    moreover from 3 and 4 and 6 have \<open>log2 = action2#logop#logops\<close> and \<open>U' = U\<close>
+      by auto
+    ultimately have ?case
+      using 1 by simp
+  }
+  from this and L show ?case
+    by auto
+qed
 
 text\<open>The internal workings of abstract and concrete implementations of the @{term apply_ops}
      function map related states to related states, and produce identical logs, when passed
