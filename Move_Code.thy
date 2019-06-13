@@ -360,50 +360,26 @@ proof(intro allI impI, elim conjE)
     by force
 qed
 
+text\<open>@{term hm.delete} is in relation with an explicit restrict operation on sets:\<close>
 lemma hm_delete_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = {(p', m', c') \<in> T. c' \<noteq> child}\<close>
   shows \<open>hm.delete child t \<preceq> S\<close>
-using assms
-  apply -
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(erule refinesE)
-  apply(intro refinesI)
-  apply(clarsimp simp add: hm.lookup_correct hm.delete_correct restrict_map_def split!: if_split_asm)+
-  done
+using assms by(auto simp add: hm.lookup_correct hm.delete_correct restrict_map_def split!: if_split_asm)
 
+text\<open>@{term hm.restrict} is in relation with an explicit restrict operation on sets:\<close>
 lemma hm_restrict_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
   shows \<open>hm.restrict P t \<preceq> S\<close>
-using assms
-  apply -
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(erule refinesE)
-  apply(intro refinesI)
-  apply(clarsimp simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split_asm)
-  apply(force simp add: unique_parent_def)
-  apply(force simp add: hm.lookup_correct hm.restrict_correct restrict_map_def split!: if_split)
-  done
+using assms by(auto simp add: hm.lookup_correct hm.restrict_correct restrict_map_def
+    refines_unique_parent unique_parent_def split!: if_split_asm if_split)
 
+text\<open>@{term hm.update} is in relation with an explicit update operation on sets:\<close>
 lemma hm_update_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { (p, m, c) \<in> T. c\<noteq>x } \<union> {(z, y, x)}\<close>
   shows \<open>hm.update x (y, z) t \<preceq> S\<close>
-using assms
-  apply -
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(erule refinesE)
-  apply(rule refinesI)
-  apply(clarsimp simp add: hm.update_correct hm.lookup_correct split: if_split_asm)
-  apply clarsimp
-  apply(erule disjE)
-  apply(clarsimp simp add: hm.lookup_correct hm.update_correct)+
-  done
+using assms by(auto simp add: hm.update_correct hm.lookup_correct refines_unique_parent split: if_split_asm)
 
+text\<open>Two if-then-else constructs are in relation if both of their branches are in relation:\<close>
 lemma if_refine:
   assumes \<open>x \<Longrightarrow> t \<preceq> T\<close> and \<open>\<not> x \<Longrightarrow> u \<preceq> U\<close> and \<open>x \<longleftrightarrow> y\<close>
   shows \<open>(if x then t else u) \<preceq> (if y then T else U)\<close>
@@ -480,19 +456,33 @@ next
 qed
 
 lemma efficient_do_op_get_parent_technical:
-  assumes \<open>t \<preceq> T\<close>
+  assumes 1: \<open>t \<preceq> T\<close>
   shows \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
-using assms
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(case_tac \<open>get_parent T c\<close>; case_tac \<open>hm.lookup c t\<close>; clarsimp) 
-  apply(clarsimp simp add: refines_def)
-  apply(drule get_parent_NoneD, force, force, force)
-  apply(clarsimp simp add: refines_def)
-  apply(drule get_parent_SomeD, force, force)
-  apply(drule get_parent_SomeD, force, force simp add: unique_parent_def refines_def)
-  done
+using assms proof(cases \<open>hm.lookup c t\<close>)
+  assume 2: \<open>hm.lookup c t = None\<close>
+  from this have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = None\<close>
+    by force
+  moreover have \<open>... = get_parent T c\<close>
+    using 1 2 get_parent_NoneI refines_unique_parent by(metis option.simps(3) set_member_refine)
+  finally show ?thesis by force
+next
+  fix a :: \<open>'b \<times> 'a\<close>
+  assume 2: \<open>hm.lookup c t = Some a\<close>
+  {
+    fix p :: 'a and m :: 'b
+    assume 3: \<open>a = (m, p)\<close>
+    from this and 1 and 2 have \<open>(p, m, c) \<in> T\<close>
+      by auto
+    moreover from 2 and 3 have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = Some (p, m)\<close> 
+      by auto
+    moreover have \<open>get_parent T c = Some (p, m)\<close>
+      using 1 calculation refines_unique_parent get_parent_SomeI by auto
+    ultimately have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
+      by simp
+  }
+  from this show ?thesis
+    using prod.exhaust by blast
+qed
 
 text\<open>The @{term unique_parent} predicate is ``downward-closed'' in the sense that all subsets of a
      set with the @{term unique_parent} property also possess this property:\<close>
@@ -502,12 +492,16 @@ lemma unique_parent_downward_closure:
   shows \<open>unique_parent S\<close>
 using assms by(force simp add: unique_parent_def)
 
+text\<open>The following is a technical lemma needed to establish the result that immediately follows:\<close>
 lemma hm_update_refine_collapse:
   assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
-  shows \<open>hm.update child (meta, parent) t \<preceq> insert (parent, meta, child) {(p, m, c). (p, m, c) \<in> T \<and> c \<noteq> child}\<close>
+  shows \<open>hm.update child (meta, parent) t \<preceq>
+          insert (parent, meta, child) {(p, m, c). (p, m, c) \<in> T \<and> c \<noteq> child}\<close>
 using assms by(force simp add: hm.correct hm.update_correct hm.restrict_correct
         refines_def unique_parent_def split!: if_split_asm)
 
+text\<open>The efficient and abstract @{term do_op} algorithms map related concrete and abstract states to
+     related concrete and abstract states, and produce identical logs, when fed the same operation:\<close>
 lemma efficient_do_op_refines:
   assumes 1: \<open>t \<preceq> T\<close>
     and 2: \<open>efficient_do_op (oper, t) = (log1, u)\<close>
@@ -520,9 +514,11 @@ using assms proof(cases \<open>oper\<close>)
     assume 5: \<open>efficient_ancestor t child parent \<or> parent = child\<close>
     from this and 1 have 6: \<open>ancestor T child parent \<or> parent = child\<close>
       using efficient_ancestor_refines by auto
-    from 4 and 5 have \<open>efficient_do_op (oper, t) = (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, t)\<close>
+    from 4 and 5 have \<open>efficient_do_op (oper, t) =
+        (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, t)\<close>
       by force
-    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) = (LogMove time (get_parent T child) parent meta child, T)\<close>
+    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) =
+        (LogMove time (get_parent T child) parent meta child, T)\<close>
       by force
     moreover from 2 have \<open>log1 = LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child\<close>
         and \<open>u = t\<close>
@@ -537,14 +533,19 @@ using assms proof(cases \<open>oper\<close>)
     assume 5: \<open>\<not> (efficient_ancestor t child parent \<or> parent = child)\<close>
     from this and 1 have 6: \<open>\<not> (ancestor T child parent \<or> parent = child)\<close>
       using efficient_ancestor_refines by auto
-    from 4 and 5 have \<open>efficient_do_op (oper, t) = (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, hm.update child (meta, parent) t)\<close>
+    from 4 and 5 have \<open>efficient_do_op (oper, t) =
+      (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child,
+          hm.update child (meta, parent) t)\<close>
       by auto
-    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) = (LogMove time (get_parent T child) parent meta child, {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)})\<close>
+    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) =
+        (LogMove time (get_parent T child) parent meta child,
+          {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)})\<close>
       by auto
     moreover from 2 have \<open>log1 = LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child\<close>
         and \<open>u = hm.update child (meta, parent) t\<close>
       using calculation by auto
-    moreover from 3 have \<open>log2 = LogMove time (get_parent T child) parent meta child\<close> and \<open>U = {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)}\<close>
+    moreover from 3 have \<open>log2 = LogMove time (get_parent T child) parent meta child\<close> and
+          \<open>U = {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)}\<close>
       using calculation by auto
     ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
       using 1 by(clarsimp simp add: efficient_do_op_get_parent_technical hm_update_refine_collapse
