@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package examplerpc;
+
+service MoveService {
+    rpc SendMove (Move) returns (LamportTS) {}
+}
+
+message LamportTS {
+    uint64 counter = 1;
+    string replica = 2;
+}
+
+message Move {
+    LamportTS timestamp = 1;
+    string parent = 2;
+    string metadata = 3;
+    string child = 4;
+}
