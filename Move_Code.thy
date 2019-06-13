@@ -1,7 +1,7 @@
 theory
   Move_Code
 imports
-  Move "HOL-Library.Code_Target_Numeral" "Collections.Collections" "Collections.ICF_Userguide"
+  Move Move_Acyclic "HOL-Library.Code_Target_Numeral" "Collections.Collections"
     "HOL-Library.Product_Lexorder"
 begin
 
@@ -761,9 +761,28 @@ proof -
     by auto
 qed
 
+text\<open>The @{term efficient_apply_ops} algorithm maintains an acyclic invariant similar to its
+     abstract counterpart, namely that no node in the resulting tree hash-map is its own ancestor:\<close>
+theorem efficient_apply_ops_acyclic:
+  assumes 1: \<open>efficient_apply_ops ops = (log, t)\<close>
+  shows \<open>\<nexists>n. efficient_ancestor t n n\<close>
+using assms proof(intro notI)
+  assume \<open>\<exists>n. efficient_ancestor t n n\<close>
+  from this obtain log2 T n where \<open>apply_ops ops = (log2, T)\<close> and \<open>efficient_ancestor t n n\<close>
+    by force
+  moreover from this and 1 have \<open>log = log2\<close> and \<open>t \<preceq> T\<close>
+    using efficient_apply_ops_refines by blast+
+  moreover have \<open>\<nexists>n. ancestor T n n\<close>
+    using apply_ops_acyclic calculation by force
+  moreover have \<open>ancestor T n n\<close>
+    using calculation efficient_ancestor_refines by blast
+  ultimately show False
+    by auto
+qed 
+
 text\<open>The main correctness theorem for the efficient algorithms.  This follows the
      @{thm apply_ops_commutes} theorem for the abstract algorithms with one significant difference:
-     the states obtained from applyreting the two lists of operations, @{term ops1} and
+     the states obtained from interpreting the two lists of operations, @{term ops1} and
      @{term ops2}, are no longer identical (the hash-maps may have a different representation in
      memory, for instance), but contain the same set of key-value bindings.  If we take equality of
      finite maps (hash-maps included) to be extensional---i.e. two finite maps are equal when they
