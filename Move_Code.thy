@@ -360,6 +360,19 @@ proof(intro allI impI, elim conjE)
     by force
 qed
 
+lemma hm_delete_refine:
+  assumes \<open>t \<preceq> T\<close> and \<open>S = {(p', m', c') \<in> T. c' \<noteq> child}\<close>
+  shows \<open>hm.delete child t \<preceq> S\<close>
+using assms
+  apply -
+  apply(subgoal_tac \<open>unique_parent T\<close>)
+prefer 2
+  apply(force intro: refines_unique_parent)
+  apply(erule refinesE)
+  apply(intro refinesI)
+  apply(clarsimp simp add: hm.lookup_correct hm.delete_correct restrict_map_def split!: if_split_asm)+
+  done
+
 lemma hm_restrict_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
   shows \<open>hm.restrict P t \<preceq> S\<close>
@@ -489,32 +502,57 @@ lemma unique_parent_downward_closure:
   shows \<open>unique_parent S\<close>
 using assms by(force simp add: unique_parent_def)
 
+lemma hm_update_refine_collapse:
+  assumes \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
+  shows \<open>hm.update child (meta, parent) t \<preceq> insert (parent, meta, child) {(p, m, c). (p, m, c) \<in> T \<and> c \<noteq> child}\<close>
+using assms by(force simp add: hm.correct hm.update_correct hm.restrict_correct
+        refines_def unique_parent_def split!: if_split_asm)
+
 lemma efficient_do_op_refines:
-  assumes \<open>t \<preceq> T\<close>
-    and \<open>efficient_do_op (oper, t) = (log1, u)\<close>
-    and \<open>do_op (oper, T) = (log2, U)\<close>
+  assumes 1: \<open>t \<preceq> T\<close>
+    and 2: \<open>efficient_do_op (oper, t) = (log1, u)\<close>
+    and 3: \<open>do_op (oper, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
-using assms
-  apply -
-  apply(subgoal_tac \<open>unique_parent T\<close>)
-prefer 2
-  apply(force intro: refines_unique_parent)
-  apply(case_tac oper; clarify)
-  apply(unfold efficient_do_op.simps, unfold do_op.simps)
-  apply(simp only: prod.simps, elim conjE, clarify)
-  apply(intro conjI)
-  apply(simp only: log_op.simps)
-  apply(intro conjI, force)
-  apply(rule efficient_do_op_get_parent_technical, force, force)
-  apply force
-  apply force
-  apply(rule if_refine)
-  apply force
-  apply(rule_tac T=\<open>{(p', m', c'). (p', m', c') \<in> T \<and> c' \<noteq> x4}\<close> in hm_update_refine)
-  apply(rule hm_restrict_refine, assumption, force)
-  apply force
-  apply(subst efficient_ancestor_refines, force, force)
-  done
+using assms proof(cases \<open>oper\<close>)
+  case (Move time parent meta child)
+  assume 4: \<open>oper = Move time parent meta child\<close>
+  {
+    assume 5: \<open>efficient_ancestor t child parent \<or> parent = child\<close>
+    from this and 1 have 6: \<open>ancestor T child parent \<or> parent = child\<close>
+      using efficient_ancestor_refines by auto
+    from 4 and 5 have \<open>efficient_do_op (oper, t) = (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, t)\<close>
+      by force
+    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) = (LogMove time (get_parent T child) parent meta child, T)\<close>
+      by force
+    moreover from 2 have \<open>log1 = LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child\<close>
+        and \<open>u = t\<close>
+      using calculation by auto
+    moreover from 3 have \<open>log2 = LogMove time (get_parent T child) parent meta child\<close> and \<open>U = T\<close>
+      using calculation by auto
+    ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
+      using 1 by(auto simp add: efficient_do_op_get_parent_technical) 
+  }
+  note L = this
+  {
+    assume 5: \<open>\<not> (efficient_ancestor t child parent \<or> parent = child)\<close>
+    from this and 1 have 6: \<open>\<not> (ancestor T child parent \<or> parent = child)\<close>
+      using efficient_ancestor_refines by auto
+    from 4 and 5 have \<open>efficient_do_op (oper, t) = (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, hm.update child (meta, parent) t)\<close>
+      by auto
+    moreover from 4 and 5 and 6 have \<open>do_op (oper, T) = (LogMove time (get_parent T child) parent meta child, {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)})\<close>
+      by auto
+    moreover from 2 have \<open>log1 = LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child\<close>
+        and \<open>u = hm.update child (meta, parent) t\<close>
+      using calculation by auto
+    moreover from 3 have \<open>log2 = LogMove time (get_parent T child) parent meta child\<close> and \<open>U = {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)}\<close>
+      using calculation by auto
+    ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
+      using 1 by(clarsimp simp add: efficient_do_op_get_parent_technical hm_update_refine_collapse
+            refines_unique_parent)
+  }
+  from this and L show ?thesis
+    by auto
+qed
 
 text\<open>The efficient and abstract @{term redo_op} functins take related concrete and abstract states
      and produce identical logics and related concrete and abstract states:\<close>
@@ -556,10 +594,10 @@ using assms proof(cases \<open>oper\<close>)
       assume \<open>opt_old_parent = None\<close>
       from this and 2 have 3: \<open>oper = LogMove time None new_parent meta child\<close>
         by simp
-      moreover from this have \<open>efficient_undo_op (oper, t) = hm.restrict (\<lambda>(c, m, p). c \<noteq> child) t\<close>
+      moreover from this have \<open>efficient_undo_op (oper, t) = hm.delete child t\<close>
         by force
       moreover have \<open>... \<preceq> {(p', m', c') \<in> T. c' \<noteq> child}\<close>
-        by(rule hm_restrict_refine[OF 1]) auto
+        by(rule hm_delete_refine[OF 1]) auto
       moreover have \<open>... = undo_op (oper, T)\<close>
         using 3 by force
       ultimately have ?thesis
@@ -572,10 +610,10 @@ using assms proof(cases \<open>oper\<close>)
       from this and 2 have 3: \<open>oper = LogMove time (Some (old_parent, old_meta)) new_parent meta child\<close>
         by simp
       moreover from this have \<open>efficient_undo_op (oper, t) =
-          hm.update child (old_meta, old_parent) (hm.restrict (\<lambda>(c, m, p). c \<noteq> child) t)\<close>
+          hm.update child (old_meta, old_parent) t\<close>
         by auto
       moreover have \<open>... \<preceq> {(p, m, c) \<in> T. c \<noteq> child} \<union> {(old_parent, old_meta, child)}\<close>
-        by(rule hm_update_refine, rule hm_restrict_refine[OF 1], force, force)
+        by(rule hm_update_refine, rule 1, force) 
       moreover have \<open>... = undo_op (oper, T)\<close>
         using 3 by auto
       ultimately have ?thesis
@@ -803,7 +841,7 @@ text\<open>Then, we can use @{command ML_val} to ask Isabelle to:
         values back to us within the Isabelle/JEdit IDE.\<close>
 
 ML_val\<open>@{code unit_test}\<close>
-value unit_test
+
 text\<open>Note, there is a slight lag when performing this action as the executable code is first
      extracted to SML, dynamically compiled, and then the result of the computation reflected back
      to us.  Nevertheless, on a Macbook Pro (2017 edition) this procedure takes 2 seconds, at the
