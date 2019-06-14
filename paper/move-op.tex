@@ -84,7 +84,12 @@
 %\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
 
 \begin{abstract}
-    TODO abstract.
+    Replicated tree data structures are found in distributed filesystems, such as Google Drive and Dropbox, and applications with a JSON or XML data model.
+    These systems need to support a \emph{move} operation that allows a subtree to be moved to a new location within the tree.
+    Such a move operation is easy to implement in a centralised system, e.g.\ with a designated primary replica, but it is difficult in settings where different replicas can concurrently perform arbitrary move operations.
+    For example, we find that Google Drive and Dropbox fail to correctly synchronise files when users on different devices concurrently perform certain move operations.
+    In this paper we present an algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas eventually converge towards the same consistent state.
+    We formally prove the correctness of our algorithm using the Isabelle/HOL interactive proof assistant, and we evaluate the performance of our formally verified implementation in a geo-replicated setting to demonstrate its viability in practice.
 \end{abstract}
 \maketitle
 
