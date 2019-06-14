@@ -631,6 +631,16 @@ final case class RBT_HM[B, A](a: rbt[Int, assoc_list[B, A]]) extends
 
 def eq[A : equal](a: A, b: A): Boolean = equal[A](a, b)
 
+def integer_of_nat(x0: nat): BigInt = x0 match {
+  case Nat(x) => x
+}
+
+def plus_nat(m: nat, n: nat): nat = Nat(integer_of_nat(m) + integer_of_nat(n))
+
+def one_nat: nat = Nat(BigInt(1))
+
+def Suc(n: nat): nat = plus_nat(n, one_nat)
+
 def empty[A : linorder, B]: rbt[A, B] = RBT[A, B](Empty[A, B]())
 
 def map_of[A : equal, B](x0: List[(A, B)], k: A): Option[B] = (x0, k) match {
@@ -785,6 +795,153 @@ def balance[A, B](x0: rbta[A, B], s: A, t: B, x3: rbta[A, B]): rbta[A, B] =
                      s, t, Branch[A, B](B(), va, vb, vc, vd))
 }
 
+def paint[A, B](c: color, x1: rbta[A, B]): rbta[A, B] = (c, x1) match {
+  case (c, Empty()) => Empty[A, B]()
+  case (c, Branch(uu, l, k, v, r)) => Branch[A, B](c, l, k, v, r)
+}
+
+def balance_right[A, B](a: rbta[A, B], k: A, x: B, xa3: rbta[A, B]): rbta[A, B]
+  =
+  (a, k, x, xa3) match {
+  case (a, k, x, Branch(R(), b, s, y, c)) =>
+    Branch[A, B](R(), a, k, x, Branch[A, B](B(), b, s, y, c))
+  case (Branch(B(), a, k, x, b), s, y, Empty()) =>
+    balance[A, B](Branch[A, B](R(), a, k, x, b), s, y, Empty[A, B]())
+  case (Branch(B(), a, k, x, b), s, y, Branch(B(), va, vb, vc, vd)) =>
+    balance[A, B](Branch[A, B](R(), a, k, x, b), s, y,
+                   Branch[A, B](B(), va, vb, vc, vd))
+  case (Branch(R(), a, k, x, Branch(B(), b, s, y, c)), t, z, Empty()) =>
+    Branch[A, B](R(), balance[A, B](paint[A, B](R(), a), k, x, b), s, y,
+                  Branch[A, B](B(), c, t, z, Empty[A, B]()))
+  case (Branch(R(), a, k, x, Branch(B(), b, s, y, c)), t, z,
+         Branch(B(), va, vb, vc, vd))
+    => Branch[A, B](R(), balance[A, B](paint[A, B](R(), a), k, x, b), s, y,
+                     Branch[A, B](B(), c, t, z,
+                                   Branch[A, B](B(), va, vb, vc, vd)))
+  case (Empty(), k, x, Empty()) => Empty[A, B]()
+  case (Branch(R(), va, vb, vc, Empty()), k, x, Empty()) => Empty[A, B]()
+  case (Branch(R(), va, vb, vc, Branch(R(), ve, vf, vg, vh)), k, x, Empty()) =>
+    Empty[A, B]()
+  case (Empty(), k, x, Branch(B(), va, vb, vc, vd)) => Empty[A, B]()
+  case (Branch(R(), ve, vf, vg, Empty()), k, x, Branch(B(), va, vb, vc, vd)) =>
+    Empty[A, B]()
+  case (Branch(R(), ve, vf, vg, Branch(R(), vi, vj, vk, vl)), k, x,
+         Branch(B(), va, vb, vc, vd))
+    => Empty[A, B]()
+}
+
+def balance_left[A, B](x0: rbta[A, B], s: A, y: B, c: rbta[A, B]): rbta[A, B] =
+  (x0, s, y, c) match {
+  case (Branch(R(), a, k, x, b), s, y, c) =>
+    Branch[A, B](R(), Branch[A, B](B(), a, k, x, b), s, y, c)
+  case (Empty(), k, x, Branch(B(), a, s, y, b)) =>
+    balance[A, B](Empty[A, B](), k, x, Branch[A, B](R(), a, s, y, b))
+  case (Branch(B(), va, vb, vc, vd), k, x, Branch(B(), a, s, y, b)) =>
+    balance[A, B](Branch[A, B](B(), va, vb, vc, vd), k, x,
+                   Branch[A, B](R(), a, s, y, b))
+  case (Empty(), k, x, Branch(R(), Branch(B(), a, s, y, b), t, z, c)) =>
+    Branch[A, B](R(), Branch[A, B](B(), Empty[A, B](), k, x, a), s, y,
+                  balance[A, B](b, t, z, paint[A, B](R(), c)))
+  case (Branch(B(), va, vb, vc, vd), k, x,
+         Branch(R(), Branch(B(), a, s, y, b), t, z, c))
+    => Branch[A, B](R(), Branch[A, B](B(), Branch[A, B](B(), va, vb, vc, vd), k,
+                                       x, a),
+                     s, y, balance[A, B](b, t, z, paint[A, B](R(), c)))
+  case (Empty(), k, x, Empty()) => Empty[A, B]()
+  case (Empty(), k, x, Branch(R(), Empty(), vb, vc, vd)) => Empty[A, B]()
+  case (Empty(), k, x, Branch(R(), Branch(R(), ve, vf, vg, vh), vb, vc, vd)) =>
+    Empty[A, B]()
+  case (Branch(B(), va, vb, vc, vd), k, x, Empty()) => Empty[A, B]()
+  case (Branch(B(), va, vb, vc, vd), k, x, Branch(R(), Empty(), vf, vg, vh)) =>
+    Empty[A, B]()
+  case (Branch(B(), va, vb, vc, vd), k, x,
+         Branch(R(), Branch(R(), vi, vj, vk, vl), vf, vg, vh))
+    => Empty[A, B]()
+}
+
+def combine[A, B](xa0: rbta[A, B], x: rbta[A, B]): rbta[A, B] = (xa0, x) match {
+  case (Empty(), x) => x
+  case (Branch(v, va, vb, vc, vd), Empty()) => Branch[A, B](v, va, vb, vc, vd)
+  case (Branch(R(), a, k, x, b), Branch(R(), c, s, y, d)) =>
+    (combine[A, B](b, c) match {
+       case Empty() =>
+         Branch[A, B](R(), a, k, x, Branch[A, B](R(), Empty[A, B](), s, y, d))
+       case Branch(R(), b2, t, z, c2) =>
+         Branch[A, B](R(), Branch[A, B](R(), a, k, x, b2), t, z,
+                       Branch[A, B](R(), c2, s, y, d))
+       case Branch(B(), b2, t, z, c2) =>
+         Branch[A, B](R(), a, k, x,
+                       Branch[A, B](R(), Branch[A, B](B(), b2, t, z, c2), s, y,
+                                     d))
+     })
+  case (Branch(B(), a, k, x, b), Branch(B(), c, s, y, d)) =>
+    (combine[A, B](b, c) match {
+       case Empty() =>
+         balance_left[A, B](a, k, x, Branch[A, B](B(), Empty[A, B](), s, y, d))
+       case Branch(R(), b2, t, z, c2) =>
+         Branch[A, B](R(), Branch[A, B](B(), a, k, x, b2), t, z,
+                       Branch[A, B](B(), c2, s, y, d))
+       case Branch(B(), b2, t, z, c2) =>
+         balance_left[A, B](a, k, x,
+                             Branch[A, B](B(), Branch[A, B](B(), b2, t, z, c2),
+   s, y, d))
+     })
+  case (Branch(B(), va, vb, vc, vd), Branch(R(), b, k, x, c)) =>
+    Branch[A, B](R(), combine[A, B](Branch[A, B](B(), va, vb, vc, vd), b), k, x,
+                  c)
+  case (Branch(R(), a, k, x, b), Branch(B(), va, vb, vc, vd)) =>
+    Branch[A, B](R(), a, k, x,
+                  combine[A, B](b, Branch[A, B](B(), va, vb, vc, vd)))
+}
+
+def rbt_del_from_right[A : ord,
+                        B](x: A, a: rbta[A, B], y: A, s: B, xa4: rbta[A, B]):
+      rbta[A, B]
+  =
+  (x, a, y, s, xa4) match {
+  case (x, a, y, s, Branch(B(), lt, z, v, rt)) =>
+    balance_right[A, B](a, y, s,
+                         rbt_del[A, B](x, Branch[A, B](B(), lt, z, v, rt)))
+  case (x, a, y, s, Empty()) =>
+    Branch[A, B](R(), a, y, s, rbt_del[A, B](x, Empty[A, B]()))
+  case (x, a, y, s, Branch(R(), va, vb, vc, vd)) =>
+    Branch[A, B](R(), a, y, s,
+                  rbt_del[A, B](x, Branch[A, B](R(), va, vb, vc, vd)))
+}
+
+def rbt_del_from_left[A : ord,
+                       B](x: A, xa1: rbta[A, B], y: A, s: B, b: rbta[A, B]):
+      rbta[A, B]
+  =
+  (x, xa1, y, s, b) match {
+  case (x, Branch(B(), lt, z, v, rt), y, s, b) =>
+    balance_left[A, B](rbt_del[A, B](x, Branch[A, B](B(), lt, z, v, rt)), y, s,
+                        b)
+  case (x, Empty(), y, s, b) =>
+    Branch[A, B](R(), rbt_del[A, B](x, Empty[A, B]()), y, s, b)
+  case (x, Branch(R(), va, vb, vc, vd), y, s, b) =>
+    Branch[A, B](R(), rbt_del[A, B](x, Branch[A, B](R(), va, vb, vc, vd)), y, s,
+                  b)
+}
+
+def rbt_del[A : ord, B](x: A, xa1: rbta[A, B]): rbta[A, B] = (x, xa1) match {
+  case (x, Empty()) => Empty[A, B]()
+  case (x, Branch(c, a, y, s, b)) =>
+    (if (less[A](x, y)) rbt_del_from_left[A, B](x, a, y, s, b)
+      else (if (less[A](y, x)) rbt_del_from_right[A, B](x, a, y, s, b)
+             else combine[A, B](a, b)))
+}
+
+def rbt_delete[A : ord, B](k: A, t: rbta[A, B]): rbta[A, B] =
+  paint[A, B](B(), rbt_del[A, B](k, t))
+
+def impl_of[B : linorder, A](x0: rbt[B, A]): rbta[B, A] = x0 match {
+  case RBT(x) => x
+}
+
+def delete[A : linorder, B](xb: A, xc: rbt[A, B]): rbt[A, B] =
+  RBT[A, B](rbt_delete[A, B](xb, impl_of[A, B](xc)))
+
 def rbt_ins[A : ord, B](f: A => B => B => B, k: A, v: B, x3: rbta[A, B]):
       rbta[A, B]
   =
@@ -802,11 +959,6 @@ def rbt_ins[A : ord, B](f: A => B => B => B, k: A, v: B, x3: rbta[A, B]):
              else Branch[A, B](R(), l, x, ((f(k))(y))(v), r)))
 }
 
-def paint[A, B](c: color, x1: rbta[A, B]): rbta[A, B] = (c, x1) match {
-  case (c, Empty()) => Empty[A, B]()
-  case (c, Branch(uu, l, k, v, r)) => Branch[A, B](c, l, k, v, r)
-}
-
 def rbt_insert_with_key[A : ord,
                          B](f: A => B => B => B, k: A, v: B, t: rbta[A, B]):
       rbta[A, B]
@@ -816,10 +968,6 @@ def rbt_insert_with_key[A : ord,
 def rbt_insert[A : ord, B]: A => B => (rbta[A, B]) => rbta[A, B] =
   ((a: A) => (b: B) => (c: rbta[A, B]) =>
     rbt_insert_with_key[A, B](((_: A) => (_: B) => (nv: B) => nv), a, b, c))
-
-def impl_of[B : linorder, A](x0: rbt[B, A]): rbta[B, A] = x0 match {
-  case RBT(x) => x
-}
 
 def insert[A : linorder, B](xc: A, xd: B, xe: rbt[A, B]): rbt[A, B] =
   RBT[A, B](rbt_insert[A, B].apply(xc).apply(xd).apply(impl_of[A, B](xe)))
@@ -841,6 +989,13 @@ def foldli[A, B](x0: List[A], c: B => Boolean, f: A => B => B, sigma: B): B =
     (if (c(sigma)) foldli[A, B](xs, c, f, (f(x))(sigma)) else sigma)
 }
 
+def delete_aux[A : equal, B](k: A, x1: List[(A, B)]): List[(A, B)] = (k, x1)
+  match {
+  case (k, Nil) => Nil
+  case (ka, (k, v) :: xs) =>
+    (if (eq[A](ka, k)) xs else (k, v) :: delete_aux[A, B](ka, xs))
+}
+
 def emptya[A, B]: assoc_list[A, B] = Assoc_List[A, B](Nil)
 
 def emptyb[A : hashable, B]: Unit => rbt[Int, assoc_list[A, B]] =
@@ -855,6 +1010,9 @@ def hm_empty[A : hashable, B]: Unit => hashmap[A, B] =
 def impl_ofa[B, A](x0: assoc_list[B, A]): List[(B, A)] = x0 match {
   case Assoc_List(x) => x
 }
+
+def deletea[A : equal, B](k: A, al: assoc_list[A, B]): assoc_list[A, B] =
+  Assoc_List[A, B](delete_aux[A, B](k, impl_ofa[A, B](al)))
 
 def lookupa[A : equal, B](al: assoc_list[A, B]): A => Option[B] =
   ((a: A) => map_of[A, B](impl_ofa[A, B](al), a))
@@ -892,6 +1050,65 @@ def impl_of_RBT_HM[B : hashable, A](x0: hashmap[B, A]):
   case RBT_HM(x) => x
 }
 
+def iteratei[A, B,
+              C](al: assoc_list[A, B], c: C => Boolean, f: ((A, B)) => C => C):
+      C => C
+  =
+  ((a: C) => foldli[(A, B), C](impl_ofa[A, B](al), c, f, a))
+
+def iteratei_bmap_op_list_it_lm_basic_ops[A, B, C](s: assoc_list[A, B]):
+      (C => Boolean) => (((A, B)) => C => C) => C => C
+  =
+  ((a: C => Boolean) => (b: ((A, B)) => C => C) => iteratei[A, B, C](s, a, b))
+
+def zero_nat: nat = Nat(BigInt(0))
+
+def less_nat(m: nat, n: nat): Boolean = integer_of_nat(m) < integer_of_nat(n)
+
+def g_size_abort_lm_basic_ops[A, B](b: nat, m: assoc_list[A, B]): nat =
+  (iteratei_bmap_op_list_it_lm_basic_ops[A, B,
+  nat](m)).apply(((s: nat) =>
+                   less_nat(s, b))).apply(((_: (A, B)) =>
+    ((a: nat) => Suc(a)))).apply(zero_nat)
+
+def equal_nat(m: nat, n: nat): Boolean = integer_of_nat(m) == integer_of_nat(n)
+
+def g_isEmpty_lm_basic_ops[A, B](m: assoc_list[A, B]): Boolean =
+  equal_nat(g_size_abort_lm_basic_ops[A, B](one_nat, m), zero_nat)
+
+def rm_map_entry[A](k: Int, f: Option[A] => Option[A], m: rbt[Int, A]):
+      rbt[Int, A]
+  =
+  ((lookup[Int, A](m)).apply(k) match {
+     case None => (f(None) match {
+                     case None => m
+                     case Some(v) => insert[Int, A](k, v, m)
+                   })
+     case Some(v) => (f(Some[A](v)) match {
+                        case None => delete[Int, A](k, m)
+                        case Some(va) => insert[Int, A](k, va, m)
+                      })
+   })
+
+def deleteb[A : equal : hashable, B](k: A, m: rbt[Int, assoc_list[A, B]]):
+      rbt[Int, assoc_list[A, B]]
+  =
+  rm_map_entry[assoc_list[A, B]](hashcode[A](k),
+                                  ((a: Option[assoc_list[A, B]]) =>
+                                    (a match {
+                                       case None => None
+                                       case Some(lm) =>
+ {
+   val lma: assoc_list[A, B] = deletea[A, B](k, lm);
+   (if (g_isEmpty_lm_basic_ops[A, B](lma)) None
+     else Some[assoc_list[A, B]](lma))
+ }
+                                     })),
+                                  m)
+
+def hm_delete[A : equal : hashable, B](k: A, hm: hashmap[A, B]): hashmap[A, B] =
+  RBT_HM[A, B](deleteb[A, B](k, impl_of_RBT_HM[A, B](hm)))
+
 def lookupb[A : equal : hashable, B](k: A, m: rbt[Int, assoc_list[A, B]]):
       Option[B]
   =
@@ -922,61 +1139,6 @@ def hm_update[A : equal : hashable, B](k: A, v: B, hm: hashmap[A, B]):
   =
   RBT_HM[A, B](updatea[A, B](k, v, impl_of_RBT_HM[A, B](hm)))
 
-def iteratei[A, B,
-              C](al: assoc_list[A, B], c: C => Boolean, f: ((A, B)) => C => C):
-      C => C
-  =
-  ((a: C) => foldli[(A, B), C](impl_ofa[A, B](al), c, f, a))
-
-def iteratei_map_op_list_it_lm_ops[A, B, C](s: assoc_list[A, B]):
-      (C => Boolean) => (((A, B)) => C => C) => C => C
-  =
-  ((a: C => Boolean) => (b: ((A, B)) => C => C) => iteratei[A, B, C](s, a, b))
-
-def rm_iterateoi[A, B,
-                  C](x0: rbta[A, B], c: C => Boolean, f: ((A, B)) => C => C,
-                      sigma: C):
-      C
-  =
-  (x0, c, f, sigma) match {
-  case (Empty(), c, f, sigma) => sigma
-  case (Branch(col, l, k, v, r), c, f, sigma) =>
-    (if (c(sigma))
-      {
-        val sigmaa: C = rm_iterateoi[A, B, C](l, c, f, sigma);
-        (if (c(sigmaa)) rm_iterateoi[A, B, C](r, c, f, (f((k, v)))(sigmaa))
-          else sigmaa)
-      }
-      else sigma)
-}
-
-def iteratei_map_op_list_it_rm_ops[A : linorder, B, C](s: rbt[A, B]):
-      (C => Boolean) => (((A, B)) => C => C) => C => C
-  =
-  ((a: C => Boolean) => (b: ((A, B)) => C => C) => (c: C) =>
-    rm_iterateoi[A, B, C](impl_of[A, B](s), a, b, c))
-
-def iterateia[A : linorder, B, C,
-               D](m: rbt[A, assoc_list[B, C]], c: D => Boolean,
-                   f: ((B, C)) => D => D, sigma_0: D):
-      D
-  =
-  (iteratei_map_op_list_it_rm_ops[A, assoc_list[B, C],
-                                   D](m)).apply(c).apply(((a:
-                     (A, assoc_list[B, C]))
-                    =>
-                   {
-                     val (_, lm): (A, assoc_list[B, C]) = a;
-                     (iteratei_map_op_list_it_lm_ops[B, C,
-              D](lm)).apply(c).apply(f)
-                   })).apply(sigma_0)
-
-def hm_iteratei[A : hashable, B, C](hm: hashmap[A, B]):
-      (C => Boolean) => (((A, B)) => C => C) => C => C
-  =
-  ((a: C => Boolean) => (b: ((A, B)) => C => C) => (c: C) =>
-    iterateia[Int, A, B, C](impl_of_RBT_HM[A, B](hm), a, b, c))
-
 def log_time[A, B, C](x0: log_op[A, B, C]): A = x0 match {
   case LogMove(x1, x2, x3, x4, x5) => x1
 }
@@ -989,24 +1151,6 @@ def map_option[A, B](f: A => B, x1: Option[A]): Option[B] = (f, x1) match {
   case (f, None) => None
   case (f, Some(x2)) => Some[B](f(x2))
 }
-
-def iteratei_bmap_op_list_it_hm_basic_ops[A : hashable, B, C](s: hashmap[A, B]):
-      (C => Boolean) => (((A, B)) => C => C) => C => C
-  =
-  hm_iteratei[A, B, C](s)
-
-def g_restrict_hm_basic_ops[A : equal : hashable,
-                             B](p: ((A, B)) => Boolean, m: hashmap[A, B]):
-      hashmap[A, B]
-  =
-  (iteratei_bmap_op_list_it_hm_basic_ops[A, B,
-  hashmap[A, B]](m)).apply(((_: hashmap[A, B]) =>
-                             true)).apply(((a: (A, B)) =>
-    {
-      val (k, v): (A, B) = a;
-      ((sigma: hashmap[A, B]) =>
-        (if (p((k, v))) hm_update[A, B](k, v, sigma) else sigma))
-    })).apply(hm_empty[A, B].apply(()))
 
 def efficient_ancestor[A : equal : hashable,
                         B](t: hashmap[A, (B, A)], p: A, c: A):
@@ -1033,14 +1177,7 @@ def efficient_do_op[A, B : equal : hashable,
  hm_lookup[B, (C, B)](c, tree)),
                   newp, m, c),
       (if (efficient_ancestor[B, C](tree, c, newp) || eq[B](c, newp)) tree
-        else hm_update[B, (C, B)](c, (m, newp),
-                                   g_restrict_hm_basic_ops[B,
-                    (C, B)](((a: (B, (C, B))) =>
-                              {
-                                val (ca, (_, _)): (B, (C, B)) = a;
-                                ! (eq[B](c, ca))
-                              }),
-                             tree))))
+        else hm_update[B, (C, B)](c, (m, newp), tree)))
 }
 
 def efficient_undo_op[A, B : equal : hashable,
@@ -1048,21 +1185,9 @@ def efficient_undo_op[A, B : equal : hashable,
       hashmap[B, (C, B)]
   =
   x0 match {
-  case (LogMove(t, None, newp, m, c), tree) =>
-    g_restrict_hm_basic_ops[B, (C, B)](((a: (B, (C, B))) =>
- {
-   val (ca, (_, _)): (B, (C, B)) = a;
-   ! (eq[B](ca, c))
- }),
-tree)
   case (LogMove(t, Some((oldp, oldm)), newp, m, c), tree) =>
-    hm_update[B, (C, B)](c, (oldm, oldp),
-                          g_restrict_hm_basic_ops[B,
-           (C, B)](((a: (B, (C, B))) => {
-  val (ca, (_, _)): (B, (C, B)) = a;
-  ! (eq[B](ca, c))
-}),
-                    tree))
+    hm_update[B, (C, B)](c, (oldm, oldp), tree)
+  case (LogMove(t, None, newp, m, c), tree) => hm_delete[B, (C, B)](c, tree)
 }
 
 def efficient_redo_op[A, B : equal : hashable,
@@ -1119,5 +1244,24 @@ def example_apply_op:
           hashmap[String, (String, String)]))
       =>
     efficient_apply_op[(int, String), String, String](a, b))
+
+def efficient_apply_ops[A : linorder, B : equal : hashable,
+                         C](ops: List[operation[A, B, C]]):
+      (List[log_op[A, B, C]], hashmap[B, (C, B)])
+  =
+  foldl[(List[log_op[A, B, C]], hashmap[B, (C, B)]),
+         operation[A, B,
+                    C]](((state: (List[log_op[A, B, C]], hashmap[B, (C, B)])) =>
+                          (oper: operation[A, B, C]) =>
+                          efficient_apply_op[A, B, C](oper, state)),
+                         (Nil, hm_empty[B, (C, B)].apply(())), ops)
+
+def example_apply_ops:
+      (List[operation[(int, String), String, String]]) =>
+        (List[log_op[(int, String), String, String]],
+          hashmap[String, (String, String)])
+  =
+  ((a: List[operation[(int, String), String, String]]) =>
+    efficient_apply_ops[(int, String), String, String](a))
 
 } /* object generated */

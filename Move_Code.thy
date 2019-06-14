@@ -837,7 +837,13 @@ definition example_apply_op ::
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
  where \<open>example_apply_op = efficient_apply_op\<close>
 
-export_code example_apply_op in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
+definition example_apply_ops ::
+    \<open>((int \<times> String.literal), String.literal, String.literal) operation list \<Rightarrow>
+     ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
+       (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
+ where \<open>example_apply_ops = efficient_apply_ops\<close>
+
+export_code example_apply_op example_apply_ops in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
 
 text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
      an SML/Scala/OCaml/Haskell compiler, as appropriate, we can show that this code compiles and
