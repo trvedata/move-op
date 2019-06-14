@@ -113,7 +113,7 @@ Such systems have the advantage that they can continue processing read and write
 This approach is desirable since it enables disconnected operation in a mobile computing context, and high availability in geo-replicated settings.
 
 As the tree structure may be concurrently modified on different replicas, the state of these replicas may temporarily diverge.
-In this paper we show how the replicas can nevertheless achieve \emph{strong eventual consistency}~\cite{Shapiro:2011un}: as the replicas communicate, we guarantee that they will converge towards a consistent state.
+In this paper we show how the replicas can nevertheless achieve \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}: as the replicas communicate, we guarantee that they will converge towards a consistent state.
 Our algorithm for achieving convergence is an example of a \emph{Conflict-free Replicated Data Type} or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un}.
 
 In this paper we use an abstract model of a tree that can support any of the applications listed above, including distributed filesystems.
@@ -634,12 +634,46 @@ If the
 
 \section{Evaluation}\label{sec:evaluation}
 
+TODO
+
 \section{Related work}\label{sec:relwork}
 
-% Related work:
-% OT implementation of move operation: https://hal.inria.fr/inria-00107740/
-% Ficus (does not discuss move): https://pdos.csail.mit.edu/6.824/papers/ficus.pdf
-% Roam: https://ieeexplore.ieee.org/abstract/document/795151
+Many replicated data systems use optimistic replication~\cite{Saito:2005jw}, which allows the state of replicas to temporarily diverge, in order to achieve better performance and better availability in the presence of faults than strongly consistent systems~\cite{Bailis:2014th,Gilbert:2002il}.
+As a consequence, these systems require a mechanism for merging or reconciling conflicting updates that were made concurrently on different replicas.
+For example, version control systems such as Git~\cite{Chacon:2014kr} leave any conflicts for the user to resolve manually.
+Some systems, such as Dynamo~\cite{DeCandia:2007ui} and Bayou~\cite{Terry:1995dn}, rely on the application programmer to provide explicit conflict resolution logic; however, such logic is difficult to get right \cite{Bailis:2013jc,Burckhardt:2014hy,Gomes:2017gy}.
+Hence, we focus on systems that automatically ensure that all replicas converge towards a consistent state, without requiring custom application logic---a consistency model known as \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
+
+\subsection{Conflict-free Replicated Data Types}
+
+Our algorithm is an example of an operation-based Conflict-free Replicated Data Type or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un,Burckhardt:2014ft}.
+All CRDTs share the property that concurrent changes on different replicas can be merged in any order; any two replicas that have seen the same set of updates are guaranteed to be in the same state, regardless of the order in which they processed these updates.
+CRDTs have been defined for various abstract datatypes, such as registers and counters \cite{Shapiro:2011wy,Shapiro:2011un}, maps \cite{Baquero:2016iv,Kleppmann:2016ve}, sets \cite{Bieniusa:2012wu,Bieniusa:2012gt}, lists (sequences) \cite{Roh:2011dw,Nedelec:2013ky}, and text \cite{Preguica:2009fz,Weiss:2010hx}.
+For tree data structures, several approaches have been proposed:
+\begin{itemize}
+    \item Martin et al.~\cite{Martin:2010ih} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT for JSON.
+        However, these algorithms only deal with insertion and deletion of tree nodes, and do not support a move operation.
+    \item As discussed in Section~\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two alternative implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
+    \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} survey approaches to handling conflicts on trees without providing concrete algorithms.
+    \item Tao et al.~\cite{Tao:2015gd} propose handling conflicting move operations by allowing the same object to appear in more than one location; thus, their datatype is strictly a DAG, not a tree.
+        Some conflicts are handled by duplicating tree nodes.
+    \item In our previous unpublished work \cite{ExtendedVersion} we develop the foundations for the algorithm described in this paper.
+\end{itemize}
+
+Besides CRDTs, another family of algorithms for concurrent modification of data structures is called \emph{Operational Transformation}~\cite{Sun:1998vf}.
+Several authors have defined collaboratively editable tree structures using the Operational Transformation approach \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only consider insertion and deletion of tree nodes, and do not support a move operation.
+
+Molli et al.~\cite{Molli:2003cd} define an Operational Transformation tree structure with a move operation.
+However, it requires that all communication between replicas is performed via total order broadcast, which in turn requires the use of a sequencer server or a consensus algorithm~\cite{Chandra:1996cp}.
+Our algorithm has better availability characteristics in the presence of network partitions because it allows messages to be delivered in any order.
+
+\subsection{Distributed filesystems}
+
+TODO: Coda~\cite{Kumar:1995wf}, Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
+
+\section{Conclusions}
+
+TODO
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).

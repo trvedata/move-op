@@ -9,3 +9,7 @@ evaluation/target
 /paper/move-op.out
 /paper/move-op.pdf
 /output
+/ancestor.ML
+/generated.SML
+/generated.ml
+/generated.scala
