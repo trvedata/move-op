@@ -110,6 +110,11 @@ next
 qed
 
 
+lemma last_helper:
+  assumes \<open>last xs = x\<close> \<open>xs \<noteq> []\<close>
+  shows   \<open>\<exists>pre. xs = pre @ [x]\<close>
+  using assms by (induction xs arbitrary: x rule: rev_induct; simp)
+
 lemma steps_exist:
   fixes log :: \<open>('t::{linorder}, 'n, 'm) log_op list\<close>
   assumes \<open>apply_ops ops = (log, tree)\<close> and \<open>ops \<noteq> []\<close>
@@ -131,16 +136,19 @@ using assms proof(induction ops arbitrary: log tree rule: List.rev_induct, simp)
       by force
   next
     case (Cons a list)
+    
     obtain log1 tree1 where \<open>apply_ops ops = (log1, tree1)\<close>
       by fastforce
-    moreover from this obtain ss :: \<open>(('t, 'n, 'm) log_op list \<times> ('n \<times> 'm \<times> 'n) set) list\<close>
-        where \<open>steps ss \<and> (last ss) = (log1, tree1)\<close>
+    moreover from this obtain ss where \<open>steps ss \<and> (last ss) = (log1, tree1) \<and> ss \<noteq> []\<close>
       using snoc.IH Cons by blast
+    moreover then obtain pre_ss where \<open>steps (pre_ss @ [(log1, tree1)]) \<close>
+      using last_helper by fastforce
     moreover have \<open>apply_op oper (log1, tree1) = (log, tree)\<close>
       using calculation(1) snoc.prems(1) by auto
-    ultimately show ?thesis
-      using apply_op_steps_exist snoc.prems(1)
-      by (smt Nil_is_append_conv append_butlast_last_id last_snoc list.discI steps.simps)
+    ultimately obtain ss' where \<open>steps (ss' @ [(log, tree)])\<close>
+      using apply_op_steps_exist by blast
+    then show ?thesis
+      by force
   qed
 qed
 
