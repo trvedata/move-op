@@ -125,9 +125,9 @@ Our contributions in this work are as follows:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in Section~\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
-    \item We formalise our algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant, and produce a computer-checked proof of correctness of our algorithm.
-        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency).
-    \item To demonstrate the practical viability of the algorithm we extract a formally verified, executable implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
+    \item We formalise our abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of our algorithm.
+        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) whilst maintaining a tree-like structure.
+    \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an efficient implementation within Isabelle/HOL and prove the equivalence of the two.  We thereafter extract a formally verified, executable Scala implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
     \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
 
@@ -346,7 +346,7 @@ Two users who believe they are collaborating on the same file may in fact be edi
 
 Rather than duplicating the moved subtree, another possible resolution is for the destination locations of both moves to refer to the same node, as shown in Figure~\ref{fig:move-same-item}b.
 However, the result is a DAG, not a tree.
-POSIX filesystems to not allow this outcome, since they allow hardlinks only to files, but not to directories.
+POSIX-compliant filesystems do not allow this outcome, since they allow hardlinks only to files, but not to directories.
 
 In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:move-same-item}c and~\ref{fig:move-same-item}d: the moved subtree appears either in replica 1's destination location or in replica 2's destination location, but not in both.
 Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
@@ -379,7 +379,7 @@ Like in Section~\ref{sec:move-same-item}, the winning operation can be picked ba
 
 As before, we tested this scenario with Google Drive and Dropbox.
 In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed the ``unknown error'' message shown in Figure~\ref{fig:gdrive-error}.
-The replica in error state refused to sync the conflicting directory, and its filesystem state remained inconsistent with the other replica.
+The replica in an error state refused to sync the conflicting directory, and its filesystem state remained inconsistent with the other replica.
 This error state persisted until the directories on the erroring replica were manually moved to match the state of the other replica.
 
 On the other hand, Dropbox exhibits the duplication behaviour shown in Figure~\ref{fig:move-cycle}b.
