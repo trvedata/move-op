@@ -152,6 +152,10 @@ next
   ultimately show ?thesis by simp
 qed
 
+lemma do_undo_op_inv_var:
+  assumes \<open>unique_parent tree\<close>
+  shows \<open>undo_op (do_op (oper, tree)) = tree\<close>
+  using assms do_undo_op_inv by (metis operation.exhaust_sel)
 
 section \<open>Preserving the invariant that each tree node has at most one parent\<close>
 

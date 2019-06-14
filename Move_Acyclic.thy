@@ -22,12 +22,13 @@ lemma steps_snocI:
     shows \<open>steps (ss @ suf)\<close>
   using assms steps.intros(2) by blast
 
-lemma steps'_unique_parent:
+lemma steps_unique_parent:
   assumes \<open>steps ss\<close>
   and \<open>ss = ss'@[(log, tree)]\<close>
   shows \<open>unique_parent tree\<close>
   using assms by(induction arbitrary: ss' log tree rule: steps.induct)
     (clarsimp, metis do_op_unique_parent emptyE operation.exhaust_sel unique_parentI)+
+
 
 lemma apply_op_steps_exist:
   assumes \<open>apply_op oper (log1, tree1) = (log2, tree2)\<close>
@@ -38,72 +39,76 @@ using assms proof(induction log1 arbitrary: tree1 log2 tree2 ss)
   thus ?case using steps_empty by blast
 next
   case (Cons logop ops)
-  then show ?case
-  proof(cases \<open>move_time oper < log_time logop\<close>)
-    case True
-    hence \<open>apply_op oper (logop # ops, tree1) =
-           redo_op logop (apply_op oper (ops, undo_op (logop, tree1)))\<close>
+  { assume \<open>move_time oper < log_time logop\<close>
+    hence *:\<open>apply_op oper (logop # ops, tree1) =
+            redo_op logop (apply_op oper (ops, undo_op (logop, tree1)))\<close>
       by simp
-    from this and Cons show ?thesis
-      apply -
-      apply(erule steps_snoc_indcases)
-       apply(subgoal_tac \<open>logop = logopa \<and> ops = [] \<and> tree1 = tree\<close>)
-        prefer 2 apply force
-       apply(elim conjE, clarify)
-       apply(subgoal_tac \<open>undo_op (logop, tree1) = {}\<close>)
-      prefer 2 
-        apply (metis apply_ops_Nil apply_ops_unique_parent do_op.cases do_undo_op_inv old.prod.inject)
-      using True apply(clarsimp split!: prod.split_asm)
-       apply(subgoal_tac \<open>steps ([([x1], x2)] @ [(log2, tree2)])\<close>)
-        apply blast
-       apply clarsimp
-        apply(cases logop, clarsimp simp del: do_op.simps)
-        apply(case_tac \<open>do_op (Move x1a x3 x4 x5, x2)\<close>)
-      apply(subgoal_tac \<open>steps ([] @ [([x1], x2), (log2, tree2)])\<close>)
-        apply force
-       apply(rule steps_snocI)
-      apply(clarsimp simp del: do_op.simps)
-         apply(rule steps.intros(1))
-         apply assumption back
-        apply assumption
-       apply force
-      apply(rename_tac ss' log tree opera logopa tree2)
-      apply(subgoal_tac "logop = logopa \<and> ops = log \<and> tree1 = tree2")
-       apply(elim conjE, clarify)
-       prefer 2 apply force
-      apply(subgoal_tac \<open>undo_op (logop, tree1) = tree\<close>)
-       prefer 2 using do_undo_op_inv steps'_unique_parent apply (metis operation.exhaust_sel)
-      using True apply clarsimp
-      apply(case_tac \<open>apply_op oper (ops, undo_op (logop, tree1))\<close>)
-      apply clarsimp
-      apply(erule_tac x=\<open>undo_op (logop, tree1)\<close> in meta_allE)
-      apply(erule_tac x=a in meta_allE)
-      apply(erule_tac x=b in meta_allE)
-      apply(erule_tac x=ss' in meta_allE)
-      apply clarsimp
-      apply(rule_tac x=\<open>ss'a @ [(a, b)]\<close> in exI)
-      apply clarsimp
-        apply(cases logop, clarsimp simp del: do_op.simps split!: prod.split_asm)
-      apply(rule steps_snocI, assumption, assumption, force)
-      done
-  next
-    case False
+    moreover {
+      fix oper'
+      assume asm: \<open>do_op (oper', {}) = (logop, tree1)\<close> \<open>ss = []\<close> \<open>(logop # ops, tree1) = ([logop], tree1)\<close>
+      hence undo: \<open>undo_op (logop, tree1) = {}\<close>
+        using asm Cons by (metis apply_ops_Nil apply_ops_unique_parent do_op.cases do_undo_op_inv old.prod.inject)
+      obtain t oldp p m c where logmove: \<open>logop = LogMove t oldp p m c\<close>
+        using log_op.exhaust by blast
+      obtain logop'' tree'' where do: \<open>do_op (oper, {}) = (logop'', tree'')\<close>
+        by fastforce
+      hence redo: \<open>redo_op logop ([logop''], tree'') = (log2, tree2)\<close>
+        using Cons.prems(1) asm undo calculation by auto
+      then obtain op2 where op2: \<open>do_op (Move t p m c, tree'') = (op2, tree2)\<close>
+        by (simp add: logmove)
+      hence log2: \<open>log2 = op2 # [logop'']\<close>
+        using logmove redo by auto
+      have \<open>steps ([] @ [([logop''], tree''), (op2 #  [logop''], tree2)])\<close>
+        using do op2 by (fastforce intro: steps.intros)
+      hence \<open>steps ([([logop''], tree'')] @ [(log2, tree2)])\<close>
+        by (simp add: log2)
+      hence \<open>\<exists>ss'. steps (ss' @ [(log2, tree2)])\<close>
+        by fastforce
+    } moreover {
+      fix pre_ss tree' oper'
+      assume asm: \<open>steps (pre_ss @ [(ops, tree')])\<close>
+                  \<open>do_op (oper', tree') = (logop, tree1)\<close>
+                  \<open>ss = pre_ss @ [(ops, tree')]\<close>
+      hence undo: \<open>undo_op (logop, tree1) = tree'\<close>
+        using do_undo_op_inv_var steps_unique_parent by metis
+      obtain log'' tree'' where apply_op: \<open>apply_op oper (ops, undo_op (logop, tree1)) = (log'', tree'')\<close>
+        by (meson surj_pair)
+      moreover have \<open>steps (pre_ss @ [(ops, undo_op (logop, tree1))])\<close>
+        by (simp add: undo asm)
+      ultimately obtain ss' where ss': \<open>steps (ss' @ [(log'', tree'')])\<close>
+        using Cons.IH by blast
+      obtain t oldp p m c where logmove: \<open>logop = LogMove t oldp p m c\<close>
+        using log_op.exhaust by blast
+      hence redo: \<open>redo_op logop (log'', tree'') = (log2, tree2)\<close>
+        using Cons.prems(1) * apply_op by auto
+      then obtain op2 where op2: \<open>do_op (Move t p m c, tree'') = (op2, tree2)\<close>
+        using logmove redo by auto
+      hence log2: \<open>log2 = op2 # log''\<close>
+        using logmove redo by auto
+      hence \<open>steps (ss' @ [(log'', tree''), (op2 # log'', tree2)])\<close>
+        using ss' op2 by (fastforce intro!: steps.intros)
+      hence \<open>steps ((ss' @ [(log'', tree'')]) @ [(log2, tree2)])\<close>
+        by (simp add: log2)
+      hence \<open>\<exists>ss'. steps (ss' @ [(log2, tree2)])\<close>
+        by blast
+    } ultimately have \<open>\<exists>ss'. steps (ss' @ [(log2, tree2)])\<close>
+      using Cons by auto
+  } moreover {
+    assume \<open>\<not> (move_time oper < log_time logop)\<close>
     hence \<open>apply_op oper (logop # ops, tree1) =
            (let (op2, tree2) = do_op (oper, tree1) in (op2 # logop # ops, tree2))\<close>
       by simp
-    then obtain logop2 where \<open>do_op (oper, tree1) = (logop2, tree2)\<close>
+    moreover then obtain logop2 where \<open>do_op (oper, tree1) = (logop2, tree2)\<close>
       by (metis (mono_tags, lifting) Cons.prems(1) case_prod_beta' prod.collapse snd_conv)
-    hence \<open>steps (ss @ [(logop # ops, tree1), (logop2 # logop # ops, tree2)])\<close>
+    moreover hence \<open>steps (ss @ [(logop # ops, tree1), (logop2 # logop # ops, tree2)])\<close>
       using Cons.prems(2) steps_snocI by blast
-    then show ?thesis
-    proof -
-      have "logop2 # logop # ops = log2"
-        using Cons.prems(1) \<open>apply_op oper (logop # ops, tree1) = (let (op2, tree2) = do_op (oper, tree1) in (op2 # logop # ops, tree2))\<close> \<open>do_op (oper, tree1) = (logop2, tree2)\<close> by force
-      then show ?thesis
-        by (metis \<open>steps (ss @ [(logop # ops, tree1), (logop2 # logop # ops, tree2)])\<close> append.assoc append_Cons append_Nil)
-    qed
-  qed
+    ultimately have \<open>\<exists>ss'. steps (ss' @ [(log2, tree2)])\<close>
+      using Cons by (metis (mono_tags) Cons_eq_appendI append_eq_appendI append_self_conv2 insert_Nil
+          prod.sel(1) prod.sel(2) rotate1.simps(2) split_beta)
+  } ultimately show ?case
+    by auto
 qed
+
 
 lemma steps_exist:
   fixes log :: \<open>('t::{linorder}, 'n, 'm) log_op list\<close>
@@ -147,19 +152,14 @@ using assms steps.cases by fastforce
 lemma steps_singleton:
   assumes \<open>steps [s]\<close>
   shows \<open>\<exists>oper. let (logop, tree) = do_op (oper, {}) in s = ([logop], tree)\<close>
-  using assms apply - apply(erule steps_singleton_indcases)
-  apply clarsimp
-  apply (rule_tac x=oper in exI)
-  apply force
-  done
+  using assms steps_singleton_indcases
+  by (metis (mono_tags, lifting) case_prodI)
 
 lemma steps_acyclic:
   assumes \<open>steps ss\<close>
   shows \<open>acyclic (snd (last ss))\<close>
-  using assms apply (induction rule: steps.induct)
-   apply clarsimp
+  using assms apply (induction rule: steps.induct; clarsimp)
    apply (metis acyclic_empty do_op_acyclic operation.exhaust_sel)
-  apply clarsimp
   using do_op_acyclic_var by auto
 
 theorem apply_ops_acyclic:
