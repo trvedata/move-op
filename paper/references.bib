@@ -324,6 +324,16 @@ title = {{crjdt}: A conflict-free replicated {JSON} datatype in {Scala}},
 url = {https://github.com/fthomas/crjdt}
 }
 
+%% http://haslab.uminho.pt/cbm/files/abstractcounterpapocfinal.pdf
+@inproceedings{Baquero:2016iv,
+author = {Baquero, Carlos and Almeida, Paulo S{\'e}rgio and Lerche, Carl},
+title = {The problem with embedded {CRDT} counters and a solution},
+booktitle = {2nd Workshop on the Principles and Practice of Consistency for Distributed Data (PaPoC)},
+year = {2016},
+month = apr,
+doi = {10.1145/2911151.2911159}
+}
+
 %% https://arxiv.org/pdf/1010.3615.pdf
 @inproceedings{Martin:2010ih,
 author = {Martin, St{\'e}phane and Urso, Pascal and Weiss, St{\'e}phane},
@@ -621,6 +631,17 @@ month = nov,
 doi = {10.1145/587078.587088}
 }
 
+%% https://www.lri.fr/~mbl/ENS/CSCW/2014/papers/Molli-GROUP03.pdf
+@inproceedings{Molli:2003cd,
+author = {Molli, Pascal and Oster, G{\'e}rald and Skaf-Molli, Hala and Imine, Abdessamad},
+title = {Using the transformational approach to build a safe and generic data synchronizer},
+booktitle = {2003 International ACM SIGGROUP Conference on Supporting Group Work},
+year = {2003},
+pages = {212--220},
+month = nov,
+doi = {10.1145/958160.958194}
+}
+
 @webpage{Wang:2015vo,
 title = {{Apache Wave} (incubating) Protocol Documentation, Release 0.4},
 author = {Wang, David and Mah, Alex and Lassen, Soren and Thorogood, Sam},
@@ -763,6 +784,54 @@ month = aug,
 url = {https://stackoverflow.com/questions/45722742/logoot-crdt-interleaving-of-data-on-concurrent-edits-to-the-same-spot}
 }
 
+%%%%%%% Distributed filesystems
+
+%% https://www.cs.cmu.edu/~coda/docdir/usenix95.pdf
+@inproceedings{Kumar:1995wf,
+author = {Kumar, Puneet and Satyanarayanan, M},
+title = {Flexible and Safe Resolution of File Conflicts},
+booktitle = {USENIX Winter Technical Conference},
+year = {1995},
+address = {New Orleans, Louisiana, USA},
+month = jan
+}
+
+%% https://pdos.csail.mit.edu/archive/6.824-2009/papers/ficus.pdf
+@inproceedings{Reiher:1994wh,
+author = {Reiher, Peter and Heidemann, John and Ratner, David and Skinner, Greg and Popek, Gerald J},
+title = {Resolving File Conflicts in the {Ficus} File System},
+booktitle = {Summer USENIX Conference},
+year = {1994},
+pages = {183--195},
+month = jun
+}
+
+%% https://lasr.cs.ucla.edu/rumor98/er98wmda.pdf
+@incollection{Guy:1999gy,
+author = {Guy, Richard and Reiher, Peter and Ratner, David and Gunter, Michial and Ma, Wilkie and Popek, Gerald},
+title = {{Rumor}: Mobile Data Access Through Optimistic Peer-to-Peer Replication},
+booktitle = {Advances in Database Technologies, LNCS 1552},
+year = {1999},
+pages = {254--265},
+publisher = {Springer Berlin Heidelberg},
+month = nov,
+doi = {10.1007/978-3-540-49121-7_22},
+isbn = {978-3-540-65690-6}
+}
+
+%% http://ieeexplore.ieee.org/document/795151/
+@inproceedings{Ratner:1999fh,
+author = {Ratner, David and Reiher, Peter and Popek, Gerald J},
+title = {{Roam}: a scalable replication system for mobile computing},
+booktitle = {10th International Workshop on Database and Expert Systems Applications},
+year = {1999},
+pages = {96--104},
+publisher = {IEEE},
+month = sep,
+doi = {10.1109/DEXA.1999.795151}
+}
+
+
 %%%%%%% General distributed systems stuff
 
 @webpage{Johnson:1975we,
@@ -816,6 +885,17 @@ pages = {401--416},
 doi = {10.1145/2043556.2043593}
 }
 
+%% http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf
+@inproceedings{DeCandia:2007ui,
+author = {DeCandia, Giuseppe and Hastorun, Deniz and Jampani, Madan and Kakulapati, Gunavardhan and Lakshman, Avinash and Pilchin, Alex and Sivasubramanian, Swaminathan and Vosshall, Peter and Vogels, Werner},
+title = {{Dynamo}: {Amazon's} highly available key-value store},
+booktitle = {21st ACM Symposium on Operating Systems Principles (SOSP)},
+year = {2007},
+pages = {205--220},
+month = oct,
+doi = {10.1145/1294261.1294281}
+}
+
 %% http://delab.csd.auth.gr/~dimitris/courses/mpc_fall05/papers/invalidation/acm_csur85_partitioned_network_consistency.pdf
 @article{Davidson:1985hv,
 author = {Davidson, Susan B and Garcia-Molina, Hector and Skeen, Dale},
@@ -861,6 +941,19 @@ edition = {second},
 month = feb,
 doi = {10.1007/978-3-642-15260-3},
 isbn = {978-3-642-15259-7}
+}
+
+%% http://arxiv.org/pdf/1402.2237.pdf
+@article{Bailis:2014th,
+author = {Bailis, Peter and Fekete, Alan and Franklin, Michael J and Ghodsi, Ali and Hellerstein, Joseph M and Stoica, Ion},
+title = {Coordination avoidance in database systems},
+journal = {Proceedings of the VLDB Endowment},
+year = {2014},
+volume = {8},
+number = {3},
+pages = {185--196},
+month = nov,
+doi = {10.14778/2735508.2735509}
 }
 
 %% https://queue.acm.org/detail.cfm?id=2655736
@@ -1021,6 +1114,18 @@ howpublished = {IETF Standards Track, RFC 4122},
 year = {2005},
 month = jul,
 doi = {10.17487/rfc4122}
+}
+
+@book{Chacon:2014kr,
+author = {Chacon, Scott and Straub, Ben},
+title = {{Pro Git}},
+publisher = {Apress},
+year = {2014},
+address = {Berkeley, CA},
+edition = {Second},
+doi = {10.1007/978-1-4842-0076-6},
+isbn = {978-1-4842-0077-3},
+url = {https://git-scm.com/book/en/v2}
 }
 
 @book{Kleppmann:2017wj,
