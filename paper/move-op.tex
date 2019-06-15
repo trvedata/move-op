@@ -30,6 +30,8 @@
 \acmPrice{}
 \acmISBN{}
 
+\hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped}
+
 \begin{document}
 \title{A highly-available move operation for replicated trees}
 
@@ -108,7 +110,6 @@ For example:
         These objects are contained within nodes representing pages of a document, or slides of a presentation.
         Multiple objects may be combined into a \emph{group} so that they can be manipulated as a unit; this corresponds to making these objects children of a common parent node.
         Multiple objects and groups may in turn be combined into higher-level groups, forming a tree.
-        %Moreover, the order of nodes determines visibility (i.e.\ objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
     \item Personal \textbf{note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} explicitly present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
@@ -131,7 +132,7 @@ Our contributions in this work are as follows:
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in Section~\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
     \item We formalise our abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of our algorithm.
-        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) whilst maintaining a tree-like structure.
+        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) while keeping the data in a tree structure.
     \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an efficient implementation within Isabelle/HOL and prove the equivalence of the two.  We thereafter extract a formally verified, executable Scala implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
     \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
@@ -598,6 +599,49 @@ This logic ensures that the log is maintained in descending timestamp order, wit
 \isa{undo\_op} (lines 33--36) inverts the effect of a previous move operation by restoring the prior parent and metadata that were recorded in the \isa{LogMove}'s additional field.
 \isa{redo\_op} (lines 38--41) uses \isa{do\_op} to perform an operation again and recomputes the \isa{LogMove} record (which might have changed due to the effect of the new operation with a lower timestamp).
 
+\subsection{Handling conflicts}\label{sec:conflicts}
+
+The consequence of performing the undo-do-redo cycle is that, effectively, the state of the tree is as if all operations had been applied using \isa{do\_op} in increasing timestamp order, regardless of the order in which they were actually applied.
+This provides a clear approach to the handling of conflicts:
+\begin{itemize}
+    \item If two operations concurrently move the same node, then the ``winning'' operation is the one with the higher timestamp.
+        This is the case because, if the operations are applied in increasing timestamp order, the node being moved is first moved to the parent indicated by the operation with the lower timestamp, and then moved again to the parent indicated by the operation with the higher timestamp.
+        Since move operations do not specify the old location of a node, but only the new location, this sequential execution of concurrent operations is well-defined.
+    \item If two operations would introduce a cycle when combined, as in Section~\ref{sec:move-cycle}, then the operation with the greater timestamp is ignored.
+        This is the case because \isa{do\_op} checks for cycles based on the tree created by all operations with a lower timestamp.
+        The lower of two conflicting operations will take effect, since that operation by itself is safe.
+        When the higher-timestamped operation is applied, \isa{do\_op} detects that it would introduce a cycle, and therefore ignores the operation.
+\end{itemize}
+
+Note that the safety of an operation (whether or not it would introduce a cycle) may change as subsequent operations with lower timestamps are applied.
+For example, an operation may initially be regarded as safe, and then be reclassified as unsafe after applying a conflicting operation with a lower timestamp.
+The opposite is also possible: an operation previously regarded as unsafe may become safe through the application of a lower-timestamped operation that removes the risk of introducing a cycle.
+For this reason, the operation log must include all operations, even those that have no effect on the tree.
+
+One final type of conflict that we have not discussed so far is multiple child nodes with the same parent and the same metadata.
+For example, in a filesystem, two users could concurrently create files with the same name in the same directory.
+Our algorithm does not take any measures to prevent such conflict, but simply retains both child nodes.
+In practice, the filename collision would be resolved by making the filenames distict, e.g.\ by appending a replica identifier to the filenames.
+
+\subsection{Algorithm extensions}\label{sec:extensions}
+
+The algorithm as specified in Figure~\ref{fig:code} retains operations in the log indefinitely, so the memory/storage use grows without bound.
+However, in practice it is easy to truncate the log, because \isa{apply\_op} only examines the prefix of operations whose timestamp is greater than that of the operation being applied.
+Thus, once it is known that all future operations will have a timestamp greater than $t$, then all operations with timestamp $t$ or less can be discarded from the log.
+In this case, we say that $t$ is \emph{causally stable}~\cite{Baquero:2014ed}.
+
+We can determine causal stability in a system where the set of replicas is known, where each replica generates operations with monotonically increasing timestamps, and where the communication link between any pair of replicas is FIFO (messages are received in the order in which they are sent, as implemented e.g. by TCP).
+In this case, each replica can keep track of the most recent timestamp it has seen from all replicas (including its own), and the minimum of these timestamps is the causally stable threshold.
+
+Another useful extension of the tree algorithm is to allow children within the same branch node to have an ordering.
+For example, in a graphics application, the order of nodes determines visibility (objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
+This can be implemented by maintaining a separate list CRDT for each branch node, e.g.\ using RGA~\cite{Roh:2011dw}, Treedoc~\cite{Preguica:2009fz}, Logoot~\cite{Weiss:2010hx}, or LSEQ~\cite{Nedelec:2013ky}.
+These algorithms assign a unique identifier to each element of the list, and this unique identifier can be included in the metadata field of move operations in order to determine the order of children of the same parent node.
+
+This approach to determining ordering also easily supports reordering of child nodes within a parent, e.g.\ to implement the ``bring to front'' and ``send to back'' feature of applications like PowerPoint.
+To move a node to a different position in a list, we use the list CRDT to generate a new identifier at the desired position in the sequence.
+Then we perform a move operation in which the parent node is unchanged, but the metadata is updated to include this new identifier.
+
 % - No Synchronisation or consensus required. Available in the sense of CAP
 % - Rely only on uniqueness of node IDs, e.g. inode numbers
 % - Composing JSON/XML tree by using list datatype
@@ -662,6 +706,7 @@ For tree data structures, several approaches have been proposed:
     \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} survey approaches to handling conflicts on trees without providing concrete algorithms.
     \item Tao et al.~\cite{Tao:2015gd} propose handling conflicting move operations by allowing the same object to appear in more than one location; thus, their datatype is strictly a DAG, not a tree.
         Some conflicts are handled by duplicating tree nodes.
+        Tao et al.\ also perform experiments with Dropbox, Google Drive, and OneDrive, similar to our experiments discussed in Section~\ref{sec:move-is-hard}.
     \item In our previous unpublished work \cite{ExtendedVersion} we develop the foundations for the algorithm described in this paper.
 \end{itemize}
 
