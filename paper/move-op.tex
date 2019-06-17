@@ -113,7 +113,7 @@ For example:
     \item Personal \textbf{note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} explicitly present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
-In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple replicas.
+In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
 Moreover, we focus on \emph{optimistic replication}~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
 Such systems have the advantage that they can continue processing read and write requests even in the presence of arbitrary network partitions; in other words, they are \emph{available} and \emph{partition-tolerant} in the sense of the CAP theorem~\cite{Gilbert:2002il}.
 This approach is desirable since it enables disconnected operation in a mobile computing context, and high availability in geo-replicated settings.
@@ -371,7 +371,7 @@ This restriction is required because allowing this operation would introduce a c
 The same restriction is required in any other tree structure that supports a move operation.
 
 In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, then the move operation must be rejected.
-However, a new problem arises in a replicated setting: different replicas may perform operations that individually are safe, but whose combination leads to a cycle.
+However, a new problem arises in a replicated setting: different replicas may perform operations that are individually safe, but whose combination leads to a cycle.
 
 One example of such a scenario is illustrated in Figure~\ref{fig:move-cycle}.
 Here, replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$.
@@ -546,7 +546,7 @@ This \isa{option} type means the field can either take the value \isa{None} (equ
 When a replica applies a \isa{Move} operation to its tree, it also records a corresponding \isa{LogMove} operation in its log.
 The \isa{t}, \isa{p}, \isa{m} and \isa{c} fields are taken directly from the \isa{Move} record, while the \isa{oldp} field is filled in based on the state of the tree before the move.
 If \isa{c} did not exist in the tree prior to the move, \isa{oldp} is set to \isa{None}.
-Otherwise, \isa{oldp} records the previous parent and metadata of \isa{c}, that is: if there exist \isa{p'}, \isa{m'} such that \isa{(p', m', c) {\isasymin} tree}, then \isa{oldp} is set to \isa{Some (p', m')}.
+Otherwise, \isa{oldp} records the previous parent and metadata of \isa{c}, that is: if there exists a \isa{p'} and \isa{m'} such that \isa{(p', m', c) {\isasymin} tree}, then \isa{oldp} is set to \isa{Some (p', m')}.
 This logic is performed by the \isa{get\_parent} function (lines 16--20).
 
 In the first line of \isa{get\_parent}, the expression between \isa{::} and \textbf{where} is the type signature of the function, in this case:
@@ -570,7 +570,7 @@ The \isa{do\_op} function (lines 26--31) now performs the actual work of applyin
 This function takes as argument a pair consisting of a \isa{Move} operation and the current tree, and it returns a pair consisting of a \isa{LogMove} operation (which will be added to the log) and an updated tree.
 In line 29, the \isa{LogMove} record is constructed as described in Section~\ref{sec:state-log}, obtaining the prior parent and metadata of \isa{c} using the \isa{get\_parent} function.
 
-Line 30 performs the check that ensures no cycles are introduced: if \isa{ancestor tree c newp}, i.e.\ if the node being moved \isa{c} is an ancestor of the new parent \isa{newp}, then the tree is returned unmodified---in other words, the operation is ignored.
+Line 30 performs the check that ensures no cycles are introduced: if \isa{ancestor tree c newp}, i.e.\ if the node \isa{c} is being moved, and \isa{c} is an ancestor of the new parent \isa{newp}, then the tree is returned unmodified---in other words, the operation is ignored.
 Similarly, if \isa{c = newp}, the operation is also ignored.
 Otherwise (line 31), the tree is updated by removing \isa{c} from its existing parent, if any, and adding the new parent-child relationship \isa{(newp, m, c)} to the tree.
 
@@ -830,7 +830,7 @@ We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained
 Note some useful corollaries follow immediately from this definition: e,g,~we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
 
 Our general strategy henceforth is to produce a new set of definitions---mirroring the structure of our existing definitions---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
-We adopt the convention that any definition using hash-maps will be referred to as an ``efficient'' definition, and any definition making use of HOL's set type will be referred to as an ``abstract'' definition, for the sake of clarity.
+For the sake of clarity, we adopt the convention that any definition using hash-maps will be referred to as an ``efficient'' definition, and any definition making use of HOL's set type will be referred to as an ``abstract'' definition.
 For most definitions this is a mechanical process, and we elide further description here.
 However \isa{ancestor} is slightly different, as it is an inductively defined relation rather than a recursive function, and we therefore need further work to make this efficiently executable.
 We characterise this relation recursively with the following theorem:
