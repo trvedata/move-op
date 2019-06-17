@@ -780,6 +780,29 @@ proof (case_tac \<open>t1 < t2\<close>, metis assms apply_op_commute2)
     using assms apply_op_commute2 by metis
 qed
 
+corollary apply_op_commute2':
+  assumes \<open>unique_parent tree\<close>
+    and \<open>distinct ((map log_time log) @
+                   (map move_time [oper1, oper2]))\<close>
+  shows \<open>apply_op oper2 (apply_op oper1 (log, tree)) =
+         apply_op oper1 (apply_op oper2 (log, tree))\<close>
+proof -
+  obtain t1 p1 m1 c1 where op1: \<open>oper1 = Move t1 p1 m1 c1\<close>
+    using operation.exhaust by blast
+  moreover obtain t2 p2 m2 c2 where op2: \<open>oper2 = Move t2 p2 m2 c2\<close>
+    using operation.exhaust by blast
+  moreover have \<open>distinct ((map log_time log) @ [t1, t2])\<close>
+    using assms(2) op1 op2 by auto
+  moreover obtain tree1 log1 where \<open>apply_op (Move t1 p1 m1 c1) (log, tree) = (log1, tree1)\<close>
+    using prod.exhaust_sel by blast
+  moreover obtain tree2 log2 where \<open>apply_op (Move t2 p2 m2 c2) (log, tree) = (log2, tree2)\<close>
+    using prod.exhaust_sel by blast
+  moreover have \<open>apply_op (Move t2 p2 m2 c2) (log1, tree1) = apply_op (Move t1 p1 m1 c1) (log2, tree2)\<close>
+    using apply_op_commute2I assms(1) calculation by fastforce
+  ultimately show ?thesis
+    by simp
+qed
+
 lemma apply_op_timestamp:
   assumes \<open>distinct ((map log_time log1) @ [t])\<close>
     and \<open>apply_op (Move t p m c) (log1, tree1) = (log2, tree2)\<close>
