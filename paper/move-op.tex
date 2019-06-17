@@ -685,7 +685,7 @@ If the
 
 \subsection{Extracting efficient algorithms from HOL}
 
-Isabelle/HOL's can extract executable Haskell, OCaml, Scala, and Standard ML code from HOL definitions using a code generation mechanism.
+Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code from HOL definitions using a code generation mechanism~\cite{XXX}.
 However,  care must be taken when using this mechanism, as:
 \begin{enumerate}
 \item
@@ -698,7 +698,10 @@ This is especially true when using HOL's \isa{set} type, a type of potentially i
 Whilst convenient for theorem proving purposes, this type often leads to gross inefficiency in the extracted code.
 \end{enumerate}
 
-Because of these problems, we produce 
+As a result, prior to evaluating our algorithms in a real-world setting, we first produce a series of refined definitions that are optimised for efficient execution rather than ease of theorem proving.
+Within these definitions, we eschew the HOL \isa{set} type, and instead use a more efficient hash-map implementation provided by the Isabelle Collections Framework~\cite{XXX}.
+Using an explicit \emph{simulation relation}, we show the correctness of these efficient algorithms taking our abstract algorithms as ground truth of the correct behaviour.
+Moreover, we show that our correctness theorems, such as \isa{apply\_ops\_acyclic}, easily transfer to the more efficient implementations.
 
 \section{Related work}\label{sec:relwork}
 
