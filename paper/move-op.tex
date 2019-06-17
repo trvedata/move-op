@@ -716,7 +716,7 @@ To prove that \isa{apply\_op} preserves the acyclicity invariant, we need to sho
 (This is the case when operations are applied in order of increasing timestamp.)
 Then we can use the result of the previous paragraph to prove that any tree produced by \isa{apply\_ops} must be acyclic.
 
-\subsection{Commutativity of apply\_op}
+\subsection{Convergence}
 
 As discussed in Section~\ref{sec:applying}, we require that when replicas apply the same set of operations, they converge towards the same state, regardless of the order in which the operations are applied.
 We formalise this in Isabelle as follows:
@@ -735,6 +735,8 @@ The assumption \isa{distinct (map move\_time ops1)} therefore states that in the
 The function \isa{set} takes a list and turns it into an unordered set with the same elements.
 Thus, the assumption \isa{set ops1 = set ops2} means that the lists \isa{ops1} and \isa{ops2} contain the same elements, but perhaps in a different order---in other words, \isa{ops1} is a permutation of \isa{ops2}.
 Under these assumptions, \isa{apply\_ops\_commutes} proves that applying the list of operations \isa{ops1} results in the same replica state as applying the list of operations \isa{ops2}.
+
+\subsubsection{Commutativity of apply\_op}
 
 To prove this theorem we must first show that \isa{undo\_op} performs the inverse of \isa{do\_op}, that is:
 \begin{isabelle}
@@ -788,6 +790,12 @@ We now consider three cases:
         \end{quote}
         We now apply \isa{oper1} and \isa{oper2} as in the base case, and finally reapply \isa{logop} to both sides using \isa{redo\_op}, resulting in the same state on both sides.
 \end{enumerate}
+
+\subsubsection{Strong eventual consistency}
+
+Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs.
+Based on the commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
+The details of this proof are given in the open source Isabelle source files.\footnote{\url{https://github.com/trvedata/move-op}}
 
 \section{Evaluation}\label{sec:evaluation}
 
