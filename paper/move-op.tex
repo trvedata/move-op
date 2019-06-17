@@ -555,7 +555,7 @@ In the first line of \isa{get\_parent}, the expression between \isa{::} and \tex
 \end{quote}
 This signature denotes a function that takes two arguments: a tree \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set} and a node \isa{'n}.
 It then returns a \isa{('n {\isasymtimes} 'm) option}.
-\isa{{\isasymexists}!x} means ``there exists a unique value \isa{x} such that\dots''.
+\isa{{\isasymexists}!x} means ``there exists a unique value \isa{x} such that\dots'', whilst $\isa{THE}\ \isa{x}. \ldots$ means ``\emph{choose} the unique value \isa{x} such that\ldots''.
 
 In line 14 we define the datatype for the state of a replica: a pair \isa{(log, tree)} where \isa{log} is a list of \isa{LogMove} records, and \isa{tree} is a set of \isa{(parent, meta, child)} triples as before.
 
