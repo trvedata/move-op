@@ -722,6 +722,15 @@ However, \isa{ancestor} is slightly different to our other definitions, as it is
 Specifically, we can characterise this relation recursively with the following theorem, which we prove inside Isabelle/HOL:
 
 % DPM: add efficient_ancestor_simp here
+\begin{isabelle}
+\isacommand{theorem}\isamarkupfalse%
+\ efficient{\isacharunderscore}ancestor{\isacharunderscore}simp\ {\isacharbrackleft}code{\isacharbrackright}{\isacharcolon}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}efficient{\isacharunderscore}ancestor\ t\ p\ c\ {\isasymlongleftrightarrow}\isanewline
+\ \ \ \ \ \ \ \ \ \ {\isacharparenleft}case\ hm{\isachardot}lookup\ c\ t\ of\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ None\ {\isasymRightarrow}\ False\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ {\isacharbar}\ Some\ {\isacharparenleft}m{\isacharcomma}\ a{\isacharparenright}\ {\isasymRightarrow}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ {\isacharequal}\ p\ {\isasymor}\ efficient{\isacharunderscore}ancestor\ t\ p\ a{\isacharparenright}{\isacartoucheclose}
+\end{isabelle}
 
 Note that the theorem \isa{efficient\_ancestor\_simp} is tagged with a $\isa{code}$ attribute, which is a hint that this theorem should be used as a transformation during the code generation process.
 Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{efficient\_ancestor} relation and is able to directly translate this to a recursive function definition in each target backend.
@@ -730,11 +739,26 @@ Next, we demonstrate the correctness of our new efficient definitions against ou
 The correctness properties that we prove are best described using an example, as they all follow a similar pattern, and we therefore focus on the lemma \isa{efficient\_do\_op\_simulates} which states the following property:
 
 % DPM: add efficient_do_op_simulates here
+\begin{isabelle}
+\isacommand{lemma}\isamarkupfalse%
+\ efficient{\isacharunderscore}do{\isacharunderscore}op{\isacharunderscore}simulates{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}t\ {\isasympreceq}\ T{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ T{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
+\end{isabelle}
 
 Note that we show that the \isa{efficient\_do\_op} and the \isa{do\_op} functions maintain a ``lock-step'' property, mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations, whenever they are applied to the same input operation, \isa{oper}.
 This pattern of lock-step simulation is repeated bottom-up for every pair of efficient-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
 
 %DPM: add efficient_apply_ops_simulates here
+\begin{isabelle}
+\isacommand{lemma}\isamarkupfalse%
+\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}simulates{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
+\end{isabelle}
 
 Note that this property correctly captures our intuitive understanding of what it means for \isa{efficient\_apply\_ops} to be correct with respect to \isa{apply\_ops}.
 Specifically, the theorem states that if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records, i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
@@ -742,6 +766,21 @@ We can further check that this theorem correctly captures the correctness of our
 For example:
 
 % DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
+\begin{isabelle}
+\isacommand{theorem}\isamarkupfalse%
+\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}set\ ops{\isadigit{1}}\ {\isacharequal}\ set\ ops{\isadigit{2}}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{1}}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{4}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{1}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{5}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{2}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ hm{\isachardot}lookup\ c\ t\ {\isacharequal}\ hm{\isachardot}lookup\ c\ u{\isacartoucheclose}\isanewline
+\isanewline
+\isacommand{theorem}\isamarkupfalse%
+\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}{\isasymnexists}n{\isachardot}\ efficient{\isacharunderscore}ancestor\ t\ n\ n{\isacartoucheclose}
+\end{isabelle}
 
 Both follow as corollaries of the theorems \isa{apply\_ops\_commutes} and \text{apply\_ops\_acyclic}, respectively.
 Note that the statement of \isa{efficient\_apply\_ops\_commutes} differs slightly from the statement of \isa{apply\_ops\_commutes}---the latter theorem asserts that identical sets are obtained whilst the former asserts that simply reading any key binding in $t$ gives the same result as reading in $u$.
