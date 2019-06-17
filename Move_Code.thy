@@ -741,7 +741,7 @@ proof -
     by auto
 qed
 
-subsection\<open>Testing code generation\<close>
+text\<open>Testing code generation\<close>
 
 text\<open>Check that all of the efficient algorithms produce executable code for all of Isabelle/HOL's
      code generation targets (Standard ML, Scala, OCaml, Haskell).  Note that the Isabelle code

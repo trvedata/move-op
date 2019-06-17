@@ -2,7 +2,7 @@ theory Move_SEC
   imports Move CRDT.Network
 begin
 
-section \<open>Strong Eventual Consistency\<close>
+section \<open>Strong eventual consistency\<close>
 
 definition apply_op' :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow> ('t, 'n, 'm) state \<rightharpoonup> ('t, 'n, 'm) state\<close> where
   \<open>apply_op' x s \<equiv> case s of (log, tree) \<Rightarrow>

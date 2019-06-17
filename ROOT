@@ -6,6 +6,7 @@ session "CRDT-Tree" (AFP) = "HOL" +
     Collections
   theories
     Move
+    Move_Acyclic
     Move_SEC
     Move_Code
   document_files

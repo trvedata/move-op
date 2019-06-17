@@ -96,68 +96,8 @@ lemma apply_ops_Nil [simp]:
   shows \<open>apply_ops [] = ([], {})\<close>
   by (clarsimp simp add: apply_ops_def)
 
-section \<open>undo-op is the inverse of do-op\<close>
 
-lemma get_parent_None:
-  assumes \<open>\<nexists>p m. (p, m, c) \<in> tree\<close>
-  shows \<open>get_parent tree c = None\<close>
-  by (meson assms get_parent_def)
-
-lemma get_parent_Some:
-  assumes \<open>(p, m, c) \<in> tree\<close>
-    and \<open>\<And>p' m'. (p', m', c) \<in> tree \<Longrightarrow> p' = p \<and> m' = m\<close>
-  shows \<open>get_parent tree c = Some (p, m)\<close>
-proof -
-  have \<open>\<exists>!parent. \<exists>!meta. (parent, meta, c) \<in> tree\<close>
-    using assms by metis
-  hence \<open>(THE (parent, meta). (parent, meta, c) \<in> tree) = (p, m)\<close>
-    using assms(2) by auto
-  thus \<open>get_parent tree c = Some (p, m)\<close>
-    using assms get_parent_def by metis
-qed
-
-lemma pred_equals_eq3:
-  shows \<open>(\<lambda>x y z. (x, y, z) \<in> R) = (\<lambda>x y z. (x, y, z) \<in> S) \<longleftrightarrow> R = S\<close>
-  by (simp add: set_eq_iff fun_eq_iff)
-
-lemma do_undo_op_inv:
-  assumes \<open>unique_parent tree\<close>
-  shows \<open>undo_op (do_op (Move t p m c, tree)) = tree\<close>
-proof(cases \<open>\<exists>par meta. (par, meta, c) \<in> tree\<close>)
-  case True
-  from this obtain oldp oldm where 1: \<open>(oldp, oldm, c) \<in> tree\<close>
-    by blast
-  hence 2: \<open>get_parent tree c = Some (oldp, oldm)\<close>
-    using assms get_parent_Some unique_parent_def by metis
-  {
-    fix p' m' c'
-    assume 3: \<open>(p', m', c') \<in> tree\<close>
-    hence \<open>(p', m', c') \<in> undo_op (do_op (Move t p m c, tree))\<close>
-      using 1 2 assms unique_parent_def by (cases \<open>c = c'\<close>; fastforce) 
-  }
-  hence \<open>tree \<subseteq> undo_op (do_op (Move t p m c, tree))\<close>
-    by auto
-  moreover have \<open>undo_op (do_op (Move t p m c, tree)) \<subseteq> tree\<close>
-    using 1 2 by auto
-  ultimately show ?thesis
-    by blast
-next
-  case no_old_parent: False
-  hence \<open>get_parent tree c = None\<close>
-    using assms get_parent_None by metis
-  moreover have \<open>{(p', m', c') \<in> tree. c' \<noteq> c} = tree\<close>
-    using no_old_parent by fastforce
-  moreover from this have \<open>{(p', m', c') \<in> (tree \<union> {(p, m, c)}). c' \<noteq> c} = tree\<close>
-    by blast
-  ultimately show ?thesis by simp
-qed
-
-lemma do_undo_op_inv_var:
-  assumes \<open>unique_parent tree\<close>
-  shows \<open>undo_op (do_op (oper, tree)) = tree\<close>
-  using assms do_undo_op_inv by (metis operation.exhaust_sel)
-
-section \<open>Preserving the invariant that each tree node has at most one parent\<close>
+section \<open>Tree invariant 1: at most one parent\<close>
 
 lemma subset_unique_parent:
   assumes \<open>unique_parent tree\<close>
@@ -321,261 +261,70 @@ next
     by (metis apply_op_unique_parent snoc.prems)
 qed
 
+section \<open>Move operation properties\<close>
 
-section \<open>Preserving the invariant that the tree contains no cycles\<close>
+subsection \<open>undo-op is the inverse of do-op\<close>
 
-definition acyclic :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> where
-  \<open>acyclic tree \<equiv> (\<nexists>n. ancestor tree n n)\<close>
+lemma get_parent_None:
+  assumes \<open>\<nexists>p m. (p, m, c) \<in> tree\<close>
+  shows \<open>get_parent tree c = None\<close>
+  by (meson assms get_parent_def)
 
-lemma acyclic_empty [simp]: \<open>acyclic {}\<close>
-  by (meson Move.acyclic_def ancestor_indcases empty_iff)
-
-lemma acyclicE [elim]:
-  assumes \<open>acyclic \<T>\<close>
-    and \<open>(\<nexists>n. ancestor \<T> n n) \<Longrightarrow> P\<close>
-  shows \<open>P\<close>
-  using assms by (auto simp add: acyclic_def)
-
-lemma ancestor_empty_False [simp]:
-  shows \<open>ancestor {} p c = False\<close>
-  by (meson ancestor_indcases emptyE)
-
-lemma ancestor_superset_closed:
-  assumes \<open>ancestor \<T> p c\<close>
-    and \<open>\<T> \<subseteq> \<S>\<close>
-  shows \<open>ancestor \<S> p c\<close>
-  using assms by (induction rule: ancestor.induct) (auto intro: ancestor.intros)
-
-lemma acyclic_subset:
-  assumes \<open>acyclic T\<close>
-    and \<open>S \<subseteq> T\<close>
-  shows \<open>acyclic S\<close>
-  using assms ancestor_superset_closed by (metis acyclic_def)
-
-inductive path :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> ('n \<times> 'n) list \<Rightarrow> bool\<close> where
-  \<open>\<lbrakk>(b, x, e) \<in> T\<rbrakk> \<Longrightarrow> path T b e [(b, e)]\<close> |
-  \<open>\<lbrakk>path T b m xs; (m, e) \<notin> set xs; (m, x, e) \<in> T\<rbrakk> \<Longrightarrow> path T b e (xs @ [(m, e)])\<close>
-
-inductive_cases path_indcases: \<open>path T b e xs\<close>
-
-lemma empty_path:
-  shows \<open>\<not> path T x y []\<close>
-  using path_indcases by fastforce
-
-lemma singleton_path:
-  assumes \<open>path T b m [(p, c)]\<close>
-  shows \<open>b = p \<and> m = c\<close>
-  using assms by (metis (no_types, lifting) butlast.simps(2) butlast_snoc empty_path
-    list.inject path.cases prod.inject)
-
-lemma last_path:
-  assumes \<open>path T b e (xs @ [(p, c)])\<close>
-  shows \<open>e = c\<close>
-  using assms path.cases by force
-
-lemma path_drop1:
-  assumes \<open>path T b e (xs @ [(a, e)])\<close>
-    and \<open>xs \<noteq> []\<close>
-  shows \<open>path T b a xs \<and> (a, e) \<notin> set xs\<close>
-  using assms path.cases by force
-  
-lemma path_drop:
-  assumes \<open>path T b e (xs @ ys)\<close>
-    and \<open>xs \<noteq> []\<close>
-  shows \<open>\<exists>m. path T b m xs\<close>
-using assms proof(induction ys arbitrary: xs, force)
-  case (Cons x ys)
-  from this obtain m where IH: \<open>path T b m (xs @ [x])\<close>
-    by fastforce
-  moreover obtain a e where \<open>x = (a, e)\<close>
-    by fastforce
-  moreover from this have \<open>m = e\<close>
-    using IH last_path by fastforce
-  ultimately show ?case
-    using Cons.prems(2) path_drop1 by fastforce
-qed
-
-lemma fst_path:
-  assumes \<open>path T b e ((p, c) # xs)\<close>
-  shows \<open>b = p\<close>
-using assms proof(induction xs arbitrary: e rule: List.rev_induct)
-  case Nil then show ?case
-    by (simp add: singleton_path)
-next
-  case (snoc x xs)
-  then show ?case
-    by (metis append_Cons list.distinct(1) path_drop)
-qed
-
-lemma path_split:
-  assumes \<open>path T m n xs\<close>
-    and \<open>(p, c) \<in> set xs\<close>
-  shows \<open>\<exists>ys zs. (ys = [] \<or> path T m p ys) \<and> (zs = [] \<or> path T c n zs) \<and>
-                 (xs = ys @ [(p, c)] @ zs) \<and> (p, c) \<notin> set ys \<and> (p, c) \<notin> set zs\<close>
-using assms proof(induction rule: path.induct, force)
-  case step: (2 T b m xs e)
-  then show ?case
-  proof(cases \<open>(p, c) = (m, e)\<close>)
-    case True
-    then show ?thesis using step.hyps by force
-  next
-    case pc_xs: False (* (p, c) \<in> set xs *)
-    then obtain ys zs where yszs: \<open>(ys = [] \<or> path T b p ys) \<and> (zs = [] \<or> path T c m zs) \<and>
-        xs = ys @ [(p, c)] @ zs \<and> (p, c) \<notin> set ys \<and> (p, c) \<notin> set zs\<close>
-      using step.IH step.prems by auto
-    have path_zs: \<open>path T c e (zs @ [(m, e)])\<close>
-      by (metis (no_types, lifting) Un_iff append_Cons last_path path.simps
-          self_append_conv2 set_append step.hyps(1) step.hyps(2) step.hyps(3) yszs)
-    then show ?thesis
-    proof(cases \<open>ys = []\<close>)
-      case True
-      hence \<open>\<exists>zsa. ([] = [] \<or> path T b p []) \<and> (zsa = [] \<or> path T c e zsa) \<and>
-              (p, c) # zs @ [(m, e)] = [] @ (p, c) # zsa \<and> (p, c) \<notin> set [] \<and> (p, c) \<notin> set zsa\<close>
-        using pc_xs path_zs yszs by auto
-      then show ?thesis
-        using yszs by force
-    next
-      case False
-      hence \<open>\<exists>zsa. (ys = [] \<or> path T b p ys) \<and> (zsa = [] \<or> path T c e zsa) \<and>
-              ys @ (p, c) # zs @ [(m, e)] = ys @ (p, c) # zsa \<and> (p, c) \<notin> set ys \<and> (p, c) \<notin> set zsa\<close>
-        using path_zs pc_xs yszs by auto
-      then show ?thesis
-        using yszs by force
-    qed
-  qed
-qed
-
-lemma anc_path:
-  assumes \<open>ancestor T p c\<close>
-  shows \<open>\<exists>xs. path T p c xs\<close>
-using assms proof(induction rule: ancestor.induct)
-  case (1 parent meta child tree)
-  then show ?case by (meson path.intros(1))
-next
-  case step: (2 parent meta child tree anc)
-  then obtain xs where xs: \<open>path tree anc parent xs\<close>
-    by blast
-  then show ?case
-  proof(cases \<open>(parent, child) \<in> set xs\<close>)
-    case True
-    then show ?thesis
-      by (metis step.hyps(1) xs append_Cons append_Nil fst_path path.intros path_split)
-  next
-    case False
-    then show ?thesis
-      by (meson path.intros(2) step.hyps(1) xs)
-  qed
-qed
-
-lemma path_anc:
-  assumes \<open>path T p c xs\<close>
-  shows \<open>ancestor T p c\<close>
-using assms by (induction rule: path.induct, auto simp add: ancestor.intros)
-
-lemma anc_path_eq:
-  shows \<open>ancestor T p c \<longleftrightarrow> (\<exists>xs. path T p c xs)\<close>
-  by (meson anc_path path_anc)
-
-lemma acyclic_path_eq:
-  shows \<open>acyclic T \<longleftrightarrow> (\<nexists>n xs. path T n n xs)\<close>
-  by (meson anc_path acyclic_def path_anc)
-
-
-lemma rem_edge_path:
-  assumes \<open>path T m n xs\<close>
-    and \<open>T = insert (p, x, c) S\<close>
-    and \<open>(p, c) \<notin> set xs\<close>
-  shows \<open>path S m n xs\<close>
-using assms by (induction rule: path.induct, auto simp add: path.intros)
-
-lemma ancestor_transitive:
-  assumes \<open>ancestor \<S> n p\<close> and \<open>ancestor \<S> m n\<close>
-    shows \<open>ancestor \<S> m p\<close>
-  using assms by (induction rule: ancestor.induct) (auto intro: ancestor.intros)
-
-lemma cyclic_path_technical:
-  assumes \<open>path T m m xs\<close>
-    and \<open>T = insert (p, x, c) S\<close>
-    and \<open>\<forall>n. \<not> ancestor S n n\<close>
-    and \<open>c \<noteq> p\<close>
-  shows \<open>ancestor S c p\<close>
-proof(cases \<open>(p, c) \<in> set xs\<close>)
-  case True
-  then obtain ys zs where yszs: \<open>(ys = [] \<or> path T m p ys) \<and> (zs = [] \<or> path T c m zs) \<and>
-       xs = ys @ [(p, c)] @ zs \<and> (p, c) \<notin> set ys \<and> (p, c) \<notin> set zs\<close>
-    using assms(1) path_split by force
-  then show ?thesis
-  proof(cases \<open>ys = []\<close>)
-    case True
-    then show ?thesis using assms by (metis append_Cons append_Nil fst_path path_anc
-      rem_edge_path singleton_path yszs)
-  next
-    case False
-    then show ?thesis using assms by (metis ancestor_transitive last_path path_anc
-      rem_edge_path self_append_conv yszs)
-  qed
-next
-  case False
-  then show ?thesis
-    using assms by (metis path_anc rem_edge_path)
-qed
-
-lemma cyclic_ancestor:
-  assumes \<open>\<not> acyclic (S \<union> {(p, x, c)})\<close>
-    and \<open>acyclic S\<close> 
-    and \<open>c \<noteq> p\<close>
-  shows \<open>ancestor S c p\<close>
-using assms anc_path acyclic_def cyclic_path_technical by fastforce
-
-lemma do_op_acyclic:
-  assumes \<open>acyclic tree1\<close>
-    and \<open>do_op (Move t newp m c, tree1) = (log_oper, tree2)\<close>
-  shows \<open>acyclic tree2\<close>
-proof(cases \<open>ancestor tree1 c newp \<or> c = newp\<close>)
-  case True
-  then show \<open>acyclic tree2\<close>
-    using assms by auto
-next
-  case False
-  hence A: \<open>tree2 = {(p', m', c') \<in> tree1. c' \<noteq> c} \<union> {(newp, m, c)}\<close>
+lemma get_parent_Some:
+  assumes \<open>(p, m, c) \<in> tree\<close>
+    and \<open>\<And>p' m'. (p', m', c) \<in> tree \<Longrightarrow> p' = p \<and> m' = m\<close>
+  shows \<open>get_parent tree c = Some (p, m)\<close>
+proof -
+  have \<open>\<exists>!parent. \<exists>!meta. (parent, meta, c) \<in> tree\<close>
+    using assms by metis
+  hence \<open>(THE (parent, meta). (parent, meta, c) \<in> tree) = (p, m)\<close>
     using assms(2) by auto
-  moreover have \<open>{(p', m', c') \<in> tree1. c' \<noteq> c} \<subseteq> tree1\<close>
-    by blast
-  moreover have \<open>acyclic tree1\<close>
-    using assms and acyclic_def by auto
-  moreover have B: \<open>acyclic {(p', m', c') \<in> tree1. c' \<noteq> c}\<close>
-    using acyclic_subset calculation(2) calculation(3) by blast
-  {
-    assume \<open>\<not> acyclic tree2\<close>
-    hence \<open>ancestor {(p', m', c') \<in> tree1. c' \<noteq> c} c newp\<close>
-      using cyclic_ancestor False A B by force
-    from this have \<open>False\<close>
-      using False ancestor_superset_closed calculation(2) by fastforce
-  }
-  from this show \<open>acyclic tree2\<close>
-    using acyclic_def by auto
+  thus \<open>get_parent tree c = Some (p, m)\<close>
+    using assms get_parent_def by metis
 qed
 
-lemma do_op_acyclic_var:
-  assumes \<open>acyclic tree1\<close>
-    and \<open>do_op (oper, tree1) = (log_oper, tree2)\<close>
-  shows \<open>acyclic tree2\<close>
-  using assms by (metis do_op_acyclic operation.exhaust_sel)
+lemma pred_equals_eq3:
+  shows \<open>(\<lambda>x y z. (x, y, z) \<in> R) = (\<lambda>x y z. (x, y, z) \<in> S) \<longleftrightarrow> R = S\<close>
+  by (simp add: set_eq_iff fun_eq_iff)
 
-lemma redo_op_acyclic_var:
-  assumes \<open>acyclic tree1\<close>
-    and \<open>redo_op (LogMove t oldp p m c) (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>acyclic tree2\<close>
-  using assms by (subst (asm) redo_op.simps) (rule do_op_acyclic, assumption, fastforce)
+lemma do_undo_op_inv:
+  assumes \<open>unique_parent tree\<close>
+  shows \<open>undo_op (do_op (Move t p m c, tree)) = tree\<close>
+proof(cases \<open>\<exists>par meta. (par, meta, c) \<in> tree\<close>)
+  case True
+  from this obtain oldp oldm where 1: \<open>(oldp, oldm, c) \<in> tree\<close>
+    by blast
+  hence 2: \<open>get_parent tree c = Some (oldp, oldm)\<close>
+    using assms get_parent_Some unique_parent_def by metis
+  {
+    fix p' m' c'
+    assume 3: \<open>(p', m', c') \<in> tree\<close>
+    hence \<open>(p', m', c') \<in> undo_op (do_op (Move t p m c, tree))\<close>
+      using 1 2 assms unique_parent_def by (cases \<open>c = c'\<close>; fastforce) 
+  }
+  hence \<open>tree \<subseteq> undo_op (do_op (Move t p m c, tree))\<close>
+    by auto
+  moreover have \<open>undo_op (do_op (Move t p m c, tree)) \<subseteq> tree\<close>
+    using 1 2 by auto
+  ultimately show ?thesis
+    by blast
+next
+  case no_old_parent: False
+  hence \<open>get_parent tree c = None\<close>
+    using assms get_parent_None by metis
+  moreover have \<open>{(p', m', c') \<in> tree. c' \<noteq> c} = tree\<close>
+    using no_old_parent by fastforce
+  moreover from this have \<open>{(p', m', c') \<in> (tree \<union> {(p, m, c)}). c' \<noteq> c} = tree\<close>
+    by blast
+  ultimately show ?thesis by simp
+qed
 
-corollary redo_op_acyclic:
-  assumes \<open>acyclic tree1\<close>
-    and \<open>redo_op logop (log1, tree1) = (log2, tree2)\<close>
-  shows \<open>acyclic tree2\<close>
-  using assms by (cases logop) (metis redo_op_acyclic_var)
+lemma do_undo_op_inv_var:
+  assumes \<open>unique_parent tree\<close>
+  shows \<open>undo_op (do_op (oper, tree)) = tree\<close>
+  using assms do_undo_op_inv by (metis operation.exhaust_sel)
 
-
-section \<open>Commutativity of move operation\<close>
+subsection \<open>Commutativity\<close>
 
 lemma distinct_list_pick1:
   assumes \<open>set (xs @ [x]) = set (ys @ [x] @ zs)\<close>
