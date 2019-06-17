@@ -703,18 +703,49 @@ Within these definitions, we eschew the HOL \isa{set} type, and instead use a mo
 Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for the type of hash-maps with key type $\isa{'a}$ and binding type $\isa{'b}$.
 Note that keys have an explicit $\isa{hashable}$ constraint, meaning that this hash-map type may only be used with types of keys with an associated hashing function.
 With this type, we represent trees by the type $(\isa{'n}::\{hashable\}, \isa{'m} \times \isa{'n})\ \isa{hm}$.
-Intuitively, this type can be thought of as a mapping from \emph{child} nodes to \emph{parent} nodes, represented by the type-variable $\isa{'n}$, and any associated metadata (represented by the type variable $\isa{'m}$.
+Intuitively, this type can be thought of as a mapping from \emph{child} nodes to \emph{parent} nodes, represented by the type-variable $\isa{'n}$, and any associated metadata (represented by the type variable $\isa{'m}$).
 
 We introduce an explicit \emph{simulation relation} between our two representations of trees.
-Specifically, we say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ simulates a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$:
+Specifically, we say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ simulates a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
 \begin{displaymath}
-\isa{hm.lookup}\ c t = \isa{Some}\ (m, p) \leftrightarrow (p, m, c) \in T \quad\text{for all $c$, $m$, and $p$}
+\isa{hm.lookup}\ c\ t = \isa{Some}\ (m, p) \quad\text{iff}\quad (p, m, c) \in T \quad\text{forall $c$, $m$, and $p$}
 \end{displaymath}
 where $hm.lookup$ is the (potentially failing) function that searches for a binding for key $\isa{c}$ in hash-map $t$.
-We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained within the simulation relation, defined above.
+We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained within the simulation relation, as defined above.
+Note that many useful corollaries follow immediately from this definition, for example we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
 
-Using an explicit \emph{simulation relation}, we show the correctness of these efficient algorithms taking our abstract algorithms as ground truth of the correct behaviour.
-Moreover, we show that our correctness theorems, such as \isa{apply\_ops\_acyclic}, easily transfer to the more efficient implementations.
+Our general strategy henceforth is to produce a new set of definitions---mirroring the structure of our existing definitions---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
+We adopt the convention that any definition using hash-maps will be referred to as an ``efficient'' definition, and any definition making use of HOL's set type will be referred to as an ``abstract'' definition, for clarity.
+
+For most definitions this is an almost mechanical process, and we therefore elide further description here.
+However, \isa{ancestor} is slightly different to our other definitions, as it is an inductively defined relation rather than a recursive function, and we therefore need further work to make this efficiently executable.
+Specifically, we can characterise this relation recursively with the following theorem, which we prove inside Isabelle/HOL:
+
+% DPM: add efficient_ancestor_simp here
+
+Note that the theorem \isa{efficient\_ancestor\_simp} is tagged with a $\isa{code}$ attribute, which is a hint that this theorem should be used as a transformation during the code generation process.
+Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{efficient\_ancestor} relation and is able to directly translate this to a recursive function definition in each target backend.
+
+Next, we demonstrate the correctness of our new efficient definitions against our older, abstract definitions.
+The correctness properties that we prove are best described using an example, as they all follow a similar pattern, and we therefore focus on the lemma \isa{efficient\_do\_op\_simulates} which states the following property:
+
+% DPM: add efficient_do_op_simulates here
+
+Note that we show that the \isa{efficient\_do\_op} and the \isa{do\_op} functions maintain a ``lock-step'' property, mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations, whenever they are applied to the same input operation, \isa{oper}.
+This pattern of lock-step simulation is repeated bottom-up for every pair of efficient-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
+
+%DPM: add efficient_apply_ops_simulates here
+
+Note that this property correctly captures our intuitive understanding of what it means for \isa{efficient\_apply\_ops} to be correct with respect to \isa{apply\_ops}.
+Specifically, the theorem states that if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records, i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
+We can further check that this theorem correctly captures the correctness of our \isa{apply\_ops} definition by recasting the various tree invariant and convergence theorems in terms of \isa{efficient\_apply\_ops}.
+For example:
+
+% DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
+
+Both follow as corollaries of the theorems \isa{apply\_ops\_commutes} and \text{apply\_ops\_acyclic}, respectively.
+Note that the statement of \isa{efficient\_apply\_ops\_commutes} differs slightly from the statement of \isa{apply\_ops\_commutes}---the latter theorem asserts that identical sets are obtained whilst the former asserts that simply reading any key binding in $t$ gives the same result as reading in $u$.
+Whilst this statement appears to be weaker than the statement of \text{apply\_ops\_acyclic}, it is correct, as the resulting hash-maps may not have an identical representation in-memory, depending on the particular ordering of key-value insertions, despite containing the same key-value bindings.
 
 \section{Related work}\label{sec:relwork}
 
