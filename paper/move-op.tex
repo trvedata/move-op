@@ -703,14 +703,14 @@ Within these definitions, we eschew the HOL \isa{set} type, and instead use a mo
 Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for the type of hash-maps with key type $\isa{'a}$ and binding type $\isa{'b}$.
 Note that keys have an explicit $\isa{hashable}$ constraint, meaning that this hash-map type may only be used with types of keys with an associated hashing function.
 With this type, we represent trees by the type $(\isa{'n}::\{hashable\}, \isa{'m} \times \isa{'n})\ \isa{hm}$.
-Intuitively, this type can be thought of as a mapping from \emph{child} nodes to \emph{parent} nodes, represented by the type-variable $\isa{'n}$, and any associated metadata (represented by the type variable $\isa{'m}$).
+Intuitively, this type can be thought of as a mapping from a \emph{child} node to its \emph{parent} node and associated metadata, if any such mapping exists.
 
 We introduce an explicit \emph{simulation relation} between our two representations of trees.
 Specifically, we say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ simulates a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
 \begin{displaymath}
 \isa{hm.lookup}\ c\ t = \isa{Some}\ (m, p) \quad\text{iff}\quad (p, m, c) \in T \quad\text{forall $c$, $m$, and $p$}
 \end{displaymath}
-where $hm.lookup$ is the (potentially failing) function that searches for a binding for key $\isa{c}$ in hash-map $t$.
+where $hm.lookup$ is the function that searches for a binding for key $\isa{c}$ in hash-map $t$, returning $\isa{Some}\ (m, p)$ when a binding from $c$ to $(m, p)$ exists in the hash-map, or $\isa{None}$ otherwise.
 We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained within the simulation relation, as defined above.
 Note that many useful corollaries follow immediately from this definition, for example we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
 
