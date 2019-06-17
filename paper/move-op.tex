@@ -131,7 +131,7 @@ Our contributions in this work are as follows:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in Section~\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
-    \item We formalise our abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of our algorithm.
+    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of the algorithm.
         In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) while keeping the data in a tree structure.
     \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an efficient implementation within Isabelle/HOL and prove the equivalence of the two.  We thereafter extract a formally verified, executable Scala implementation from the Isabelle/HOL definitions, and perform tests on this implementation.
     \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
@@ -511,8 +511,8 @@ For additional background on the language, standard documentation is available~\
 
 We define only one kind of operation: \isa{Move t p m c} (Figure~\ref{fig:code}, lines 1--5).
 A move operation is a record consisting of four fields: a timestamp \isa{t} of type \isa{'t}, a parent node \isa{p} of type \isa{'n}, a metadata field \isa{m} of type \isa{'m}, and a child node \isa{c} of type \isa{'n}.
-Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be instantiated with arbitrary datatypes; our only requirement is that timestamps \isa{'t} are globally unique and have a total order.
-For example, Lamport timestamps~\cite{Lamport:1978jq} meet these requirements.
+Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be \emph{substituted} for arbitrary types; our only requirement is that timestamps \isa{'t} are globally unique and have an associated total order.
+Concretely, Lamport timestamps~\cite{Lamport:1978jq} would meet these requirements.
 
 The meaning of an operation \isa{Move t p m c} is that at time \isa{t}, the child node \isa{c} is moved to be a child of parent node \isa{p}.
 The operation does not specify the old location of \isa{c}; the algorithm simply ``steals'' \isa{c} from wherever it is currently located in the tree, and moves it to \isa{p}.
@@ -541,7 +541,7 @@ This expression appears on lines 31 and 36 of Figure~\ref{fig:code}, as we shall
 In order to correctly apply move operations, a replica needs to maintain not only the current state of the tree, but also an \emph{operation log}.
 The log is a list of \isa{LogMove} records in descending timestamp order.
 A \isa{LogMove t oldp p m c} record (lines 7--12) is similar to a record \isa{Move t p m c}; the only difference is that the \isa{LogMove} has an additional field \isa{oldp} of type \isa{('n {\isasymtimes} 'm) option}.
-This \isa{option} type means the field can either take the value \isa{None} (equivalent to null), or a pair of an inode and a metadata field.
+This \isa{option} type means the field can either take the value \isa{None} (intuitively similar to null), or a pair of an inode and a metadata field.
 
 When a replica applies a \isa{Move} operation to its tree, it also records a corresponding \isa{LogMove} operation in its log.
 The \isa{t}, \isa{p}, \isa{m} and \isa{c} fields are taken directly from the \isa{Move} record, while the \isa{oldp} field is filled in based on the state of the tree before the move.
@@ -564,7 +564,7 @@ In line 14 we define the datatype for the state of a replica: a pair \isa{(log, 
 Recall from Section~\ref{sec:move-cycle} that in order to prevent a cycle being introduced, the node being moved must not be an ancestor of the destination node.
 To implement this in Figure~\ref{fig:code}, we first define the \isa{ancestor} relation in lines 22--24.
 This relation is the transitive closure of the parent-child relation of a tree: if \isa{(p, m, c) {\isasymin} tree} then \isa{p} is an ancestor of \isa{c} (line 23); moreover, if \isa{(p, m, c) {\isasymin} tree} and \isa{a} is an ancestor of \isa{p}, then \isa{a} is also an ancestor of \isa{c} (line 24).
-The \textbf{inductive} keyword indicates that this recursive definition is iterated until a fixed point is reached.
+The \textbf{inductive} keyword indicates that this recursive definition is iterated until a fixed point (the least) is reached.
 
 The \isa{do\_op} function (lines 26--31) now performs the actual work of applying a move operation.
 This function takes as argument a pair consisting of a \isa{Move} operation and the current tree, and it returns a pair consisting of a \isa{LogMove} operation (which will be added to the log) and an updated tree.
@@ -584,7 +584,7 @@ The intuition behind these functions is as follows: when a replica needs to appl
 The result of this procedure is that the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
 The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
-The expression \isa{'t::\{linorder\}} in the type signature indicates that the timestamps \isa{'t} belong to the type class \isa{linorder}, which means that timestamps can be compared with the \isa{<} operator defining a total order.
+The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and timestamps can therefore be compared with the \isa{<} operator defining a total order.
 This comparison occurs on line 49.
 
 Recall that the replica state includes the operation log (line 14), and we use this log to perform the undo-do-redo cycle.
