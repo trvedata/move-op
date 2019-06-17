@@ -757,13 +757,19 @@ To prove this theorem we must first show that \isa{undo\_op} performs the invers
 
 \noindent Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
 Assume \isa{t1 < t2} without loss of generality.
-We can now prove that lemma by induction over \isa{log}.
+We can now prove lemma \isa{apply\_op\_commute2} by induction over \isa{log}.
 
-For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op oper1 (log, tree))} evaluates to first applying \isa{oper1} using \isa{do\_op}, then applying \isa{oper2} using \isa{do\_op}.
-On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (log, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes \isa{oper2} again to yield the original \isa{tree} (per \isa{do\_undo\_op\_inv}), then applies \isa{oper1} using \isa{do\_op}, and finally reapplies \isa{oper2} using \isa{redo\_op}.
+For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op oper1 ([], tree))} evaluates to first applying \isa{oper1} using \isa{do\_op}, then applying \isa{oper2} using \isa{do\_op}.
+On the other hand, \isa{apply\_op oper1 (apply\_op oper2 ([], tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes \isa{oper2} again to yield the original \isa{tree} (per \isa{do\_undo\_op\_inv}), then applies \isa{oper1} using \isa{do\_op}, and finally reapplies \isa{oper2} using \isa{redo\_op}.
 The final states are the same on both sides of the equality.
 
-For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{cons} operator), and let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
+For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{cons} operator).
+We now need to show that
+\begin{isabelle}
+apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree)) =\\
+apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree)).
+\end{isabelle}
+Let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
 We now consider three cases:
 \begin{enumerate}
     \item \isa{t3 < t1 < t2}.
@@ -887,6 +893,10 @@ For example:
 Both follow as corollaries of the theorems \isa{apply\_ops\_commutes} and \text{apply\_ops\_acyclic}, respectively.
 Note that the statement of \isa{efficient\_apply\_ops\_commutes} differs slightly from the statement of \isa{apply\_ops\_commutes}---the latter theorem asserts that identical sets are obtained whilst the former asserts that simply reading any key binding in $t$ gives the same result as reading in $u$.
 Whilst this statement appears to be weaker than the statement of \text{apply\_ops\_acyclic}, it is correct, as the resulting hash-maps may not have an identical representation in-memory, depending on the particular ordering of key-value insertions, despite containing the same key-value bindings.
+
+\subsection{Performance experiments}
+
+TODO\dots
 
 \section{Related work}\label{sec:relwork}
 
