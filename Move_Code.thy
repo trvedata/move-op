@@ -48,45 +48,23 @@ lemma get_parent_NoneD:
     and \<open>unique_parent T\<close>
     and \<open>(p, m, c) \<in> T\<close>
   shows \<open>False\<close>
-using assms
-  apply(clarsimp simp add: get_parent_def unique_parent_def split: if_split_asm)
-  using assms(1) assms(2) get_parent_SomeI apply fastforce
-  done
+using assms by(clarsimp simp add: get_parent_def unique_parent_def split: if_split_asm; fastforce)
 
 lemma get_parent_NoneI:
   assumes \<open>unique_parent T\<close>
     and \<open>\<And>p m. (p, m, c) \<notin> T\<close>
   shows \<open>get_parent T c = None\<close>
-using assms
-  by(clarsimp simp add: unique_parent_def get_parent_def)
+using assms by(clarsimp simp add: unique_parent_def get_parent_def)
 
 lemma ancestor_ancestor_alt:
   assumes \<open>ancestor T p c\<close> and \<open>unique_parent T\<close>
     shows \<open>ancestor_alt T p c\<close>
-using assms
-  apply(induction rule: ancestor.induct)
-  apply(rule ancestor_alt.intros)
-  apply(rule get_parent_SomeI)
-  apply force+
-  apply(clarsimp)
-  apply(rule ancestor_alt.intros(2))
-  apply(rule get_parent_SomeI)
-  apply force+
-  done
+using assms by(induction rule: ancestor.induct; force intro: ancestor_alt.intros)
 
 lemma ancestor_alt_ancestor:
   assumes \<open>ancestor_alt T p c\<close> and \<open>unique_parent T\<close>
     shows \<open>ancestor T p c\<close>
-using assms
-  apply(induction rule: ancestor_alt.induct)
-  apply(drule get_parent_SomeD, assumption)
-  apply(rule ancestor.intros(1))
-  apply force
-  apply clarsimp
-  apply(rule ancestor.intros(2))
-  apply(drule get_parent_SomeD)
-  apply force+
-  done
+using assms by(induction rule: ancestor_alt.induct; force dest: get_parent_SomeD intro: ancestor.intros)
 
 theorem ancestor_ancestor_alt_iff [simp]:
   assumes \<open>unique_parent T\<close>
@@ -101,29 +79,29 @@ lemma unique_parent_singletonI [intro!]:
   shows \<open>unique_parent {x}\<close>
   by(auto simp add: unique_parent_def)
 
-definition refines :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> (infix "\<preceq>" 50)
-  where \<open>refines Rs Ss \<longleftrightarrow>
+definition simulates :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n \<times> 'm \<times> 'n) set \<Rightarrow> bool\<close> (infix "\<preceq>" 50)
+  where \<open>simulates Rs Ss \<longleftrightarrow>
            (\<forall>p m c. hm.lookup c Rs = Some (m, p) \<longleftrightarrow> (p, m, c) \<in> Ss)\<close>
 
-lemma refinesI [intro!]:
+lemma simulatesI [intro!]:
   assumes \<open>\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss\<close>
     and \<open>\<And>p m c. (p, m, c) \<in> Ss \<Longrightarrow> hm.lookup c Rs = Some (m, p)\<close>
   shows \<open>Rs \<preceq> Ss\<close>
-using assms unfolding refines_def by meson
+using assms unfolding simulates_def by meson
 
-lemma weak_refinesE:
+lemma weak_simulatesE:
   assumes \<open>Rs \<preceq> Ss\<close>
     and \<open>(\<And>p m c. hm.lookup c Rs = Some (m, p) \<Longrightarrow> (p, m, c) \<in> Ss) \<Longrightarrow> (\<And>p m c. (p, m, c) \<in> Ss \<Longrightarrow> hm.lookup c Rs = Some (m, p)) \<Longrightarrow> P\<close>
   shows P
-using assms by(auto simp add: refines_def)
+using assms by(auto simp add: simulates_def)
 
-lemma refinesE [elim]:
+lemma simulatesE [elim]:
   assumes \<open>Rs \<preceq> Ss\<close>
     and \<open>(\<And>p m c. (hm.lookup c Rs = Some (m, p)) \<longleftrightarrow> (p, m, c) \<in> Ss) \<Longrightarrow> P\<close>
   shows P
-using assms by(auto simp add: refines_def)
+using assms by(auto simp add: simulates_def)
 
-lemma empty_refinesI [intro!]:
+lemma empty_simulatesI [intro!]:
   shows \<open>hm.empty () \<preceq> {}\<close>
   by(auto simp add: hm.correct)
 
@@ -132,67 +110,47 @@ lemma get_parent_refinement_Some1:
     and \<open>unique_parent T\<close>
     and \<open>t \<preceq> T\<close>
     shows \<open>hm.lookup c t = Some (m, p)\<close>
-using assms
-  apply -
-  apply(erule refinesE)
-  apply(drule get_parent_SomeD)
-  apply force             
-  apply meson
-  done
+using assms by (force dest: get_parent_SomeD)
 
 lemma get_parent_refinement_Some2:
   assumes \<open>hm.lookup c t = Some (m, p)\<close>
     and \<open>unique_parent T\<close>
     and \<open>t \<preceq> T\<close>
     shows \<open>get_parent T c = Some (p, m)\<close>
-using assms
-  apply -
-  apply(erule refinesE)
-  apply(drule get_parent_SomeI)
-  apply force             
-  apply meson
-  done
+using assms by (force dest: get_parent_SomeI)  
 
 lemma get_parent_refinement_None1:
   assumes \<open>get_parent T c = None\<close>
     and \<open>unique_parent T\<close>
     and \<open>t \<preceq> T\<close>
-    shows \<open>hm.lookup c t = None\<close>
-using assms
-  apply -
-  apply(erule refinesE)
-  apply(subgoal_tac \<open>\<forall>p m. (p, m, c) \<notin> T\<close>)
-  apply(force dest: get_parent_NoneD)
-  apply(intro allI notI)
-  apply(drule get_parent_NoneD)
-  apply force+
-  done
+  shows \<open>hm.lookup c t = None\<close>
+proof -
+  have \<open>\<forall>p m. (p, m, c) \<notin> T\<close>
+    using assms by (force dest: get_parent_NoneD)
+  thus ?thesis
+    using assms by (force dest: get_parent_NoneD)
+qed
 
 lemma get_parent_refinement_None2:
   assumes \<open>hm.lookup c t = None\<close>
     and \<open>unique_parent T\<close>
     and \<open>t \<preceq> T\<close>
     shows \<open>get_parent T c = None\<close>
-using assms
-  apply -
-  apply(erule refinesE)
-  apply(rule get_parent_NoneI)
-  apply force+
-  done
+using assms by(force intro: get_parent_NoneI)
 
 corollary get_parent_refinement:
   fixes T :: \<open>('a::{hashable} \<times> 'b \<times> 'a) set\<close>
   assumes \<open>unique_parent T\<close> and \<open>t \<preceq> T\<close>
   shows \<open>get_parent T c = map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t)\<close>
-using assms
-  apply -
-  apply(case_tac \<open>get_parent T c\<close>; case_tac \<open>hm.lookup c t\<close>)
-  apply force
-  apply(frule get_parent_refinement_None1, force, force, force)
-  apply(case_tac a, clarify, frule get_parent_refinement_Some1, force, force, force)
-  apply(case_tac a, case_tac aa, clarify)
-  apply(frule get_parent_refinement_Some2, force, force, force)
-done
+proof (cases \<open>get_parent T c\<close>)
+  case None
+  then show ?thesis
+    using assms by (cases \<open>hm.lookup c t\<close>; force simp: get_parent_refinement_None1)
+next
+  case (Some a)
+  then show ?thesis
+    using assms get_parent_SomeI by (cases \<open>hm.lookup c t\<close>, simp add: get_parent_refinement_None2, fastforce)
+qed
 
 lemma set_member_refine:
   assumes \<open>(p, m, c) \<in> T\<close>
@@ -208,18 +166,13 @@ lemma ancestor_alt_simp1:
             | Some (m, a) \<Rightarrow>
                 a = p \<or> ancestor_alt T p a)\<close>
 using assms
-  apply(induction rule: ancestor_alt.induct)
-  apply(drule get_parent_refinement_Some1)
-  apply force
-  apply force
-  apply simp
-  apply clarsimp
-  apply(drule get_parent_SomeD)
-  apply force
-  apply(erule weak_refinesE)
-  apply(erule_tac x=p in meta_allE, erule_tac x=m in meta_allE, erule_tac x=c in meta_allE, erule meta_impE, assumption) back
-  apply clarsimp
-  done
+proof(induction rule: ancestor_alt.induct)
+  case (1 T c p m)
+  then show ?case by(force dest: get_parent_refinement_Some1)
+next
+  case (2 T c p m a)
+  then show ?case by(force dest: get_parent_SomeD)
+qed
 
 lemma ancestor_alt_simp2:
   assumes \<open>(case hm.lookup c t of
@@ -228,17 +181,7 @@ lemma ancestor_alt_simp2:
                 a = p \<or> ancestor_alt T p a)\<close>
     and \<open>t \<preceq> T\<close> and \<open>unique_parent T\<close>
   shows \<open>ancestor_alt T p c\<close>
-using assms
-  apply(clarsimp split: option.split_asm)
-  apply(erule weak_refinesE)
-  apply(erule_tac x=b in meta_allE, erule_tac x=a in meta_allE, erule_tac x=c in meta_allE, erule_tac meta_impE, assumption)
-  apply(erule disjE)
-  apply clarsimp
-  apply(rule ancestor_alt.intros(1))
-  apply(rule get_parent_SomeI, force, force)
-  apply(rule ancestor_alt.intros(2))
-  apply(rule get_parent_SomeI, force, force, force)
-  done
+using assms by(clarsimp split: option.split_asm; force intro: ancestor_alt.intros)
 
 theorem ancestor_alt_simp [simp]:
   fixes t :: \<open>('n::{hashable}, 'm \<times> 'n) hm\<close>
@@ -256,7 +199,7 @@ definition flip_triples :: \<open>('a \<times> 'b \<times> 'a) list \<Rightarrow
 definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
   where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor_alt (set (flip_triples (hm.to_list t))) p c\<close>
 
-lemma to_list_refines:
+lemma to_list_simulates:
   shows \<open>t \<preceq> set (flip_triples (hm.to_list t))\<close>
 proof
   fix p m c
@@ -284,18 +227,8 @@ qed
 
 lemma unique_parent_to_list:
   shows \<open>unique_parent (set (flip_triples (hm.to_list t)))\<close>
-apply(unfold unique_parent_def, intro allI impI conjI, elim conjE)
-apply(clarsimp simp add: flip_triples_def)
-apply(drule map_of_is_SomeI[rotated])+
-apply(force simp add: hm.to_list_correct)+
-apply(drule map_of_is_SomeI[rotated])+
-apply(force simp add: hm.to_list_correct)+
-apply(clarsimp simp add: flip_triples_def)
-apply(drule map_of_is_SomeI[rotated])+
-apply(force simp add: hm.to_list_correct)+
-apply(drule map_of_is_SomeI[rotated])+
-apply(force simp add: hm.to_list_correct)+
-done
+  by(unfold unique_parent_def, intro allI impI conjI, elim conjE)
+    (clarsimp simp add: flip_triples_def; (drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)+)+
 
 theorem efficient_ancestor_simp [code]:
   shows \<open>efficient_ancestor t p c \<longleftrightarrow>
@@ -303,12 +236,9 @@ theorem efficient_ancestor_simp [code]:
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
                 a = p \<or> efficient_ancestor t p a)\<close>
-  apply(unfold efficient_ancestor_def)
-  apply(subst ancestor_alt_simp)
-  apply(rule to_list_refines)
-  apply(rule unique_parent_to_list)
-  apply force
-  done
+  by (unfold efficient_ancestor_def)
+     (auto simp: efficient_ancestor_def intro!: ancestor_alt_simp unique_parent_to_list to_list_simulates)
+
 
 fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
         ('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
@@ -348,14 +278,14 @@ definition efficient_apply_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) op
 
 text\<open>Any abstract set that is simulated by a hash-map must necessarily have the
      @{term unique_parent} property:\<close>
-lemma refines_unique_parent:
+lemma simulates_unique_parent:
   assumes \<open>t \<preceq> T\<close> shows \<open>unique_parent T\<close>
 using assms unfolding unique_parent_def
 proof(intro allI impI, elim conjE)
   fix p1 p2 m1 m2 c
   assume \<open>(p1, m1, c) \<in> T\<close> and \<open>(p2, m2, c) \<in> T\<close>
   from this have \<open>hm.lookup c t = Some (m1, p1)\<close> and \<open>hm.lookup c t = Some (m2, p2)\<close>
-    using assms by(auto simp add: refines_def)
+    using assms by(auto simp add: simulates_def)
   from this show \<open>p1 = p2 \<and> m1 = m2\<close>
     by force
 qed
@@ -371,13 +301,13 @@ lemma hm_restrict_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { x\<in>T. (P \<circ> (\<lambda>(x, y, z). (z, y, x))) x }\<close>
   shows \<open>hm.restrict P t \<preceq> S\<close>
 using assms by(auto simp add: hm.lookup_correct hm.restrict_correct restrict_map_def
-    refines_unique_parent unique_parent_def split!: if_split_asm if_split)
+    simulates_unique_parent unique_parent_def split!: if_split_asm if_split)
 
 text\<open>@{term hm.update} is in relation with an explicit update operation on sets:\<close>
 lemma hm_update_refine:
   assumes \<open>t \<preceq> T\<close> and \<open>S = { (p, m, c) \<in> T. c\<noteq>x } \<union> {(z, y, x)}\<close>
   shows \<open>hm.update x (y, z) t \<preceq> S\<close>
-using assms by(auto simp add: hm.update_correct hm.lookup_correct refines_unique_parent split: if_split_asm)
+using assms by(auto simp add: hm.update_correct hm.lookup_correct simulates_unique_parent split: if_split_asm)
 
 text\<open>Two if-then-else constructs are in relation if both of their branches are in relation:\<close>
 lemma if_refine:
@@ -411,7 +341,7 @@ qed
 
 text\<open>The efficient and abstract @{term ancestor} relations agree for all ancestry queries between a
      prospective ancestor and child node when applied to related states:\<close>
-lemma efficient_ancestor_refines:
+lemma efficient_ancestor_simulates:
   assumes \<open>t \<preceq> T\<close>
   shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
 using assms proof(intro iffI)
@@ -428,7 +358,7 @@ using assms proof(intro iffI)
     from this have \<open>(p, m, c) \<in> set (flip_triples (hm.to_list t))\<close>
       by(force dest: get_parent_SomeD intro: unique_parent_to_list)
     from this have \<open>(p, m, c) \<in> T\<close>
-      using \<open>t \<preceq> T\<close> by(force simp add: hm.correct hm.to_list_correct refines_def
+      using \<open>t \<preceq> T\<close> by(force simp add: hm.correct hm.to_list_correct simulates_def
                 flip_triples_def dest: map_of_is_SomeI[rotated])
     then show ?case
       by(force intro: ancestor.intros)
@@ -444,10 +374,10 @@ using assms proof(intro iffI)
     from this have \<open>(c, m, p) \<in> set (hm.to_list t)\<close>
       by(auto simp add: flip_triples_def)
     from this and 2 have \<open>get_parent T c = Some (p, m)\<close>
-      by(auto intro!: get_parent_SomeI refines_unique_parent[OF 2]
+      by(auto intro!: get_parent_SomeI simulates_unique_parent[OF 2]
           simp add: hm.correct hm.to_list_correct dest!: map_of_is_SomeI[rotated])
     from this and 2 and 4 show ?case
-      by(auto intro!: ancestor_get_parent_extend[OF 4] refines_unique_parent)
+      by(auto intro!: ancestor_get_parent_extend[OF 4] simulates_unique_parent)
   qed
 next
   assume \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
@@ -463,7 +393,7 @@ using assms proof(cases \<open>hm.lookup c t\<close>)
   from this have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = None\<close>
     by force
   moreover have \<open>... = get_parent T c\<close>
-    using 1 2 get_parent_NoneI refines_unique_parent by(metis option.simps(3) set_member_refine)
+    using 1 2 get_parent_NoneI simulates_unique_parent by(metis option.simps(3) set_member_refine)
   finally show ?thesis by force
 next
   fix a :: \<open>'b \<times> 'a\<close>
@@ -476,7 +406,7 @@ next
     moreover from 2 and 3 have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = Some (p, m)\<close> 
       by auto
     moreover have \<open>get_parent T c = Some (p, m)\<close>
-      using 1 calculation refines_unique_parent get_parent_SomeI by auto
+      using 1 calculation simulates_unique_parent get_parent_SomeI by auto
     ultimately have \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
       by simp
   }
@@ -498,11 +428,11 @@ lemma hm_update_refine_collapse:
   shows \<open>hm.update child (meta, parent) t \<preceq>
           insert (parent, meta, child) {(p, m, c). (p, m, c) \<in> T \<and> c \<noteq> child}\<close>
 using assms by(force simp add: hm.correct hm.update_correct hm.restrict_correct
-        refines_def unique_parent_def split!: if_split_asm)
+        simulates_def unique_parent_def split!: if_split_asm)
 
 text\<open>The efficient and abstract @{term do_op} algorithms map related concrete and abstract states to
      related concrete and abstract states, and produce identical logs, when fed the same operation:\<close>
-lemma efficient_do_op_refines:
+lemma efficient_do_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
     and 2: \<open>efficient_do_op (oper, t) = (log1, u)\<close>
     and 3: \<open>do_op (oper, T) = (log2, U)\<close>
@@ -513,7 +443,7 @@ using assms proof(cases \<open>oper\<close>)
   {
     assume 5: \<open>efficient_ancestor t child parent \<or> parent = child\<close>
     from this and 1 have 6: \<open>ancestor T child parent \<or> parent = child\<close>
-      using efficient_ancestor_refines by auto
+      using efficient_ancestor_simulates by auto
     from 4 and 5 have \<open>efficient_do_op (oper, t) =
         (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, t)\<close>
       by force
@@ -532,7 +462,7 @@ using assms proof(cases \<open>oper\<close>)
   {
     assume 5: \<open>\<not> (efficient_ancestor t child parent \<or> parent = child)\<close>
     from this and 1 have 6: \<open>\<not> (ancestor T child parent \<or> parent = child)\<close>
-      using efficient_ancestor_refines by auto
+      using efficient_ancestor_simulates by auto
     from 4 and 5 have \<open>efficient_do_op (oper, t) =
       (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child,
           hm.update child (meta, parent) t)\<close>
@@ -549,7 +479,7 @@ using assms proof(cases \<open>oper\<close>)
       using calculation by auto
     ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
       using 1 by(clarsimp simp add: efficient_do_op_get_parent_technical hm_update_refine_collapse
-            refines_unique_parent)
+            simulates_unique_parent)
   }
   from this and L show ?thesis
     by auto
@@ -557,7 +487,7 @@ qed
 
 text\<open>The efficient and abstract @{term redo_op} functins take related concrete and abstract states
      and produce identical logics and related concrete and abstract states:\<close>
-lemma efficient_redo_op_refines:
+lemma efficient_redo_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
     and 2: \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
     and 3: \<open>redo_op oper (opers, T) = (log2, U)\<close>
@@ -570,7 +500,7 @@ proof(cases oper)
     moreover obtain entry2 and V where \<open>do_op (Move time new_parent meta child, T) = (entry2, V)\<close>
       by auto
     moreover have 5: \<open>entry1 = entry2\<close> and 6: \<open>v \<preceq> V\<close>
-      using calculation efficient_do_op_refines[OF 1] by blast+
+      using calculation efficient_do_op_simulates[OF 1] by blast+
     from 4 have \<open>efficient_redo_op oper (opers, t) = (entry1#opers, v)\<close>
       using calculation by clarsimp
     moreover have \<open>log1 = entry1#opers\<close> and \<open>u = v\<close>
@@ -585,7 +515,7 @@ qed
 
 text\<open>The efficient and abstract versions of @{term undo_op} map related concrete and abstract states
      to related concrete and abstract states when applied to the same operation:\<close>
-lemma efficient_undo_op_refines:
+lemma efficient_undo_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
   shows \<open>efficient_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
 using assms proof(cases \<open>oper\<close>)           
@@ -627,7 +557,7 @@ qed
 text\<open>The efficient and abstract @{term apply_op} algorithms map related concrete and abstract
      states to related concrete and abstract states when applied to the same operation and input
      log, and also produce identical output logs:\<close>
-lemma efficient_apply_op_refines:
+lemma efficient_apply_op_simulates:
   assumes \<open>t \<preceq> T\<close>
     and \<open>efficient_apply_op oper (log, t) = (log1, u)\<close>
     and \<open>apply_op oper (log, T) = (log2, U)\<close>
@@ -640,7 +570,7 @@ using assms proof(induction log arbitrary: T t log1 log2 u U)
       and 5: \<open>do_op (oper, T) = (action2, T')\<close>
     by fastforce
   moreover from 4 and 5 have \<open>action1 = action2\<close> and \<open>t' \<preceq> T'\<close>
-    using efficient_do_op_refines[OF 1] by blast+
+    using efficient_do_op_simulates[OF 1] by blast+
   moreover from 2 and 4 have \<open>log1 = [action1]\<close> and \<open>u = t'\<close>
     by auto
   moreover from 3 and 5 have \<open>log2 = [action2]\<close> and \<open>U = T'\<close>
@@ -664,11 +594,11 @@ next
           10: \<open>redo_op logop (action2, U'') = (action2', U''')\<close>
       by force
     from 5 and 8 have \<open>u' \<preceq> U'\<close>
-      using efficient_undo_op_refines[OF 1] by blast
+      using efficient_undo_op_simulates[OF 1] by blast
     moreover from 6 and 9 have \<open>action1 = action2\<close> and \<open>u'' \<preceq> U''\<close>
       using IH[OF \<open>u' \<preceq> U'\<close>] by blast+
     moreover from this and 7 and 10 have \<open>action1' = action2'\<close> and \<open>u''' \<preceq> U'''\<close>
-      using efficient_redo_op_refines by blast+
+      using efficient_redo_op_simulates by blast+
     moreover from 2 and 4 and 5 and 6 and 7 have \<open>log1 = action1'\<close> and \<open>u = u'''\<close>
       by auto
     moreover from 3 and 4 and 8 and 9 and 10 have \<open>log2 = action2'\<close> and \<open>U = U'''\<close>
@@ -683,7 +613,7 @@ next
         and 6: \<open>do_op (oper, T) = (action2, U')\<close>
       by fastforce
     from this have \<open>action1 = action2\<close> and \<open>u' \<preceq> U'\<close>
-      using efficient_do_op_refines[OF 1] by blast+
+      using efficient_do_op_simulates[OF 1] by blast+
     moreover from 2 and 4 and 5 have \<open>log1 = action1#logop#logops\<close> and \<open>u' = u\<close>
       by auto
     moreover from 3 and 4 and 6 have \<open>log2 = action2#logop#logops\<close> and \<open>U' = U\<close>
@@ -706,7 +636,7 @@ text\<open>The internal workings of abstract and concrete implementations of the
      show that the required property holds for any starting states (as long as they are related by
      the simulation relation) and then specialise to the empty starting state in the next lemma,
      below.\<close>
-lemma efficient_apply_ops_refines_internal:
+lemma efficient_apply_ops_simulates_internal:
   assumes \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log, t) xs = (log1, u)\<close>
     and \<open>foldl (\<lambda>state oper. apply_op oper state) (log, T) xs = (log2, U)\<close>
     and \<open>t \<preceq> T\<close>
@@ -733,7 +663,7 @@ next
       and 5: \<open>apply_op x (log, T) = (log2', U')\<close>
     by fastforce
   moreover from this have \<open>log1' = log2'\<close> and \<open>u' \<preceq> U'\<close>
-    using efficient_apply_op_refines[OF 3] by blast+
+    using efficient_apply_op_simulates[OF 3] by blast+
   moreover have \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log1', u') xs = (log1, u)\<close>
     using 1 and 4 by simp
   moreover have \<open>apply_ops' xs (log2', U') = (log2, U)\<close>
@@ -744,7 +674,7 @@ qed
 
 text\<open>The efficient and abstract versions of @{term apply_ops} produce identical operation logs and
      produce related concrete and abstract states:\<close>
-lemma efficient_apply_ops_refines:
+lemma efficient_apply_ops_simulates:
   assumes 1: \<open>efficient_apply_ops opers = (log1, u)\<close>
     and 2: \<open>apply_ops opers = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
@@ -756,7 +686,7 @@ proof -
   moreover have \<open>foldl (\<lambda>state oper. apply_op oper state) ([], {}) opers = (log2, U)\<close>
     using 2 by(auto simp add: apply_ops_def)
   moreover have \<open>log1 = log2\<close> and \<open>u \<preceq> U\<close>
-    using calculation efficient_apply_ops_refines_internal by blast+
+    using calculation efficient_apply_ops_simulates_internal by blast+
   ultimately show \<open>?thesis\<close>
     by auto
 qed
@@ -771,11 +701,11 @@ using assms proof(intro notI)
   from this obtain log2 T n where \<open>apply_ops ops = (log2, T)\<close> and \<open>efficient_ancestor t n n\<close>
     by force
   moreover from this and 1 have \<open>log = log2\<close> and \<open>t \<preceq> T\<close>
-    using efficient_apply_ops_refines by blast+
+    using efficient_apply_ops_simulates by blast+
   moreover have \<open>\<nexists>n. ancestor T n n\<close>
     using apply_ops_acyclic calculation by force
   moreover have \<open>ancestor T n n\<close>
-    using calculation efficient_ancestor_refines by blast
+    using calculation efficient_ancestor_simulates by blast
   ultimately show False
     by auto
 qed 
@@ -802,11 +732,11 @@ proof -
       and 7: \<open>apply_ops ops2 = (log2', U)\<close> and 8: \<open>log1' = log2'\<close> and 9: \<open>T = U\<close>
     by fastforce
   moreover from 4 5 6 7 have \<open>log1 = log1'\<close> and \<open>log2 = log2'\<close> and \<open>t \<preceq> T\<close> and \<open>u \<preceq> U\<close>
-    using efficient_apply_ops_refines by force+
+    using efficient_apply_ops_simulates by force+
   moreover from 8 have \<open>log1 = log2\<close>
     by(simp add: calculation)
   moreover have \<open>hm.lookup c t = hm.lookup c u\<close>
-    using calculation by(cases \<open>hm.lookup c t\<close>; cases \<open>hm.lookup c u\<close>) (force simp add: refines_def)+
+    using calculation by(cases \<open>hm.lookup c t\<close>; cases \<open>hm.lookup c u\<close>) (force simp add: simulates_def)+
   ultimately show \<open>?thesis\<close>
     by auto
 qed
