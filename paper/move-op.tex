@@ -805,37 +805,35 @@ Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code
 However,  care must be taken when using this mechanism, as:
 \begin{enumerate}
 \item
-The mechanism is \emph{partial} in the sense that not all HOL definitions can be realised in an executable form.
-Definitions making essential use of choice principles (such as our \isa{get\_parent} function) are obvious examples of definitions that will cause problems.
-However, \emph{inductively defined} relations characterised by a series of introduction rules, such as our \isa{ancestor} relation are also problematic for the code generator as making them executable necessarily requires Prolog-like proof search and mode inference.
+The mechanism is \emph{partial}: not all HOL definitions can be realised in executable form.
+Definitions making essential use of choice principles (e.g.~our \isa{get\_parent}) are obvious examples of definitions that will cause problems.
+However, \emph{inductively defined} relations characterised by a series of introduction rules, such as our \isa{ancestor} relation, are also problematic for the code generator as making them executable necessarily requires Prolog-like proof search and mode inference.
 \item
-Unsophisticated use of the code generator often leads to inefficient target language code.
+Na\"{i}ve use of the code generator often leads to inefficient target language code.
 This is especially true when using HOL's \isa{set} type, a type of potentially infinite mathematical sets.
 Whilst convenient for theorem proving purposes, this type often leads to gross inefficiency in the extracted code.
 \end{enumerate}
 
-As a result, prior to evaluating our algorithms in a real-world setting, we first produce a series of refined definitions that are optimised for efficient execution rather than ease of theorem proving.
-Within these definitions, we eschew the HOL \isa{set} type, and instead use a more efficient hash-map implementation provided by the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
+We must therefore first produce a series of refined definitions that are optimised for efficient execution rather than ease of theorem proving, before trying to evaluate our algorithms.
+Within these definitions, we eschew the HOL \isa{set} type, and instead use a more efficient hash-map implementation provided by the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}, a library of verified, efficient container datatypes and associated algorithms.
 Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for the type of hash-maps with key type $\isa{'a}$ and binding type $\isa{'b}$.
-Note that keys have an explicit $\isa{hashable}$ constraint, meaning that this hash-map type may only be used with types of keys with an associated hashing function.
-With this type, we represent trees by the type $(\isa{'n}::\{hashable\}, \isa{'m} \times \isa{'n})\ \isa{hm}$.
-Intuitively, this type can be thought of as a mapping from a \emph{child} node to its \emph{parent} node and associated metadata, if any such mapping exists.
+Note that keys have an explicit $\isa{hashable}$ constraint, meaning that this hash-map type may only be used with kay types with an associated hashing function.
+With this type, we represent trees by the type $(\isa{'n}::\{hashable\}, \isa{'m} \times \isa{'n})\ \isa{hm}$, mapping from a \emph{child} node to its \emph{parent} node and associated metadata, if any such mapping exists.
 
 We introduce an explicit \emph{simulation relation} between our two representations of trees.
-Specifically, we say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ simulates a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
+Specifically, we say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ \emph{simulates} a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
 \begin{displaymath}
 \isa{hm.lookup}\ c\ t = \isa{Some}\ (m, p) \quad\text{iff}\quad (p, m, c) \in T \quad\text{forall $c$, $m$, and $p$}
 \end{displaymath}
-where $hm.lookup$ is the function that searches for a binding for key $\isa{c}$ in hash-map $t$, returning $\isa{Some}\ (m, p)$ when a binding from $c$ to $(m, p)$ exists in the hash-map, or $\isa{None}$ otherwise.
-We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained within the simulation relation, as defined above.
-Note that many useful corollaries follow immediately from this definition, for example we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
+where $hm.lookup$ searches for a binding for key $\isa{c}$ in hash-map $t$, returning $\isa{Some}\ (m, p)$ when a binding from $c$ to $(m, p)$ exists in the hash-map, or $\isa{None}$ otherwise.
+We write $t \preceq T$ to assert that the hash-map $t$ and set $T$ are contained within the simulation relation, defined above.
+Note some useful corollaries follow immediately from this definition: e,g,~we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
 
 Our general strategy henceforth is to produce a new set of definitions---mirroring the structure of our existing definitions---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
-We adopt the convention that any definition using hash-maps will be referred to as an ``efficient'' definition, and any definition making use of HOL's set type will be referred to as an ``abstract'' definition, for clarity.
-
-For most definitions this is an almost mechanical process, and we therefore elide further description here.
-However, \isa{ancestor} is slightly different to our other definitions, as it is an inductively defined relation rather than a recursive function, and we therefore need further work to make this efficiently executable.
-Specifically, we can characterise this relation recursively with the following theorem, which we prove inside Isabelle/HOL:
+We adopt the convention that any definition using hash-maps will be referred to as an ``efficient'' definition, and any definition making use of HOL's set type will be referred to as an ``abstract'' definition, for the sake of clarity.
+For most definitions this is a mechanical process, and we elide further description here.
+However \isa{ancestor} is slightly different, as it is an inductively defined relation rather than a recursive function, and we therefore need further work to make this efficiently executable.
+We characterise this relation recursively with the following theorem:
 
 % DPM: add efficient_ancestor_simp here
 \begin{isabelle}
@@ -848,11 +846,12 @@ Specifically, we can characterise this relation recursively with the following t
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ {\isacharequal}\ p\ {\isasymor}\ efficient{\isacharunderscore}ancestor\ t\ p\ a{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
 
-Note that the theorem \isa{efficient\_ancestor\_simp} is tagged with a $\isa{code}$ attribute, which is a hint that this theorem should be used as a transformation during the code generation process.
+Note that the theorem \isa{efficient\_ancestor\_simp} is tagged with a $\isa{code}$ ``attribute'', which is a hint that this theorem should be used as a transformation during the code generation process.
 Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{efficient\_ancestor} relation and is able to directly translate this to a recursive function definition in each target backend.
 
 Next, we demonstrate the correctness of our new efficient definitions against our older, abstract definitions.
-The correctness properties that we prove are best described using an example, as they all follow a similar pattern, and we therefore focus on the lemma \isa{efficient\_do\_op\_simulates} which states the following property:
+The correctness properties that we prove are best described using an example, as they all follow a similar pattern.
+We therefore focus on the lemma \isa{efficient\_do\_op\_simulates} which states:
 
 % DPM: add efficient_do_op_simulates here
 \begin{isabelle}
@@ -864,7 +863,7 @@ The correctness properties that we prove are best described using an example, as
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
-Note that we show that the \isa{efficient\_do\_op} and the \isa{do\_op} functions maintain a ``lock-step'' property, mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations, whenever they are applied to the same input operation, \isa{oper}.
+Note that we show that the \isa{efficient\_do\_op} and the \isa{do\_op} functions maintain a ``lock-step'' property, mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations whenever they are applied to the same input operation, \isa{oper}.
 This pattern of lock-step simulation is repeated bottom-up for every pair of efficient-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
 
 %DPM: add efficient_apply_ops_simulates here
@@ -876,10 +875,9 @@ This pattern of lock-step simulation is repeated bottom-up for every pair of eff
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
-Note that this property correctly captures our intuitive understanding of what it means for \isa{efficient\_apply\_ops} to be correct with respect to \isa{apply\_ops}.
-Specifically, the theorem states that if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records, i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
+This property captures our intuitive understanding of what it means for \isa{efficient\_apply\_ops} to be correct with respect to \isa{apply\_ops}: if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
 We can further check that this theorem correctly captures the correctness of our \isa{apply\_ops} definition by recasting the various tree invariant and convergence theorems in terms of \isa{efficient\_apply\_ops}.
-For example:
+For example, we have the following corollaries of the theorems \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively\footnote{The ``efficient'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
 
 % DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
 \begin{isabelle}
@@ -898,9 +896,8 @@ For example:
 \ \ \isakeyword{shows}\ {\isacartoucheopen}{\isasymnexists}n{\isachardot}\ efficient{\isacharunderscore}ancestor\ t\ n\ n{\isacartoucheclose}
 \end{isabelle}
 
-Both follow as corollaries of the theorems \isa{apply\_ops\_commutes} and \text{apply\_ops\_acyclic}, respectively.
-Note that the statement of \isa{efficient\_apply\_ops\_commutes} differs slightly from the statement of \isa{apply\_ops\_commutes}---the latter theorem asserts that identical sets are obtained whilst the former asserts that simply reading any key binding in $t$ gives the same result as reading in $u$.
-Whilst this statement appears to be weaker than the statement of \text{apply\_ops\_acyclic}, it is correct, as the resulting hash-maps may not have an identical representation in-memory, depending on the particular ordering of key-value insertions, despite containing the same key-value bindings.
+Note the statement of \isa{efficient\_apply\_ops\_commutes} differs in an essential way from that of \isa{apply\_ops\_commutes}---the latter asserts that identical sets are obtained from convergence, whilst the former asserts that simply reading any key binding in $t$ gives the same result as reading in $u$.
+Whilst this statement appears weaker than the statement of \isa{apply\_ops\_acyclic}, it is correct, as the resulting hash-maps may not have an identical representation in-memory---depending on the particular ordering of key-value insertions---despite containing the same key-value bindings.
 
 \subsection{Performance experiments}
 
