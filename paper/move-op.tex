@@ -7,7 +7,7 @@
 \usepackage{isabelle,isabellesym}
 \isabellestyle{tt}
 \renewenvironment{isabelle}{%
-  \bigbreak\noindent%
+  \medbreak\noindent%
   \renewcommand{\isanewline}{\\}%
   \begin{minipage}{\columnwidth}% use minipage to prevent page breaks
   \begin{isabellebody}%
@@ -16,7 +16,7 @@
   \end{tabbing}%
   \end{isabellebody}%
   \end{minipage}%
-  \bigbreak%
+  \medbreak%
 }
 \renewcommand{\isacartoucheopen}{}
 \renewcommand{\isacartoucheclose}{}
@@ -359,7 +359,7 @@ Which one of these two is picked is arbitrary, due to the symmetry between the t
 For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
 All replicas pick the same operation as winner, and effectively ignore the conflicting operation.
 
-We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
+We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, logged into the same Dropbox/Google accounts, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
 To test concurrent operations, we turned off the network interface on both computers, performed a move operation on the local filesystem of each computer, then reconnected both computers to the Internet and waited for them to sync.}
 Dropbox exhibited the undesirable duplication behaviour of Figure~\ref{fig:move-same-item}a, while the outcome on Google Drive was as in Figure~\ref{fig:move-same-item}c/d.
 
@@ -653,7 +653,12 @@ Then we perform a move operation in which the parent node is unchanged, but the 
 
 We now discuss the correctness properties of the algorithm from Section~\ref{sec:algorithm}.
 All theorems stated here have been formally proved and mechanically checked using Isabelle.
-For space reasons we give only a brief sketch of the proofs in this paper, but the full details can be found in the Isabelle files of our open source proof development.\footnote{\url{https://github.com/trvedata/move-op}}
+For space reasons we give only a brief sketch of the proofs in this paper, but the full details can be found in the open source Isabelle files of our proof development.\footnote{\url{https://github.com/trvedata/move-op}}
+
+To reason about the state of a replica we define the function \isa{apply\_ops} on lines 53--54 of Figure~\ref{fig:code}.
+It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
+The \isa{apply\_ops} function works by starting in the initial state \isa{([], \{\})} consisting of the empty operation log \isa{[]} and the empty tree \isa{\{\}}, and then applying the operations one by one to the state using the \isa{apply\_op} function (introduced in Section~\ref{sec:applying}).
+The \isa{foldl} function from Isabelle's standard library performs the iteration over the list of operations.
 
 \subsection{Tree invariants}\label{sec:tree-invariants}
 
@@ -663,23 +668,120 @@ To prove that our algorithm always maintains a tree structure, no matter which o
 In fact, we slightly generalise this property: we allow more than one root to exist, so the graph is actually a forest.
 This allows an application to move nodes between multiple trees, if desired.
 For example, the ``trash'' node used for deletion (Section~\ref{sec:ops-trees}) can be separate from the main tree.
-If the 
 
+\subsubsection{Each node's parent is unique}
+
+The first invariant we prove is that each tree node has either no parent (if it is the root of a tree) or exactly one parent (if it is a non-root node).
+We state this theorem in Isabelle as follows, where \isa{apply\_ops\_unique\_parent} is the name we give to this theorem:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}unique{\isacharunderscore}parent{\isacharcolon}\isanewline
 \ \ \isakeyword{assumes}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}
 \end{isabelle}
+\noindent That is, we consider any list of operations \isa{ops} and define \isa{(log, tree)} to be the replica state after \isa{ops} have been applied.
+We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 56--57 of Figure~\ref{fig:code}: it states that whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
 
+Because we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
+Proving \isa{apply\_ops\_unique\_parent} is easy because each of the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintains the \isa{unique\_parent tree} invariant, and thus \isa{apply\_op} also maintains the invariant.
+
+\subsubsection{The graph contains no cycles}
+
+The second invariant we require is that the graph must not contain any cycles.
+We state this theorem in Isabelle as follows:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
 \ \ \isakeyword{assumes}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}acyclic\ tree{\isacartoucheclose}
 \end{isabelle}
+\noindent The \isa{acyclic} predicate is defined on lines 59--60 of Figure~\ref{fig:code}, using the \isa{ancestor} relation (the transitive closure of the graph's edges): a graph contains no cycles if no node is an ancestor of itself.
 
+Proof sketch: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
+Further assume \isa{acyclic tree1}.
+We can then prove by contradiction that \isa{tree2} is also acylic.
+Assume to the contrary that \isa{tree2} contains a cycle.
+If \isa{do\_op} left the tree unchanged (line 30), we immediately have a contradiction.
+Otherwise we can assume \isa{{\isasymnot}(ancestor tree c newp {\isasymor} c = newp)} and we have:
+\medbreak\noindent
+\isa{tree2 = \{(p', m', c') {\isasymin} tree1. c' {\isasymnoteq} c\} {\isasymunion} \{(newp, m, c)\}}
+\medbreak\noindent
+That is, \isa{do\_op} adds one edge \isa{\{(newp, m, c)\}} to the graph, and perhaps removes another edge.
+Since \isa{tree1} is acyclic, the added edge must lie on the cycle in \isa{tree2}.
+Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} must contain a path from \isa{c} to \isa{newp} (which is then closed by the new edge to form a cycle), i.e.\ \isa{c} must be an ancestor of \isa{newp} in \isa{tree1}.
+However, in that case, the predicate \isa{ancestor tree1 c newp} on line 30 would have been true, which contradicts the earlier assumption.
+Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
 
+To prove that \isa{apply\_op} preserves the acyclicity invariant, we need to show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
+(This is the case when operations are applied in order of increasing timestamp.)
+Then we can use the result of the previous paragraph to prove that any tree produced by \isa{apply\_ops} must be acyclic.
+
+\subsection{Commutativity of apply\_op}
+
+As discussed in Section~\ref{sec:applying}, we require that when replicas apply the same set of operations, they converge towards the same state, regardless of the order in which the operations are applied.
+We formalise this in Isabelle as follows:
+\begin{isabelle}
+\isacommand{theorem}\isamarkupfalse%
+\ apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}set\ ops{\isadigit{1}}\ {\isacharequal}\ set\ ops{\isadigit{2}}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{1}}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops{\isadigit{1}}\ {\isacharequal}\ apply{\isacharunderscore}ops\ ops{\isadigit{2}}{\isacartoucheclose}
+\end{isabelle}
+
+The predicate \isa{distinct} takes a list as argument, and returns true if all elements of the list are distinct (i.e.\ no value occurs more than once in the list).
+The assumption \isa{distinct (map move\_time ops1)} therefore states that in the list of operations \isa{ops1}, there are no two operations with the same timestamp.
+
+The function \isa{set} takes a list and turns it into an unordered set with the same elements.
+Thus, the assumption \isa{set ops1 = set ops2} means that the lists \isa{ops1} and \isa{ops2} contain the same elements, but perhaps in a different order---in other words, \isa{ops1} is a permutation of \isa{ops2}.
+Under these assumptions, \isa{apply\_ops\_commutes} proves that applying the list of operations \isa{ops1} results in the same replica state as applying the list of operations \isa{ops2}.
+
+To prove this theorem we must first show that \isa{undo\_op} performs the inverse of \isa{do\_op}, that is:
+\begin{isabelle}
+\isacommand{lemma}\isamarkupfalse%
+\ do{\isacharunderscore}undo{\isacharunderscore}op{\isacharunderscore}inv{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}\ {\isacharequal}\ tree{\isacartoucheclose}
+\end{isabelle}
+
+\isa{apply\_ops\_commutes} then follows from the following lemma, which proves that two calls of \isa{apply\_op} commute, provided that the timestamps in the operations and in the log are all distinct:
+\begin{isabelle}
+\isacommand{lemma}\isamarkupfalse%
+\ apply{\isacharunderscore}op{\isacharunderscore}commute{\isadigit{2}}{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}distinct\ {\isacharparenleft}{\isacharparenleft}map\ log{\isacharunderscore}time\ log{\isacharparenright}\ {\isacharat}\isanewline
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}map\ move{\isacharunderscore}time\ {\isacharbrackleft}oper{\isadigit{1}}{\isacharcomma}\ oper{\isadigit{2}}{\isacharbrackright}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ \ \ \ \ apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}{\isacartoucheclose}
+\end{isabelle}
+
+\noindent Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
+Assume \isa{t1 < t2} without loss of generality.
+We can now prove that lemma by induction over \isa{log}.
+
+For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op oper1 (log, tree))} evaluates to first applying \isa{oper1} using \isa{do\_op}, then applying \isa{oper2} using \isa{do\_op}.
+On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (log, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes \isa{oper2} again to yield the original \isa{tree} (per \isa{do\_undo\_op\_inv}), then applies \isa{oper1} using \isa{do\_op}, and finally reapplies \isa{oper2} using \isa{redo\_op}.
+The final states are the same on both sides of the equality.
+
+For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{cons} operator), and let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
+We now consider three cases:
+\begin{enumerate}
+    \item \isa{t3 < t1 < t2}.
+        Then neither applying \isa{oper1} nor applying \isa{oper2} will undo \isa{logop}.
+        Thus, the two operations are applied in the same way as the base case.
+    \item \isa{t1 < t3 < t2}.
+        Then \isa{apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree))} first undoes \isa{logop}, then applies \isa{oper1} using \isa{do\_op}, then reapplies \isa{logop} using \isa{redo\_op}, and finally applies \isa{oper2} using \isa{do\_op}.
+        On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes it again, then undoes \isa{logop}, applies \isa{oper1} and reapplies \isa{logop} as before, and finally reapplies \isa{oper2} using \isa{redo\_op}.
+        The end result is the same.
+    \item \isa{t1 < t2 < t3}.
+        Then both applying \isa{oper1} and applying \isa{oper2} first undoes \isa{logop}, yielding \isa{tree' = undo\_op (logop, tree)}.
+        From the inductive hypothesis we have
+        \begin{quote}
+        \isa{apply\_op oper2 (apply\_op oper1 (ops, tree')) =\\
+             apply\_op oper1 (apply\_op oper2 (ops, tree'))}
+        \end{quote}
+        We now apply \isa{oper1} and \isa{oper2} as in the base case, and finally reapply \isa{logop} to both sides using \isa{redo\_op}, resulting in the same state on both sides.
+\end{enumerate}
 
 \section{Evaluation}\label{sec:evaluation}
 
