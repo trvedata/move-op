@@ -683,7 +683,22 @@ If the
 
 \section{Evaluation}\label{sec:evaluation}
 
-TODO
+\subsection{Extracting efficient algorithms from HOL}
+
+Isabelle/HOL's can extract executable Haskell, OCaml, Scala, and Standard ML code from HOL definitions using a code generation mechanism.
+However,  care must be taken when using this mechanism, as:
+\begin{enumerate}
+\item
+The mechanism is \emph{partial} in the sense that not all HOL definitions can be realised in an executable form.
+Definitions making essential use of choice principles (such as our \isa{get\_parent} function) are obvious examples of definitions that will cause problems.
+However, \emph{inductively defined} relations characterised by a series of introduction rules, such as our \isa{ancestor} relation are also problematic for the code generator as making them executable necessarily requires Prolog-like proof search and mode inference.
+\item
+Unsophisticated use of the code generator often leads to inefficient target language code.
+This is especially true when using HOL's \isa{set} type, a type of potentially infinite mathematical sets.
+Whilst convenient for theorem proving purposes, this type often leads to gross inefficiency in the extracted code.
+\end{enumerate}
+
+Because of these problems, we produce 
 
 \section{Related work}\label{sec:relwork}
 
