@@ -20,7 +20,7 @@ class TreeActor(actorId: String) extends Actor {
       val ts = (int(timestamp.get.counter), timestamp.get.replica)
       val operation = generated.Move(ts, parent, metadata, child)
       state = generated.example_apply_op(operation)(state)
-      log.info("Applied %s".format(operation))
+      //log.info("Applied %s".format(operation))
       sender() ! timestamp.get
     }
 
