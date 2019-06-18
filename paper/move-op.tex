@@ -100,9 +100,9 @@
 For many systems and applications, the data model that describes the system state is a tree.
 For example:
 \begin{itemize}
-    \item Most \textbf{filesystems}, e.g. on Windows and Unix-like OSes, are organised as a tree: folders or directories are branch nodes, and files are leaf nodes.\footnote{In filesystems that support hardlinks, the structure is---strictly speaking---a restricted DAG in which a file inode can be referenced from multiple places in the directory tree, but directories cannot have more than one parent directory.
-        However, for the purposes of this paper, we will treat a filesystem as a tree; given such a tree, it is easy to add hardlinks and symlinks as features on top.}
+    \item The \textbf{filesystem} on most operating systems is organised as a tree: folders or directories are branch nodes, and files are leaf nodes.
         In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
+        Strictly speaking, filesystems that support hardlinks form a DAG, but we will focus on trees for now and show in Section~\ref{sec:hardlinks} how to add support for links.
     \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, bulleted and numbered lists, figures, sections, and so on.
         These can be nested inside each other: for example, a paragraph may appear inside a bullet point of a bulleted list, which may in turn appear inside a numbered point of an enumeration.
         Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
@@ -625,13 +625,24 @@ In practice, the filename collision would be resolved by making the filenames di
 
 \subsection{Algorithm extensions}\label{sec:extensions}
 
-The algorithm as specified in Figure~\ref{fig:code} retains operations in the log indefinitely, so the memory/storage use grows without bound.
+\subsubsection{Hardlinks and symlinks}\label{sec:hardlinks}
+
+Unix filesystems support hardlinks, which allow the same file inode to be referenced from multiple locations in a tree.
+Our tree data structure can easily be extended to support this: rather than placing file data directly in the leaf nodes of the tree, the leaf node must reference the file inode.
+Thus, references to the same file inode can appear in multiple leaf nodes of the tree.
+Symlinks are also easy to support, since they are just leaf nodes containing a path (not a reference to an inode).
+
+\subsubsection{Log truncation}\label{sec:log-truncation}
+
+The algorithm as specified in Figure~\ref{fig:code} retains operations in the log indefinitely, so the memory use grows without bound.
 However, in practice it is easy to truncate the log, because \isa{apply\_op} only examines the prefix of operations whose timestamp is greater than that of the operation being applied.
 Thus, once it is known that all future operations will have a timestamp greater than $t$, then all operations with timestamp $t$ or less can be discarded from the log.
 In this case, we say that $t$ is \emph{causally stable}~\cite{Baquero:2014ed}.
 
 We can determine causal stability in a system where the set of replicas is known, where each replica generates operations with monotonically increasing timestamps, and where the communication link between any pair of replicas is FIFO (messages are received in the order in which they are sent, as implemented e.g. by TCP).
 In this case, each replica can keep track of the most recent timestamp it has seen from all replicas (including its own), and the minimum of these timestamps is the causally stable threshold.
+
+\subsubsection{Ordering of sibling nodes}\label{sec:ordering}
 
 Another useful extension of the tree algorithm is to allow children within the same branch node to have an ordering.
 For example, in a graphics application, the order of nodes determines visibility (objects that are ``further back'' may be obscured by objects that are ``closer to the front'').
@@ -757,7 +768,8 @@ To prove this theorem we must first show that \isa{undo\_op} performs the invers
 \ \ \ \ \ \ \ \ \ apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
 
-\noindent Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
+\noindent Here the \isa{\isacharat} operator concatenates two lists.
+Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
 Assume \isa{t1 < t2} without loss of generality.
 We can now prove lemma \isa{apply\_op\_commute2} by induction over \isa{log}.
 
