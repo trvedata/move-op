@@ -23,5 +23,5 @@ RUN set -x \
     && cd evaluation \
     && sbt compile
 
-# To profile inside the Docker container:
-# sbt run -J-agentpath:/usr/local/YourKit-JavaProfiler-2019.1/bin/linux-x86-64/libyjpagent.so=port=10001,listen=all
+# To profile inside the Docker container, uncomment the -agentpath option in build.sbt
+# and run the container with option `-p 10001:10001`
