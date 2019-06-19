@@ -358,6 +358,7 @@ In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:
 Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
 For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
 All replicas pick the same operation as winner, and effectively ignore the conflicting operation.
+(The \emph{timestamp} in this context need not come from a physical clock; it could also be logical, such as a Lamport timestamp~\cite{Lamport:1978jq}.)
 
 We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, logged into the same Dropbox/Google accounts, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
 To test concurrent operations, we turned off the network interface on both computers, performed a move operation on the local filesystem of each computer, then reconnected both computers to the Internet and waited for them to sync.}
@@ -653,6 +654,13 @@ This approach to determining ordering also easily supports reordering of child n
 To move a node to a different position in a list, we use the list CRDT to generate a new identifier at the desired position in the sequence.
 Then we perform a move operation in which the parent node is unchanged, but the metadata is updated to include this new identifier.
 
+\subsubsection{File merging}\label{sec:files}
+
+In a distributed filesystem, replication and conflict resolution is required not only for the directory structure, but also for the contents of individual files.
+This can be accomplished by using CRDTs for file contents as well.
+For example, we have explored CRDT algorithms for applications using a JSON data model~\cite{Kleppmann:2016ve} and implemented them in a library called Automerge~\cite{Automerge}.
+We discuss distributed filesystems further in Section~\ref{sec:filesystems}.
+
 % - No Synchronisation or consensus required. Available in the sense of CAP
 % - Rely only on uniqueness of node IDs, e.g. inode numbers
 % - Composing JSON/XML tree by using list datatype
@@ -944,7 +952,7 @@ Molli et al.~\cite{Molli:2003cd} define an Operational Transformation tree struc
 However, it requires that all communication between replicas is performed via total order broadcast, which in turn requires the use of a sequencer server or a consensus algorithm~\cite{Chandra:1996cp}.
 Our algorithm has better availability characteristics in the presence of network partitions because it allows messages to be delivered in any order.
 
-\subsection{Distributed filesystems}
+\subsection{Distributed filesystems}\label{sec:filesystems}
 
 TODO: Coda~\cite{Kumar:1993ey}, Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
 
