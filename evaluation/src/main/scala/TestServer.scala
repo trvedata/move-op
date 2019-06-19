@@ -47,7 +47,7 @@ class TestServer(system: ActorSystem, metrics: MetricRegistry) {
 
 class TestService(system: ActorSystem, metrics: MetricRegistry) extends examplerpc.MoveService {
   val requests  = metrics.timer("TestService.requests")
-  val treeActor = system.actorOf(TreeActor.props("a"), "treeActor")
+  val treeActor = system.actorOf(TreeActor.props("a", metrics), "treeActor")
 
   override def sendMove(move: examplerpc.Move): Future[examplerpc.LamportTS] = {
     //println(s"received: ${move}")

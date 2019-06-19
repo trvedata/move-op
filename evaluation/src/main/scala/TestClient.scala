@@ -21,7 +21,7 @@ object TestClient {
 
     ConsoleReporter.forRegistry(metrics).build().start(20, SECONDS)
 
-    val config = GrpcClientSettings.connectToServiceAt("52.37.96.68", 8080)
+    val config = GrpcClientSettings.connectToServiceAt("18.138.235.108", 8080)
       .withDeadline(10 seconds)
       .withTls(false)
     val client: MoveService = MoveServiceClient(config)
