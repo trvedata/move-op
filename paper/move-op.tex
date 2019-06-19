@@ -937,7 +937,23 @@ Our algorithm has better availability characteristics in the presence of network
 
 \subsection{Distributed filesystems}
 
-TODO: Coda~\cite{Kumar:1995wf}, Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
+Unison is a file synchronisation tool with a formal specification~\cite{PierceVouillon:UnisonSpecTR} which allows two replicas, such as laptops, desktops or servers, to synchronise the state of a directory. 
+Unison permits offline updates to both replicas. 
+The (possibly divergent) state of two replicas are resynchronised by running the Unison tool on the two replicas. 
+Unison works by recording a summary record of the state of the filesystem on each replica,  inspecting this summary whenever the unison program is invoked, and sharing any update information with the other replica in order to determine the changes made to the filesystems on each replica since they were last synchronised. 
+This approach has the benefit that no special kernel extension or daemon process is required; instead Unison is an application program which inspects the current state of the filesystem whenever it is run. 
+When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}~(a). 
+Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to confirm whether changes made to directories A and B should be propagated or deleted. 
+As a result, depending on user choice, both replicas can end up in one of four states, including those shown in Figure~\ref{fig:move-cycle}~(b), (c) or (d) or with an empty root directory on both replicas. 
+In all cases, Unison successfully ensures both replicas are in the same state after synchronisation.
+
+Coda is a distributed file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
+Clients can edit copies of data held in the cache while offline, during which time a kernel module keeps track of all updates. 
+When the client comes back online, the client attempts to resynchronise changes with the repository. 
+This design means that conflicts may arise if multiple clients edit the same files or directories while one or more clients are offline. 
+One proposed solution to this is to support application-specific resolvers which "encapsulate the knowledge needed for file resolution"~\cite{Kumar:1995wf}, an approach is similar to that found in Bayou~\cite{Terry:1995dn}.
+
+Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
 
 \section{Conclusions}
 
