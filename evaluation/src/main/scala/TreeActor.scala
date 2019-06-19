@@ -24,7 +24,7 @@ class TreeActor(actorId: String, metrics: MetricRegistry) extends Actor {
     val opCounter = op.timestamp.get.counter
     val timestamp = (int(opCounter), op.timestamp.get.replica)
     val operation = generated.Move(timestamp, op.parent, op.metadata, op.child)
-    log.info("Applied %s".format(operation))
+    //log.info("Applied %s".format(operation))
     state = generated.example_apply_op(operation)(state)
     if (opCounter > counter) counter = opCounter
   }

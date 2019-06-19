@@ -50,7 +50,10 @@ object TestReplica {
 
     val generator = new LoadGenerator(treeActor, args.drop(1))
     generator.run()
-    // ActorSystem threads will keep the app alive until `sys.terminate()` is called
+
+    sys.scheduler.scheduleOnce(10 minutes) {
+      sys.terminate()
+    }
   }
 }
 
@@ -64,7 +67,7 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
     val requests = metrics.timer(s"LoadGenerator($remoteIp).requests")
     val errors   = metrics.meter(s"LoadGenerator($remoteIp).errors")
     val config   = GrpcClientSettings.connectToServiceAt(remoteIp, TestReplica.PORT)
-      .withDeadline(10 seconds)
+      .withDeadline(20 seconds)
       .withTls(false)
     sendRequest(remoteIp, MoveServiceClient(config), requests, errors)(_)
   }
@@ -103,17 +106,9 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
 }
 
 class ReplicaService(treeActor: ActorRef, sys: ActorSystem, metrics: MetricRegistry) extends examplerpc.MoveService {
-  val requests = metrics.timer("TestReplica.requests")
-
   override def sendMove(move: examplerpc.Move): Future[examplerpc.LamportTS] = {
     implicit val timeout: Timeout = 3 seconds
     import sys.dispatcher
-
-    val timer = requests.time()
-    try {
-      (treeActor ? move).mapTo[examplerpc.LamportTS]
-    } finally {
-      timer.stop()
-    }
+    (treeActor ? move).mapTo[examplerpc.LamportTS]
   }
 }
