@@ -918,14 +918,71 @@ Whilst this statement appears weaker than that of \isa{apply\_ops\_acyclic}, it 
 
 \begin{figure}
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plots.png}
-  \caption{TODO}
+  \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 t2.small instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
-  \Description{}
+  \Description{Plot in which the x axis goes from 0 to 30 move operations per second, and the y axis goes from 0 to 12 milliseconds. Local operations take a near-constant time less than 1ms; the time for remote operations gradually increases to 2ms until 24 operations/sec, at which point it suddenly shoots up off the top of the scale.}
 \end{figure}
+
+\begin{table}
+  \caption{Median response times of a RPC request between replicas in different regions.}
+  \label{tab:rpc-times}
+  \begin{tabular}{r|rrr}
+    \toprule
+               & California & Ireland & Singapore \\
+    \midrule
+    California &            & 395 ms  & 491 ms    \\
+    Ireland    & 395 ms     &         & 547 ms    \\
+    Singapore  & 491 ms     & 547 ms  &           \\
+    \bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Performance experiments}
 
-TODO\dots
+\subsubsection{Experimental setup and results}
+
+To evaluate the viability of our algorithm in practice, we used Isabelle/HOL's code generation facility to extract executable Scala code from our formally verified definitions.
+We wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
+We deployed three replicas of this service on Amazon EC2 t2.small instances in different regions worldwide: one in Northern California (region us-west-1), one in Ireland (eu-west-1), and one in Singapore (ap-southeast-1).
+The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
+
+We perform a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
+We use Lamport timestamps~\cite{Lamport:1978jq} as operation timestamps, and string values to identify tree nodes.
+When a replica generates an operation, it immediately applies that operation to the local replica state, and then asynchronously sends the operation to the other two replicas via gRPC requests.
+When a replica receives an operation from a remote replica, it also applies that operation to its own replica state.
+Thus, of the operations applied by each replica, approximately one third are locally generated, and two thirds are received from the other two replicas.
+
+We varied the rate at which replicas generated operations, and measured the execution time of our algorithm for applying each operation.
+Figure~\ref{fig:plots} shows the median execution times for local and remote operations respectively.
+The execution time for local operations is near-constant (median times mostly between 0.2~ms and 0.6~ms), while the execution time for remote operations increases approximately linearly from 0.2~ms to 2.3~ms over the range of 3 to 24 operations/sec.
+Above 25 operations/sec the execution time for remote operations suddenly increases to over 30~ms (off the scale of Figure~\ref{fig:plots}).
+We do not plot the exact values for execution times above 12~ms because they are less meaningful, as explained below.
+
+\subsubsection{Interpretation of results}
+
+A locally generated operation always has a timestamp that is higher than any existing operation at the generating replica at that time (by the definition of Lamport timestamps), and thus applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, explaining the near-constant execution time.
+On the other hand, for remote operations, some number of undos and redos needs to be performed, depending on the degree of concurrency.
+As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to put operations into timestamp order.
+
+The time taken to apply a remote operation is proportional to the number of undos and redos required.
+Above 25 operations/sec the CPU utilisation of our virtual machines grows to the point that incoming network requests from other replicas start queueing before they are processed.
+When a remote operation spends time queueing, more concurrent operations have been applied by the time it is processed, and thus more undos and redos are required to apply the incoming operation, which in turn increases the CPU utilization and further increases queueing.
+This self-reinforcing effect explains the sudden dramatic increase in Figure~\ref{fig:plots}.
+
+Above 25 operations/sec the queueing delay increases so much that some RPC requests time out, and thus not all operations are received by all replicas.
+As the remote operation execution times above this threshold depend more on the network queueing properties than our algorithm, we discard these datapoints.
+
+\subsubsection{Practical relevance of results}
+
+The Scala implementation generated from our Isabelle definitions is optimised for correctness, not for performance; we expect that a more optimised implementation could achieve much higher throughput than our 24 operations/sec.
+Nevertheless, we believe that our evaluation sends a positive signal about the practical applicability of our algorithm.
+
+Note that when a user is interacting with a system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
+Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
+
+The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
+However, performing an operation on such a system requires waiting for synchronous communication with a server potentially located on a different continent, taking hundreds of milliseconds (Table~\ref{tab:rpc-times}); by contrast, a local operation taking a fraction of a millisecond is orders of magnitude faster.
+Moreover, a local operation requires no waiting for network communication, and thus it supports disconnected operation: mobile devices can read and modify the replicated tree even while disconnected from the Internet, which is not the case with centralised systems.
 
 \section{Related work}\label{sec:relwork}
 
