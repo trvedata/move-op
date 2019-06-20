@@ -1152,20 +1152,30 @@ def map_option[A, B](f: A => B, x1: Option[A]): Option[B] = (f, x1) match {
   case (f, Some(x2)) => Some[B](f(x2))
 }
 
-def efficient_ancestor[A : equal : hashable,
-                        B](t: hashmap[A, (B, A)], p: A, c: A):
+def executable_undo_op[A, B : equal : hashable,
+                        C](x0: (log_op[A, B, C], hashmap[B, (C, B)])):
+      hashmap[B, (C, B)]
+  =
+  x0 match {
+  case (LogMove(t, Some((oldp, oldm)), newp, m, c), tree) =>
+    hm_update[B, (C, B)](c, (oldm, oldp), tree)
+  case (LogMove(t, None, newp, m, c), tree) => hm_delete[B, (C, B)](c, tree)
+}
+
+def executable_ancestor[A : equal : hashable,
+                         B](t: hashmap[A, (B, A)], p: A, c: A):
       Boolean
   =
   (hm_lookup[A, (B, A)](c, t) match {
      case None => false
      case Some(a) => {
                        val (_, aa): (B, A) = a;
-                       eq[A](aa, p) || efficient_ancestor[A, B](t, p, aa)
+                       eq[A](aa, p) || executable_ancestor[A, B](t, p, aa)
                      }
    })
 
-def efficient_do_op[A, B : equal : hashable,
-                     C](x0: (operation[A, B, C], hashmap[B, (C, B)])):
+def executable_do_op[A, B : equal : hashable,
+                      C](x0: (operation[A, B, C], hashmap[B, (C, B)])):
       (log_op[A, B, C], hashmap[B, (C, B)])
   =
   x0 match {
@@ -1176,57 +1186,47 @@ def efficient_do_op[A, B : equal : hashable,
   (snd[C, B](x), fst[C, B](x))),
  hm_lookup[B, (C, B)](c, tree)),
                   newp, m, c),
-      (if (efficient_ancestor[B, C](tree, c, newp) || eq[B](c, newp)) tree
+      (if (executable_ancestor[B, C](tree, c, newp) || eq[B](c, newp)) tree
         else hm_update[B, (C, B)](c, (m, newp), tree)))
 }
 
-def efficient_undo_op[A, B : equal : hashable,
-                       C](x0: (log_op[A, B, C], hashmap[B, (C, B)])):
-      hashmap[B, (C, B)]
-  =
-  x0 match {
-  case (LogMove(t, Some((oldp, oldm)), newp, m, c), tree) =>
-    hm_update[B, (C, B)](c, (oldm, oldp), tree)
-  case (LogMove(t, None, newp, m, c), tree) => hm_delete[B, (C, B)](c, tree)
-}
-
-def efficient_redo_op[A, B : equal : hashable,
-                       C](x0: log_op[A, B, C],
-                           x1: (List[log_op[A, B, C]], hashmap[B, (C, B)])):
+def executable_redo_op[A, B : equal : hashable,
+                        C](x0: log_op[A, B, C],
+                            x1: (List[log_op[A, B, C]], hashmap[B, (C, B)])):
       (List[log_op[A, B, C]], hashmap[B, (C, B)])
   =
   (x0, x1) match {
   case (LogMove(t, uu, p, m, c), (ops, tree)) =>
     {
       val a: (log_op[A, B, C], hashmap[B, (C, B)]) =
-        efficient_do_op[A, B, C]((Move[A, B, C](t, p, m, c), tree))
+        executable_do_op[A, B, C]((Move[A, B, C](t, p, m, c), tree))
       val (op2, aa): (log_op[A, B, C], hashmap[B, (C, B)]) = a;
       (op2 :: ops, aa)
     }
 }
 
-def efficient_apply_op[A : linorder, B : equal : hashable,
-                        C](op1: operation[A, B, C],
-                            x1: (List[log_op[A, B, C]], hashmap[B, (C, B)])):
+def executable_apply_op[A : linorder, B : equal : hashable,
+                         C](op1: operation[A, B, C],
+                             x1: (List[log_op[A, B, C]], hashmap[B, (C, B)])):
       (List[log_op[A, B, C]], hashmap[B, (C, B)])
   =
   (op1, x1) match {
   case (op1, (Nil, tree1)) =>
     {
       val a: (log_op[A, B, C], hashmap[B, (C, B)]) =
-        efficient_do_op[A, B, C]((op1, tree1))
+        executable_do_op[A, B, C]((op1, tree1))
       val (op2, aa): (log_op[A, B, C], hashmap[B, (C, B)]) = a;
       (List(op2), aa)
     }
   case (op1, (logop :: ops, tree1)) =>
     (if (less[A](move_time[A, B, C](op1), log_time[A, B, C](logop)))
-      efficient_redo_op[A, B,
-                         C](logop,
-                             efficient_apply_op[A, B,
-         C](op1, (ops, efficient_undo_op[A, B, C]((logop, tree1)))))
+      executable_redo_op[A, B,
+                          C](logop,
+                              executable_apply_op[A, B,
+           C](op1, (ops, executable_undo_op[A, B, C]((logop, tree1)))))
       else {
              val a: (log_op[A, B, C], hashmap[B, (C, B)]) =
-               efficient_do_op[A, B, C]((op1, tree1))
+               executable_do_op[A, B, C]((op1, tree1))
              val (op2, aa): (log_op[A, B, C], hashmap[B, (C, B)]) = a;
              (op2 :: logop :: ops, aa)
            })
@@ -1243,17 +1243,17 @@ def example_apply_op:
     (b: (List[log_op[(int, String), String, String]],
           hashmap[String, (String, String)]))
       =>
-    efficient_apply_op[(int, String), String, String](a, b))
+    executable_apply_op[(int, String), String, String](a, b))
 
-def efficient_apply_ops[A : linorder, B : equal : hashable,
-                         C](ops: List[operation[A, B, C]]):
+def executable_apply_ops[A : linorder, B : equal : hashable,
+                          C](ops: List[operation[A, B, C]]):
       (List[log_op[A, B, C]], hashmap[B, (C, B)])
   =
   foldl[(List[log_op[A, B, C]], hashmap[B, (C, B)]),
          operation[A, B,
                     C]](((state: (List[log_op[A, B, C]], hashmap[B, (C, B)])) =>
                           (oper: operation[A, B, C]) =>
-                          efficient_apply_op[A, B, C](oper, state)),
+                          executable_apply_op[A, B, C](oper, state)),
                          (Nil, hm_empty[B, (C, B)].apply(())), ops)
 
 def example_apply_ops:
@@ -1262,6 +1262,6 @@ def example_apply_ops:
           hashmap[String, (String, String)])
   =
   ((a: List[operation[(int, String), String, String]]) =>
-    efficient_apply_ops[(int, String), String, String](a))
+    executable_apply_ops[(int, String), String, String](a))
 
 } /* object generated */
