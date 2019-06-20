@@ -97,7 +97,7 @@
 
 \section{Introduction}\label{sec:intro}
 
-For many systems and applications, the data model that describes the system state is a tree.
+Many systems use a tree-structured data model.
 For example:
 \begin{itemize}
     \item The \textbf{filesystem} on most operating systems is organised as a tree: folders or directories are branch nodes, and files are leaf nodes.
@@ -110,7 +110,7 @@ For example:
         These objects are contained within nodes representing pages of a document, or slides of a presentation.
         Multiple objects may be combined into a \emph{group} so that they can be manipulated as a unit; this corresponds to making these objects children of a common parent node.
         Multiple objects and groups may in turn be combined into higher-level groups, forming a tree.
-    \item Personal \textbf{note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} explicitly present the user with a tree structure that they can inspect and manipulate.
+    \item \textbf{Note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
 In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
@@ -126,8 +126,7 @@ In this paper we use an abstract model of a tree that can support any of the app
 We allow replicas to manipulate this tree in any way: by creating new nodes, deleting nodes, or moving subtrees to a new location within the tree.
 While there are many existing systems that support creating and deleting nodes (see Section~\ref{sec:relwork}), the key innovation of our algorithm is the support for moving subtrees.
 We explain in Section~\ref{sec:move-is-hard} why this move operation is so challenging.
-
-Our contributions in this work are as follows:
+In summary, our contributions are:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in Section~\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
@@ -343,7 +342,7 @@ In this section we demonstrate by example some of the problems that arise with r
 
 \subsection{Concurrent moves of the same node}\label{sec:move-same-item}
 
-The first issue arises when a node is moved to a new location on one replica, and concurrently the same node is moved to a different location on another replica.
+The first difficulty arises when a node is concurrently moved into different locations on different replicas.
 This scenario is illustrated in Figure~\ref{fig:move-same-item}, where replica 1 moves node $A$ to be a child of $B$, while concurrently replica 2 moves $A$ to be a child of $C$.
 After the replicas communicate, what should the merged state of the tree be?
 
@@ -372,7 +371,7 @@ For example, if \texttt{b} is a subdirectory of \texttt{a}, then the Unix shell 
 This restriction is required because allowing this operation would introduce a cycle into the directory graph, and so the filesystem would no longer be a tree.
 The same restriction is required in any other tree structure that supports a move operation.
 
-In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, then the move operation must be rejected.
+In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, then the operation is rejected.
 However, a new problem arises in a replicated setting: different replicas may perform operations that are individually safe, but whose combination leads to a cycle.
 
 One example of such a scenario is illustrated in Figure~\ref{fig:move-cycle}.
@@ -506,20 +505,19 @@ We choose this language because it combines the conciseness of pseudocode with t
 It supports formal reasoning, allowing us to prove the correctness of the algorithm (Section~\ref{sec:proof}), and it also allows executable code to be exported to common functional programming languages such as Scala, Haskell, or OCaml.
 
 In this section we walk through the code in Figure~\ref{fig:code} step by step, explaining features of the Isabelle/HOL syntax as we encounter them.
-For additional background on the language, standard documentation is available~\cite{DBLP:books/sp/NipkowK14}.
+Additional background documentation is available~\cite{DBLP:books/sp/NipkowK14}.
 
 \subsection{Operations and trees}\label{sec:ops-trees}
 
 We define only one kind of operation: \isa{Move t p m c} (Figure~\ref{fig:code}, lines 1--5).
 A move operation is a record consisting of four fields: a timestamp \isa{t} of type \isa{'t}, a parent node \isa{p} of type \isa{'n}, a metadata field \isa{m} of type \isa{'m}, and a child node \isa{c} of type \isa{'n}.
-Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be substituted for arbitrary types; our only requirement is that timestamps \isa{'t} are globally unique and have an associated total order.
-Lamport timestamps~\cite{Lamport:1978jq} meet these requirements, for example.
+Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be substituted for arbitrary types; our only requirement is that timestamps \isa{'t} are globally unique and have an associated total order (e.g. Lamport timestamps~\cite{Lamport:1978jq} would suffice).
 
 The meaning of an operation \isa{Move t p m c} is that at time \isa{t}, the child node \isa{c} is moved to be a child of parent node \isa{p}.
 The operation does not specify the old location of \isa{c}; the algorithm simply ``steals'' \isa{c} from wherever it is currently located in the tree, and moves it to \isa{p}.
 If \isa{c} does not currently exist in the tree, it is created as a child of \isa{p}.
 For this reason we do not need a separate operation type to create tree nodes: simply performing a move with a fresh child node \isa{c} is sufficient to create \isa{c}.
-Moreover, we do not need to define a remove operation: instead, we can designate a particular tree node as the ``trash'', and perform deletion of a node \isa{c} by moving \isa{c} to be a child of the trash node.
+Nor do we need to define a remove operation: instead, we can designate a particular tree node as the ``trash'', and perform deletion of a node \isa{c} by moving \isa{c} to be a child of the trash node.
 
 The metadata field \isa{m} in a move operation allows additional information to be associated with the parent-child relationship of \isa{p} and \isa{c}.
 For example, in a filesystem, the parent and child would be the inodes of a directory and a file within it, respectively, and the metadata would contain the filename of the child.
@@ -548,7 +546,7 @@ When a replica applies a \isa{Move} operation to its tree, it also records a cor
 The \isa{t}, \isa{p}, \isa{m} and \isa{c} fields are taken directly from the \isa{Move} record, while the \isa{oldp} field is filled in based on the state of the tree before the move.
 If \isa{c} did not exist in the tree, \isa{oldp} is set to \isa{None}.
 Otherwise, \isa{oldp} records the previous parent and metadata of \isa{c}, that is: if there exist \isa{p'} and \isa{m'} such that \isa{(p', m', c) {\isasymin} tree}, then \isa{oldp} is set to \isa{Some (p', m')}.
-This logic is performed by the \isa{get\_parent} function (lines 16--20).
+The \isa{get\_parent} function implements this (lines 16--20).
 
 In the first line of \isa{get\_parent}, the expression between \isa{::} and \textbf{where} is the type signature of the function, in this case:
 \begin{quote}
@@ -595,7 +593,6 @@ If the log is nonempty (line 48), we take \isa{logop} to be the first element of
 (The hash character in \isa{logop {\isacharhash} ops} is the \emph{cons} operator that adds one element to the head of a list.)
 If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 49) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 50).
 Otherwise we perform the operation using \isa{do\_op}, and add the corresponding \isa{LogMove} record as the head of the log (line 51).
-
 This logic ensures that the log is maintained in descending timestamp order, with the greatest timestamp at the head.
 \isa{undo\_op} (lines 33--36) inverts the effect of a previous move operation by restoring the prior parent and metadata that were recorded in the \isa{LogMove}'s additional field.
 \isa{redo\_op} (lines 38--41) uses \isa{do\_op} to perform an operation again and recomputes the \isa{LogMove} record (which might have changed due to the effect of the new operation).
@@ -694,7 +691,7 @@ We state this theorem in Isabelle as follows, where \isa{apply\_ops\_unique\_par
 \noindent That is, we consider any list of operations \isa{ops} and define \isa{(log, tree)} to be the replica state after \isa{ops} have been applied.
 We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 56--57 of Figure~\ref{fig:code}: it states that whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
 
-Because we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
+As we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
 Proving it is easy because each of the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintains the invariant \isa{unique\_parent tree}, and thus \isa{apply\_op} also maintains the invariant.
 
 \subsubsection{The graph contains no cycles}\label{sec:no-cycles}
@@ -724,7 +721,7 @@ Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} 
 However, in that case, the predicate \isa{ancestor tree1 c newp} on line 30 would have been true, which contradicts the earlier assumption.
 Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
 
-To prove that \isa{apply\_op} preserves the acyclicity invariant, we first show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
+To prove that \isa{apply\_op} preserves acyclicity, we first show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
 (This is the case when operations are applied in order of increasing timestamp.)
 Then, by the result of the previous paragraph, any tree produced by \isa{apply\_ops} must be acyclic.
 
@@ -808,9 +805,9 @@ We now consider three cases:
 
 Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs.
 Based on the commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
-The details of this proof are given in our open source Isabelle source files~\cite{SourceFiles}.
+The details of this proof are given in our open source Isabelle proof files~\cite{SourceFiles}.
 
-\subsection{Extracting efficient algorithms from HOL}\label{sec:code-gen}
+\subsection{Extracting efficient algorithms from HOL} \label{subsect.extracting}
 
 Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code from HOL definitions using a sophisticated code generation mechanism~\cite{DBLP:conf/flops/HaftmannN10}.
 However, not all definitions can be realised in executable form: for example, the use of choice principles (like in \isa{get\_parent}) and inductively defined relations (e.g.\ \isa{ancestor}) cause problems.
@@ -876,7 +873,7 @@ This lock-step is repeated bottom-up for every efficient-abstract algorithm pair
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
-Intuitively, this states that if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
+That is, if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of key-value bindings---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
 Moreover, we have the following corollaries of the theorems \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, further establishing the correctness of our efficient algorithms:\footnote{The ``efficient'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
 
 % DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
@@ -926,9 +923,8 @@ Whilst this statement appears weaker than that of \isa{apply\_ops\_acyclic}, it 
 
 \subsubsection{Experimental setup and results}
 
-To evaluate the viability of our algorithm in practice, we used Isabelle/HOL's code generation facility to extract executable Scala code from our formally verified definitions.
-We wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
-We deployed three replicas of this service on Amazon EC2 t2.small instances in different regions worldwide: one in Northern California (region us-west-1), one in Ireland (eu-west-1), and one in Singapore (ap-southeast-1).
+We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in Subsection~\ref{subsect.extracting}, and wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
+We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
 The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
 
 We perform a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
@@ -1014,13 +1010,24 @@ Unison is unable to automatically synchronise the move operations shown in Figur
 As a result, depending on user choice, both replicas can end up in one of four states, including those shown in Figure~\ref{fig:move-cycle}~(b), (c) or (d) or with an empty root directory on both replicas. 
 In all cases, Unison successfully ensures both replicas are in the same state after synchronisation.
 
-Coda is a distributed file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
+Coda is a distributed client-server file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
 Clients can edit copies of data held in the cache while offline, during which time a kernel module keeps track of all updates. 
 When the client comes back online, the client attempts to resynchronise changes with the repository. 
 This design means that conflicts may arise if multiple clients edit the same files or directories while one or more clients are offline. 
-One proposed solution to this is to support application-specific resolvers which "encapsulate the knowledge needed for file resolution"~\cite{Kumar:1995wf}, an approach is similar to that found in Bayou~\cite{Terry:1995dn}.
+One proposed solution to resolving conflicts in files is to support application-specific resolvers which ``encapsulate the knowledge needed for file resolution''~\cite{Kumar:1995wf}, an approach is similar to that found in Bayou~\cite{Terry:1995dn}.
+Concurrent edits on directory entries across different replicas in Coda have been considered, but the authors note that they do ``not address transparent resolution of cross-directory [move operations] in [their] current implementation.''~\cite{kumar1993log}.
+Furthermore, while the authors consider a number of conflicts associated with directory move operations, they do not highlight the potential for the creation of cycles as seen in Figure~\ref{fig:move-cycle} (a).
 
-Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
+The Ficus replicated file system~\cite{Reiher:1994wh} is a in-kernel SunOS-based replicated peer-to-peer file system. 
+Ficus supported updates to replicas during periods of network partition and claims ``conflicting updates to directories are detected an automatically repaired''~\cite{guy1990implementation}. 
+Unfortunately we were unable to find a precise definition of the algorithm used in any of the available publications. 
+Rumor~\cite{Guy:1999gy} is the successor to Ficus. 
+An important distinction is between Rumor and previous work is that it operates at the application layer and needs to be invoked periodically by the user or a deamon process.
+Rumor is therefore very similar in operation and design to Unison described earlier.
+
+%The user manual (in Archive) is quite helpful for Rumor: https://web.archive.org/web/20170705140958/ftp://ftp.cs.ucla.edu/pub/rumor/rumor_users_manual.ps. Note that this also makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
+
+TODO: Roam~\cite{Ratner:1999fh}
 
 \section{Conclusions}
 
