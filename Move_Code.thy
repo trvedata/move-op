@@ -5,7 +5,7 @@ imports
     "HOL-Library.Product_Lexorder"
 begin
 
-section\<open>Code generation: an efficient implementation\<close>
+section\<open>Code generation: an executable implementation\<close>
 
 inductive ancestor_alt :: \<open>('n \<times> 'm \<times> 'n) set \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
   where \<open>get_parent T c = Some (p, m) \<Longrightarrow> ancestor_alt T p c\<close>
@@ -196,8 +196,8 @@ using assms ancestor_alt_simp1 ancestor_alt_simp2 by blast
 definition flip_triples :: \<open>('a \<times> 'b \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'a) list\<close>
   where \<open>flip_triples xs \<equiv> map (\<lambda>(x, y, z). (z, y, x)) xs\<close>
 
-definition efficient_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
-  where \<open>efficient_ancestor t p c \<longleftrightarrow> ancestor_alt (set (flip_triples (hm.to_list t))) p c\<close>
+definition executable_ancestor :: \<open>('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> 'n \<Rightarrow> 'n \<Rightarrow> bool\<close>
+  where \<open>executable_ancestor t p c \<longleftrightarrow> ancestor_alt (set (flip_triples (hm.to_list t))) p c\<close>
 
 lemma to_list_simulates:
   shows \<open>t \<preceq> set (flip_triples (hm.to_list t))\<close>
@@ -230,51 +230,51 @@ lemma unique_parent_to_list:
   by(unfold unique_parent_def, intro allI impI conjI, elim conjE)
     (clarsimp simp add: flip_triples_def; (drule map_of_is_SomeI[rotated], force simp add: hm.to_list_correct)+)+
 
-theorem efficient_ancestor_simp [code]:
-  shows \<open>efficient_ancestor t p c \<longleftrightarrow>
+theorem executable_ancestor_simp [code]:
+  shows \<open>executable_ancestor t p c \<longleftrightarrow>
           (case hm.lookup c t of
               None \<Rightarrow> False
             | Some (m, a) \<Rightarrow>
-                a = p \<or> efficient_ancestor t p a)\<close>
-  by (unfold efficient_ancestor_def)
-     (auto simp: efficient_ancestor_def intro!: ancestor_alt_simp unique_parent_to_list to_list_simulates)
+                a = p \<or> executable_ancestor t p a)\<close>
+  by (unfold executable_ancestor_def)
+     (auto simp: executable_ancestor_def intro!: ancestor_alt_simp unique_parent_to_list to_list_simulates)
 
 
-fun efficient_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
+fun executable_do_op :: \<open>('t, 'n, 'm) operation \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
         ('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_do_op (Move t newp m c, tree) =
+  where \<open>executable_do_op (Move t newp m c, tree) =
            (LogMove t (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c tree)) newp m c,
-              if efficient_ancestor tree c newp \<or> c = newp then tree
+              if executable_ancestor tree c newp \<or> c = newp then tree
                 else hm.update c (m, newp) tree)\<close>
 
-fun efficient_undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_undo_op (LogMove t None newp m c, tree) =
+fun executable_undo_op :: \<open>('t, 'n, 'm) log_op \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow> ('n, 'm \<times> 'n) hm\<close>
+  where \<open>executable_undo_op (LogMove t None newp m c, tree) =
           hm.delete c tree\<close>
-      | \<open>efficient_undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
+      | \<open>executable_undo_op (LogMove t (Some (oldp, oldm)) newp m c, tree) =
           hm.update c (oldm, oldp) tree\<close>
 
-fun efficient_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow>
+fun executable_redo_op :: \<open>('t, 'n, 'm) log_op \<Rightarrow>
             ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
             ('t, 'n, 'm) log_op list \<times> ('n, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_redo_op (LogMove t _ p m c) (ops, tree) =
-          (let (op2, tree2) = efficient_do_op (Move t p m c, tree) in
+  where \<open>executable_redo_op (LogMove t _ p m c) (ops, tree) =
+          (let (op2, tree2) = executable_do_op (Move t p m c, tree) in
              (op2#ops, tree2))\<close>
 
-fun efficient_apply_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
+fun executable_apply_op :: \<open>('t::{linorder}, 'n, 'm) operation \<Rightarrow>
               ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm \<Rightarrow>
             ('t, 'n, 'm) log_op list \<times> ('n, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_apply_op op1 ([], tree1) =
-          (let (op2, tree2) = efficient_do_op (op1, tree1)
+  where \<open>executable_apply_op op1 ([], tree1) =
+          (let (op2, tree2) = executable_do_op (op1, tree1)
             in ([op2], tree2))\<close>
-      | \<open>efficient_apply_op op1 (logop#ops, tree1) =
+      | \<open>executable_apply_op op1 (logop#ops, tree1) =
           (if move_time op1 < log_time logop
-            then efficient_redo_op logop (efficient_apply_op op1 (ops, efficient_undo_op (logop, tree1)))
-              else let (op2, tree2) = efficient_do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
+            then executable_redo_op logop (executable_apply_op op1 (ops, executable_undo_op (logop, tree1)))
+              else let (op2, tree2) = executable_do_op (op1, tree1) in (op2 # logop # ops, tree2))\<close>
 
-definition efficient_apply_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow>
+definition executable_apply_ops :: \<open>('t::{linorder}, 'n::{hashable}, 'm) operation list \<Rightarrow>
         ('t, 'n, 'm) log_op list \<times> ('n::{hashable}, 'm \<times> 'n) hm\<close>
-  where \<open>efficient_apply_ops ops \<equiv>
-      foldl (\<lambda>state oper. efficient_apply_op oper state) ([], (hm.empty ())) ops\<close>
+  where \<open>executable_apply_ops ops \<equiv>
+      foldl (\<lambda>state oper. executable_apply_op oper state) ([], (hm.empty ())) ops\<close>
 
 text\<open>Any abstract set that is simulated by a hash-map must necessarily have the
      @{term unique_parent} property:\<close>
@@ -339,18 +339,18 @@ next
     by(blast intro: ancestor.intros(2) IH get_parent_SomeI)
 qed
 
-text\<open>The efficient and abstract @{term ancestor} relations agree for all ancestry queries between a
+text\<open>The executable and abstract @{term ancestor} relations agree for all ancestry queries between a
      prospective ancestor and child node when applied to related states:\<close>
-lemma efficient_ancestor_simulates:
+lemma executable_ancestor_simulates:
   assumes \<open>t \<preceq> T\<close>
-  shows \<open>efficient_ancestor t p c = ancestor T p c\<close>
+  shows \<open>executable_ancestor t p c = ancestor T p c\<close>
 using assms proof(intro iffI)
-  assume 1: \<open>efficient_ancestor t p c\<close>
+  assume 1: \<open>executable_ancestor t p c\<close>
     and 2: \<open>t \<preceq> T\<close>
   obtain u where 3: \<open>u = set (flip_triples (hm.to_list t))\<close>
     by force
   from this and 1 have \<open>ancestor_alt u p c\<close>
-    by(force simp add: efficient_ancestor_def)
+    by(force simp add: executable_ancestor_def)
   from this and 2 and 3 show \<open>ancestor T p c\<close>
   proof(induction rule: ancestor_alt.induct)
     case (1 T' c p m)
@@ -381,11 +381,11 @@ using assms proof(intro iffI)
   qed
 next
   assume \<open>ancestor T p c\<close> and \<open>t \<preceq> T\<close> 
-  from this show \<open>efficient_ancestor t p c\<close>
-    by(induction rule: ancestor.induct) (force simp add: efficient_ancestor_simp)+
+  from this show \<open>executable_ancestor t p c\<close>
+    by(induction rule: ancestor.induct) (force simp add: executable_ancestor_simp)+
 qed
 
-lemma efficient_do_op_get_parent_technical:
+lemma executable_do_op_get_parent_technical:
   assumes 1: \<open>t \<preceq> T\<close>
   shows \<open>map_option (\<lambda>x. (snd x, fst x)) (hm.lookup c t) = get_parent T c\<close>
 using assms proof(cases \<open>hm.lookup c t\<close>)
@@ -430,21 +430,21 @@ lemma hm_update_refine_collapse:
 using assms by(force simp add: hm.correct hm.update_correct hm.restrict_correct
         simulates_def unique_parent_def split!: if_split_asm)
 
-text\<open>The efficient and abstract @{term do_op} algorithms map related concrete and abstract states to
+text\<open>The executable and abstract @{term do_op} algorithms map related concrete and abstract states to
      related concrete and abstract states, and produce identical logs, when fed the same operation:\<close>
-lemma efficient_do_op_simulates:
+lemma executable_do_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
-    and 2: \<open>efficient_do_op (oper, t) = (log1, u)\<close>
+    and 2: \<open>executable_do_op (oper, t) = (log1, u)\<close>
     and 3: \<open>do_op (oper, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms proof(cases \<open>oper\<close>)
   case (Move time parent meta child)
   assume 4: \<open>oper = Move time parent meta child\<close>
   {
-    assume 5: \<open>efficient_ancestor t child parent \<or> parent = child\<close>
+    assume 5: \<open>executable_ancestor t child parent \<or> parent = child\<close>
     from this and 1 have 6: \<open>ancestor T child parent \<or> parent = child\<close>
-      using efficient_ancestor_simulates by auto
-    from 4 and 5 have \<open>efficient_do_op (oper, t) =
+      using executable_ancestor_simulates by auto
+    from 4 and 5 have \<open>executable_do_op (oper, t) =
         (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child, t)\<close>
       by force
     moreover from 4 and 5 and 6 have \<open>do_op (oper, T) =
@@ -456,14 +456,14 @@ using assms proof(cases \<open>oper\<close>)
     moreover from 3 have \<open>log2 = LogMove time (get_parent T child) parent meta child\<close> and \<open>U = T\<close>
       using calculation by auto
     ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
-      using 1 by(auto simp add: efficient_do_op_get_parent_technical) 
+      using 1 by(auto simp add: executable_do_op_get_parent_technical) 
   }
   note L = this
   {
-    assume 5: \<open>\<not> (efficient_ancestor t child parent \<or> parent = child)\<close>
+    assume 5: \<open>\<not> (executable_ancestor t child parent \<or> parent = child)\<close>
     from this and 1 have 6: \<open>\<not> (ancestor T child parent \<or> parent = child)\<close>
-      using efficient_ancestor_simulates by auto
-    from 4 and 5 have \<open>efficient_do_op (oper, t) =
+      using executable_ancestor_simulates by auto
+    from 4 and 5 have \<open>executable_do_op (oper, t) =
       (LogMove time (map_option (\<lambda>x. (snd x, fst x)) (hm.lookup child t)) parent meta child,
           hm.update child (meta, parent) t)\<close>
       by auto
@@ -478,30 +478,30 @@ using assms proof(cases \<open>oper\<close>)
           \<open>U = {(p, m, c) \<in> T. c \<noteq> child} \<union> {(parent, meta, child)}\<close>
       using calculation by auto
     ultimately have \<open>log1 = log2 \<and> u \<preceq> U\<close>
-      using 1 by(clarsimp simp add: efficient_do_op_get_parent_technical hm_update_refine_collapse
+      using 1 by(clarsimp simp add: executable_do_op_get_parent_technical hm_update_refine_collapse
             simulates_unique_parent)
   }
   from this and L show ?thesis
     by auto
 qed
 
-text\<open>The efficient and abstract @{term redo_op} functins take related concrete and abstract states
+text\<open>The executable and abstract @{term redo_op} functins take related concrete and abstract states
      and produce identical logics and related concrete and abstract states:\<close>
-lemma efficient_redo_op_simulates:
+lemma executable_redo_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
-    and 2: \<open>efficient_redo_op oper (opers, t) = (log1, u)\<close>
+    and 2: \<open>executable_redo_op oper (opers, t) = (log1, u)\<close>
     and 3: \<open>redo_op oper (opers, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 proof(cases oper)
   case (LogMove time opt_old_parent new_parent meta child)
     assume 4: \<open>oper = LogMove time opt_old_parent new_parent meta child\<close>
-    obtain entry1 and v where \<open>efficient_do_op (Move time new_parent meta child, t) = (entry1, v)\<close>
+    obtain entry1 and v where \<open>executable_do_op (Move time new_parent meta child, t) = (entry1, v)\<close>
       by auto
     moreover obtain entry2 and V where \<open>do_op (Move time new_parent meta child, T) = (entry2, V)\<close>
       by auto
     moreover have 5: \<open>entry1 = entry2\<close> and 6: \<open>v \<preceq> V\<close>
-      using calculation efficient_do_op_simulates[OF 1] by blast+
-    from 4 have \<open>efficient_redo_op oper (opers, t) = (entry1#opers, v)\<close>
+      using calculation executable_do_op_simulates[OF 1] by blast+
+    from 4 have \<open>executable_redo_op oper (opers, t) = (entry1#opers, v)\<close>
       using calculation by clarsimp
     moreover have \<open>log1 = entry1#opers\<close> and \<open>u = v\<close>
       using 2 calculation by auto
@@ -513,11 +513,11 @@ proof(cases oper)
       using 5 6 by metis
 qed
 
-text\<open>The efficient and abstract versions of @{term undo_op} map related concrete and abstract states
+text\<open>The executable and abstract versions of @{term undo_op} map related concrete and abstract states
      to related concrete and abstract states when applied to the same operation:\<close>
-lemma efficient_undo_op_simulates:
+lemma executable_undo_op_simulates:
   assumes 1: \<open>t \<preceq> T\<close>
-  shows \<open>efficient_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
+  shows \<open>executable_undo_op (oper, t) \<preceq> undo_op (oper, T)\<close>
 using assms proof(cases \<open>oper\<close>)           
   case (LogMove time opt_old_parent new_parent meta child)
     assume 2: \<open>oper = LogMove time opt_old_parent new_parent meta child\<close>
@@ -525,7 +525,7 @@ using assms proof(cases \<open>oper\<close>)
       assume \<open>opt_old_parent = None\<close>
       from this and 2 have 3: \<open>oper = LogMove time None new_parent meta child\<close>
         by simp
-      moreover from this have \<open>efficient_undo_op (oper, t) = hm.delete child t\<close>
+      moreover from this have \<open>executable_undo_op (oper, t) = hm.delete child t\<close>
         by force
       moreover have \<open>... \<preceq> {(p', m', c') \<in> T. c' \<noteq> child}\<close>
         by(rule hm_delete_refine[OF 1]) auto
@@ -540,7 +540,7 @@ using assms proof(cases \<open>oper\<close>)
       assume \<open>opt_old_parent = Some (old_parent, old_meta)\<close>
       from this and 2 have 3: \<open>oper = LogMove time (Some (old_parent, old_meta)) new_parent meta child\<close>
         by simp
-      moreover from this have \<open>efficient_undo_op (oper, t) =
+      moreover from this have \<open>executable_undo_op (oper, t) =
           hm.update child (old_meta, old_parent) t\<close>
         by auto
       moreover have \<open>... \<preceq> {(p, m, c) \<in> T. c \<noteq> child} \<union> {(old_parent, old_meta, child)}\<close>
@@ -554,23 +554,23 @@ using assms proof(cases \<open>oper\<close>)
       by(cases opt_old_parent) force+
 qed
 
-text\<open>The efficient and abstract @{term apply_op} algorithms map related concrete and abstract
+text\<open>The executable and abstract @{term apply_op} algorithms map related concrete and abstract
      states to related concrete and abstract states when applied to the same operation and input
      log, and also produce identical output logs:\<close>
-lemma efficient_apply_op_simulates:
+lemma executable_apply_op_simulates:
   assumes \<open>t \<preceq> T\<close>
-    and \<open>efficient_apply_op oper (log, t) = (log1, u)\<close>
+    and \<open>executable_apply_op oper (log, t) = (log1, u)\<close>
     and \<open>apply_op oper (log, T) = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms proof(induction log arbitrary: T t log1 log2 u U)
   case Nil
-  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>efficient_apply_op oper ([], t) = (log1, u)\<close>
+  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>executable_apply_op oper ([], t) = (log1, u)\<close>
     and 3: \<open>apply_op oper ([], T) = (log2, U)\<close>
-  obtain action1 action2 t' T' where 4: \<open>efficient_do_op (oper, t) = (action1, t')\<close>
+  obtain action1 action2 t' T' where 4: \<open>executable_do_op (oper, t) = (action1, t')\<close>
       and 5: \<open>do_op (oper, T) = (action2, T')\<close>
     by fastforce
   moreover from 4 and 5 have \<open>action1 = action2\<close> and \<open>t' \<preceq> T'\<close>
-    using efficient_do_op_simulates[OF 1] by blast+
+    using executable_do_op_simulates[OF 1] by blast+
   moreover from 2 and 4 have \<open>log1 = [action1]\<close> and \<open>u = t'\<close>
     by auto
   moreover from 3 and 5 have \<open>log2 = [action2]\<close> and \<open>U = T'\<close>
@@ -579,26 +579,26 @@ using assms proof(induction log arbitrary: T t log1 log2 u U)
     by auto
 next
   case (Cons logop logops)
-  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>efficient_apply_op oper (logop # logops, t) = (log1, u)\<close>
+  assume 1: \<open>t \<preceq> T\<close> and 2: \<open>executable_apply_op oper (logop # logops, t) = (log1, u)\<close>
     and 3: \<open>apply_op oper (logop # logops, T) = (log2, U)\<close>
-    and IH: \<open>(\<And>T t log1 log2 u U. t \<preceq> T \<Longrightarrow> efficient_apply_op oper (logops, t) = (log1, u) \<Longrightarrow>
+    and IH: \<open>(\<And>T t log1 log2 u U. t \<preceq> T \<Longrightarrow> executable_apply_op oper (logops, t) = (log1, u) \<Longrightarrow>
                 apply_op oper (logops, T) = (log2, U) \<Longrightarrow> log1 = log2 \<and> u \<preceq> U)\<close>
   {
     assume 4: \<open>move_time oper < log_time logop\<close>
-    obtain action1 and action1' and u' and u'' and u''' where 5: \<open>efficient_undo_op (logop, t) = u'\<close> and
-        6: \<open>efficient_apply_op oper (logops, u') = (action1, u'')\<close> and
-          7: \<open>efficient_redo_op logop (action1, u'') = (action1', u''')\<close>
+    obtain action1 and action1' and u' and u'' and u''' where 5: \<open>executable_undo_op (logop, t) = u'\<close> and
+        6: \<open>executable_apply_op oper (logops, u') = (action1, u'')\<close> and
+          7: \<open>executable_redo_op logop (action1, u'') = (action1', u''')\<close>
       by force
     obtain action2 and action2' and U' and U'' and U''' where 8: \<open>undo_op (logop, T) = U'\<close> and
         9: \<open>apply_op oper (logops, U') = (action2, U'')\<close> and
           10: \<open>redo_op logop (action2, U'') = (action2', U''')\<close>
       by force
     from 5 and 8 have \<open>u' \<preceq> U'\<close>
-      using efficient_undo_op_simulates[OF 1] by blast
+      using executable_undo_op_simulates[OF 1] by blast
     moreover from 6 and 9 have \<open>action1 = action2\<close> and \<open>u'' \<preceq> U''\<close>
       using IH[OF \<open>u' \<preceq> U'\<close>] by blast+
     moreover from this and 7 and 10 have \<open>action1' = action2'\<close> and \<open>u''' \<preceq> U'''\<close>
-      using efficient_redo_op_simulates by blast+
+      using executable_redo_op_simulates by blast+
     moreover from 2 and 4 and 5 and 6 and 7 have \<open>log1 = action1'\<close> and \<open>u = u'''\<close>
       by auto
     moreover from 3 and 4 and 8 and 9 and 10 have \<open>log2 = action2'\<close> and \<open>U = U'''\<close>
@@ -609,11 +609,11 @@ next
   note L = this
   {
     assume 4: \<open>\<not> (move_time oper < log_time logop)\<close>
-    obtain action1 action2 u' U' where 5: \<open>efficient_do_op (oper, t) = (action1, u')\<close>
+    obtain action1 action2 u' U' where 5: \<open>executable_do_op (oper, t) = (action1, u')\<close>
         and 6: \<open>do_op (oper, T) = (action2, U')\<close>
       by fastforce
     from this have \<open>action1 = action2\<close> and \<open>u' \<preceq> U'\<close>
-      using efficient_do_op_simulates[OF 1] by blast+
+      using executable_do_op_simulates[OF 1] by blast+
     moreover from 2 and 4 and 5 have \<open>log1 = action1#logop#logops\<close> and \<open>u' = u\<close>
       by auto
     moreover from 3 and 4 and 6 have \<open>log2 = action2#logop#logops\<close> and \<open>U' = U\<close>
@@ -636,14 +636,14 @@ text\<open>The internal workings of abstract and concrete implementations of the
      show that the required property holds for any starting states (as long as they are related by
      the simulation relation) and then specialise to the empty starting state in the next lemma,
      below.\<close>
-lemma efficient_apply_ops_simulates_internal:
-  assumes \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log, t) xs = (log1, u)\<close>
+lemma executable_apply_ops_simulates_internal:
+  assumes \<open>foldl (\<lambda>state oper. executable_apply_op oper state) (log, t) xs = (log1, u)\<close>
     and \<open>foldl (\<lambda>state oper. apply_op oper state) (log, T) xs = (log2, U)\<close>
     and \<open>t \<preceq> T\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 using assms proof(induction xs arbitrary: log log1 log2 t T u U)
   case Nil
-  assume \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log, t) [] = (log1, u)\<close>
+  assume \<open>foldl (\<lambda>state oper. executable_apply_op oper state) (log, t) [] = (log1, u)\<close>
     and \<open>apply_ops' [] (log, T) = (log2, U)\<close>
     and *: \<open>t \<preceq> T\<close>
   from this have \<open>log = log2\<close> and \<open>T = U\<close> and \<open>log = log1\<close> and \<open>t = u\<close>
@@ -654,17 +654,17 @@ next
   case (Cons x xs)
   fix xs :: \<open>('a, 'b, 'c) operation list\<close> and x log log1 log2 t T u U
   assume IH: \<open>\<And>log log1 log2 t T u U.
-           foldl (\<lambda>state oper. efficient_apply_op oper state) (log, t) xs = (log1, u) \<Longrightarrow>
+           foldl (\<lambda>state oper. executable_apply_op oper state) (log, t) xs = (log1, u) \<Longrightarrow>
            apply_ops' xs (log, T) = (log2, U) \<Longrightarrow> t \<preceq> T \<Longrightarrow> log1 = log2 \<and> u \<preceq> U\<close>
-    and 1: \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log, t) (x#xs) = (log1, u)\<close>
+    and 1: \<open>foldl (\<lambda>state oper. executable_apply_op oper state) (log, t) (x#xs) = (log1, u)\<close>
     and 2: \<open>apply_ops' (x#xs) (log, T) = (log2, U)\<close>
     and 3: \<open>t \<preceq> T\<close>
-  obtain log1' log2' U' u' where 4: \<open>efficient_apply_op x (log, t) = (log1', u')\<close>
+  obtain log1' log2' U' u' where 4: \<open>executable_apply_op x (log, t) = (log1', u')\<close>
       and 5: \<open>apply_op x (log, T) = (log2', U')\<close>
     by fastforce
   moreover from this have \<open>log1' = log2'\<close> and \<open>u' \<preceq> U'\<close>
-    using efficient_apply_op_simulates[OF 3] by blast+
-  moreover have \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) (log1', u') xs = (log1, u)\<close>
+    using executable_apply_op_simulates[OF 3] by blast+
+  moreover have \<open>foldl (\<lambda>state oper. executable_apply_op oper state) (log1', u') xs = (log1, u)\<close>
     using 1 and 4 by simp
   moreover have \<open>apply_ops' xs (log2', U') = (log2, U)\<close>
     using 2 and 5 by simp
@@ -672,45 +672,45 @@ next
     by(auto simp add: IH)
 qed
 
-text\<open>The efficient and abstract versions of @{term apply_ops} produce identical operation logs and
+text\<open>The executable and abstract versions of @{term apply_ops} produce identical operation logs and
      produce related concrete and abstract states:\<close>
-lemma efficient_apply_ops_simulates:
-  assumes 1: \<open>efficient_apply_ops opers = (log1, u)\<close>
+lemma executable_apply_ops_simulates:
+  assumes 1: \<open>executable_apply_ops opers = (log1, u)\<close>
     and 2: \<open>apply_ops opers = (log2, U)\<close>
   shows \<open>log1 = log2 \<and> u \<preceq> U\<close>
 proof -
   have \<open>hm.empty () \<preceq> {}\<close>
     by auto
-  moreover have \<open>foldl (\<lambda>state oper. efficient_apply_op oper state) ([], hm.empty ()) opers = (log1, u)\<close>
-    using 1 by(auto simp add: efficient_apply_ops_def)
+  moreover have \<open>foldl (\<lambda>state oper. executable_apply_op oper state) ([], hm.empty ()) opers = (log1, u)\<close>
+    using 1 by(auto simp add: executable_apply_ops_def)
   moreover have \<open>foldl (\<lambda>state oper. apply_op oper state) ([], {}) opers = (log2, U)\<close>
     using 2 by(auto simp add: apply_ops_def)
   moreover have \<open>log1 = log2\<close> and \<open>u \<preceq> U\<close>
-    using calculation efficient_apply_ops_simulates_internal by blast+
+    using calculation executable_apply_ops_simulates_internal by blast+
   ultimately show \<open>?thesis\<close>
     by auto
 qed
 
-text\<open>The @{term efficient_apply_ops} algorithm maintains an acyclic invariant similar to its
+text\<open>The @{term executable_apply_ops} algorithm maintains an acyclic invariant similar to its
      abstract counterpart, namely that no node in the resulting tree hash-map is its own ancestor:\<close>
-theorem efficient_apply_ops_acyclic:
-  assumes 1: \<open>efficient_apply_ops ops = (log, t)\<close>
-  shows \<open>\<nexists>n. efficient_ancestor t n n\<close>
+theorem executable_apply_ops_acyclic:
+  assumes 1: \<open>executable_apply_ops ops = (log, t)\<close>
+  shows \<open>\<nexists>n. executable_ancestor t n n\<close>
 using assms proof(intro notI)
-  assume \<open>\<exists>n. efficient_ancestor t n n\<close>
-  from this obtain log2 T n where \<open>apply_ops ops = (log2, T)\<close> and \<open>efficient_ancestor t n n\<close>
+  assume \<open>\<exists>n. executable_ancestor t n n\<close>
+  from this obtain log2 T n where \<open>apply_ops ops = (log2, T)\<close> and \<open>executable_ancestor t n n\<close>
     by force
   moreover from this and 1 have \<open>log = log2\<close> and \<open>t \<preceq> T\<close>
-    using efficient_apply_ops_simulates by blast+
+    using executable_apply_ops_simulates by blast+
   moreover have \<open>\<nexists>n. ancestor T n n\<close>
     using apply_ops_acyclic calculation by force
   moreover have \<open>ancestor T n n\<close>
-    using calculation efficient_ancestor_simulates by blast
+    using calculation executable_ancestor_simulates by blast
   ultimately show False
     by auto
 qed 
 
-text\<open>The main correctness theorem for the efficient algorithms.  This follows the
+text\<open>The main correctness theorem for the executable algorithms.  This follows the
      @{thm apply_ops_commutes} theorem for the abstract algorithms with one significant difference:
      the states obtained from interpreting the two lists of operations, @{term ops1} and
      @{term ops2}, are no longer identical (the hash-maps may have a different representation in
@@ -718,12 +718,12 @@ text\<open>The main correctness theorem for the efficient algorithms.  This foll
      finite maps (hash-maps included) to be extensional---i.e. two finite maps are equal when they
      contain the same key-value bindings---then this theorem coincides exactly with the
      @{thm apply_ops_commutes}:\<close>
-theorem efficient_apply_ops_commutes:
+theorem executable_apply_ops_commutes:
   assumes 1: \<open>set ops1 = set ops2\<close>
     and 2: \<open>distinct (map move_time ops1)\<close>
     and 3: \<open>distinct (map move_time ops2)\<close>
-    and 4: \<open>efficient_apply_ops ops1 = (log1, t)\<close>
-    and 5: \<open>efficient_apply_ops ops2 = (log2, u)\<close>
+    and 4: \<open>executable_apply_ops ops1 = (log1, t)\<close>
+    and 5: \<open>executable_apply_ops ops2 = (log2, u)\<close>
   shows \<open>log1 = log2 \<and> hm.lookup c t = hm.lookup c u\<close>
 proof -
   from 1 2 3 have \<open>apply_ops ops1 = apply_ops ops2\<close>
@@ -732,7 +732,7 @@ proof -
       and 7: \<open>apply_ops ops2 = (log2', U)\<close> and 8: \<open>log1' = log2'\<close> and 9: \<open>T = U\<close>
     by fastforce
   moreover from 4 5 6 7 have \<open>log1 = log1'\<close> and \<open>log2 = log2'\<close> and \<open>t \<preceq> T\<close> and \<open>u \<preceq> U\<close>
-    using efficient_apply_ops_simulates by force+
+    using executable_apply_ops_simulates by force+
   moreover from 8 have \<open>log1 = log2\<close>
     by(simp add: calculation)
   moreover have \<open>hm.lookup c t = hm.lookup c u\<close>
@@ -743,21 +743,21 @@ qed
 
 text\<open>Testing code generation\<close>
 
-text\<open>Check that all of the efficient algorithms produce executable code for all of Isabelle/HOL's
+text\<open>Check that all of the executable algorithms produce executable code for all of Isabelle/HOL's
      code generation targets (Standard ML, Scala, OCaml, Haskell).  Note that the Isabelle code
      generation mechanism recursively extracts all necessary material from the HOL library required
      to successfully compile our own definitions, here.  As a result, the first section of each
      extraction is material extracted from the Isabelle libraries---our material is towards the
      bottom.  (View it in the Output buffer of the Isabelle/JEdit IDE.)\<close>
 
-export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in SML file generated.SML
-export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in Scala file generated.scala
-export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in OCaml file generated.ml
-export_code efficient_ancestor efficient_do_op efficient_undo_op efficient_redo_op
-  efficient_apply_op efficient_apply_ops in Haskell
+export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
+  executable_apply_op executable_apply_ops in SML file generated.SML
+export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
+  executable_apply_op executable_apply_ops in Scala file generated.scala
+export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
+  executable_apply_op executable_apply_ops in OCaml file generated.ml
+export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
+  executable_apply_op executable_apply_ops in Haskell
 
 definition example_apply_op ::
     \<open>((int \<times> String.literal), String.literal, String.literal) operation \<Rightarrow>
@@ -765,33 +765,33 @@ definition example_apply_op ::
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap \<Rightarrow>
      ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
- where \<open>example_apply_op = efficient_apply_op\<close>
+ where \<open>example_apply_op = executable_apply_op\<close>
 
 definition example_apply_ops ::
     \<open>((int \<times> String.literal), String.literal, String.literal) operation list \<Rightarrow>
      ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
- where \<open>example_apply_ops = efficient_apply_ops\<close>
+ where \<open>example_apply_ops = executable_apply_ops\<close>
 
-(*
-Alternative version that uses BigInt for nodes and replica identifiers.
-Compared to the version above that uses String everywhere, this version is
-approximately 2.5 times faster for do_op, and 23% faster for undo/do/redo.
+text\<open>The following is an alternative version that uses BigInt for nodes and replica identifiers.
+Compared to the version above that uses @{type String.literal} everywhere, this version is
+approximately 2.5 times faster for @{term do_op} and 23% faster for @{term undo_op} and
+@{term redo_op}:
 
-definition example_apply_op ::
-   \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
-    ((integer \<times> integer), integer, String.literal) log_op list \<times>
-      (integer,  String.literal \<times> integer) HashMap.hashmap \<Rightarrow>
-    ((integer \<times> integer), integer, String.literal) log_op list \<times>
-      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
-where \<open>example_apply_op = efficient_apply_op\<close>
-
-definition example_apply_ops ::
-   \<open>((integer \<times> integer), integer, String.literal) operation list \<Rightarrow>
-    ((integer \<times> integer), integer, String.literal) log_op list \<times>
-      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
-   where \<open>example_apply_ops = efficient_apply_ops\<close>
-*)
+  definition example_apply_op ::
+     \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
+      ((integer \<times> integer), integer, String.literal) log_op list \<times>
+        (integer,  String.literal \<times> integer) HashMap.hashmap \<Rightarrow>
+      ((integer \<times> integer), integer, String.literal) log_op list \<times>
+        (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+  where \<open>example_apply_op = executable_apply_op\<close>
+  
+  definition example_apply_ops ::
+     \<open>((integer \<times> integer), integer, String.literal) operation list \<Rightarrow>
+      ((integer \<times> integer), integer, String.literal) log_op list \<times>
+        (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+     where \<open>example_apply_ops = executable_apply_ops\<close>
+\<close>
 
 export_code example_apply_op example_apply_ops in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
 
@@ -800,14 +800,14 @@ text\<open>Without resorting to saving the generated code above to a separate fi
      executes relatively quickly from within Isabelle itself, by making use of Isabelle's
      quotations/anti-quotations, and its tight coupling with the underlying PolyML process.
 
-     First define a @{term unit_test} definition that makes use of our @{term efficient_apply_ops}
+     First define a @{term unit_test} definition that makes use of our @{term executable_apply_ops}
      function on a variety of inputs:\<close>
 
 definition unit_test :: \<open>((nat, nat, nat) log_op list \<times> (nat, nat \<times> nat) HashMap.hashmap) list\<close>
   where \<open>unit_test \<equiv>
-          [ efficient_apply_ops []
-          , efficient_apply_ops [Move 1 0 0 1]
-          , efficient_apply_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
+          [ executable_apply_ops []
+          , executable_apply_ops [Move 1 0 0 1]
+          , executable_apply_ops [Move 1 0 0 0, Move 3 2 2 2, Move 2 1 1 1]
           ]\<close>
 
 text\<open>Then, we can use @{command ML_val} to ask Isabelle to:
