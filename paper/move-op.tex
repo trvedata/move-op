@@ -819,7 +819,7 @@ The details of this proof are given in the open source Isabelle source files.\fo
 
 \section{Evaluation}\label{sec:evaluation}
 
-\subsection{Extracting efficient algorithms from HOL}
+\subsection{Extracting efficient algorithms from HOL} \label{subsect.extracting}
 
 Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code from HOL type and constant definitions using a sophisticated code generation mechanism~\cite{DBLP:conf/flops/HaftmannN10}.
 However,  care must be taken when using this mechanism, as:
@@ -836,8 +836,8 @@ Whilst convenient for theorem proving this type often leads to inefficiency in g
 We therefore produce a series of definitions that are optimised for execution rather than theorem proving, before trying to evaluate our algorithms.
 Notably, we eschew the HOL \isa{set} type, and instead use a more efficient hash-map implementation provided by the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}, a library of verified, efficient container datatypes and associated algorithms.
 
-Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for the type of hash-maps with key type $\isa{'a}$ and binding type $\isa{'b}$.
-Note that keys have an explicit $\isa{hashable}$ constraint, meaning that this hash-map type may only be used with kay types with an associated hashing function.
+Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for a hash-map type with key type $\isa{'a}$ and binding type $\isa{'b}$.
+Note that keys have a $\isa{hashable}$ constraint, meaning that the type may only be used with key types with a defined hashing function.
 With this type, we represent trees by the type $(\isa{'n}::\{hashable\}, \isa{'m} \times \isa{'n})\ \isa{hm}$, mapping from a \emph{child} node to its \emph{parent} node and associated metadata, if any such mapping exists.
 
 We use a \emph{simulation relation} between our two representations of trees, and say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ \emph{simulates} a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
@@ -893,7 +893,7 @@ This lock-step is repeated bottom-up for every efficient-abstract algorithm pair
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
-Intuitively, this states that if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of parent-metadata-child records---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
+That is, if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of key-value bindings---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
 Moreover, we have the following corollaries of the theorems \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, further establishing the correctness of our efficient algorithms:\footnote{The ``efficient'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
 
 % DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
@@ -941,9 +941,8 @@ Whilst this statement appears weaker than that of \isa{apply\_ops\_acyclic}, it 
 
 \subsubsection{Experimental setup and results}
 
-To evaluate the viability of our algorithm in practice, we used Isabelle/HOL's code generation facility to extract executable Scala code from our formally verified definitions.
-We wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
-We deployed three replicas of this service on Amazon EC2 t2.small instances in different regions worldwide: one in Northern California (region us-west-1), one in Ireland (eu-west-1), and one in Singapore (ap-southeast-1).
+We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in Subsection~\ref{subsect.extracting}, and wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
+We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
 The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
 
 We perform a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
