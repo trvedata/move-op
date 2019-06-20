@@ -928,10 +928,10 @@ We used Isabelle/HOL's code generation mechanism to extract executable Scala cod
 We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
 The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
 
-We perform a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
+We use a synthetic workload wherein each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
 For a given operation rate we run the system for 10 minutes to reach a steady state.
 We use Lamport timestamps~\cite{Lamport:1978jq} as operation timestamps, and string values to identify tree nodes.
-When a replica generates an operation, it immediately applies that operation to its local state, and then asynchronously sends the operation to the other two replicas via gRPC requests.
+When a replica generates an operation, it immediately applies that operation to its local state, and asynchronously sends the operation to the other two replicas via gRPC requests.
 When a replica receives an operation from a remote replica, it also applies that operation to its own replica state.
 Thus, of the operations applied by each replica, approximately one third are locally generated, and two thirds are received from the other two replicas.
 
