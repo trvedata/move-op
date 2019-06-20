@@ -815,10 +815,10 @@ The details of this proof are given in the open source Isabelle source files.\fo
 
 \section{Evaluation}\label{sec:evaluation}
 
-\subsection{Extracting efficient algorithms from HOL} \label{subsect.extracting}
+\subsection{Making the HOL definitions executable} \label{subsect.extracting}
 
-Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code from HOL type and constant definitions using a sophisticated code generation mechanism~\cite{DBLP:conf/flops/HaftmannN10}.
-However,  care must be taken when using this mechanism, as:
+Isabelle/HOL's code generation mechanism~\cite{DBLP:conf/flops/HaftmannN10} can produce executable code from HOL definitions.
+However,  care must be taken:
 \begin{enumerate}
 \item
 The mechanism is \emph{partial}: not all HOL definitions can be realised in executable form.
@@ -829,7 +829,7 @@ Na\"{i}ve use often leads to inefficient target language code, especially true w
 Whilst convenient for theorem proving this type often leads to inefficiency in generated code.
 \end{enumerate}
 
-We therefore produce a series of definitions that are optimised for execution rather than theorem proving, before trying to evaluate our algorithms.
+We therefore produce definitions optimised for execution rather than proof, prior to practical evaluation.
 Notably, we eschew the HOL \isa{set} type, and instead use a more efficient hash-map implementation provided by the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}, a library of verified, efficient container datatypes and associated algorithms.
 
 Write $('a::\{hashable\}, 'b)\ \isa{hm}$ for a hash-map type with key type $\isa{'a}$ and binding type $\isa{'b}$.
@@ -844,73 +844,74 @@ where $hm.lookup$ searches for a binding for key $\isa{c}$ in hash-map $t$, retu
 Write $t \preceq T$ to assert that $t$ and $T$ are contained within the simulation relation.
 Note some corollaries follow immediately: e,g,~we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
 
-Our approach is to produce a new set of definitions---mirroring the structure of our existing ones---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
-For clarity, we refer to any definition using hash-maps as an ``efficient'' definition, and any definition making use of the \isa{set} type as an ``abstract'' definition.
+We produce a new set of definitions---mirroring the structure of our existing ones---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
+For clarity, we refer to any definition using hash-maps as an ``executable'' definition, and any definition making use of the \isa{set} type as an ``abstract'' definition.
 For most definitions this is a mechanical process, and we elide further discussion of the required changes, referring the interested reader to our Isabelle/HOL source code.
-However \isa{ancestor} is different to other definitions as it is an inductively defined relation rather than a recursive function, and we need further work to make this efficiently executable.
+However \isa{ancestor} is different to other definitions as it is an inductively defined relation rather than a recursive function, and we need further work to make this executable.
 We characterise this relation with the following:
 
 % DPM: add efficient_ancestor_simp here
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
-\ efficient{\isacharunderscore}ancestor{\isacharunderscore}simp\ {\isacharbrackleft}code{\isacharbrackright}{\isacharcolon}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}efficient{\isacharunderscore}ancestor\ t\ p\ c\ {\isasymlongleftrightarrow}\isanewline
+\ executable{\isacharunderscore}ancestor{\isacharunderscore}simp\ {\isacharbrackleft}code{\isacharbrackright}{\isacharcolon}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}executable{\isacharunderscore}ancestor\ t\ p\ c\ {\isasymlongleftrightarrow}\isanewline
 \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}case\ hm{\isachardot}lookup\ c\ t\ of\isanewline
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ None\ {\isasymRightarrow}\ False\isanewline
 \ \ \ \ \ \ \ \ \ \ \ \ {\isacharbar}\ Some\ {\isacharparenleft}m{\isacharcomma}\ a{\isacharparenright}\ {\isasymRightarrow}\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ {\isacharequal}\ p\ {\isasymor}\ efficient{\isacharunderscore}ancestor\ t\ p\ a{\isacharparenright}{\isacartoucheclose}
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ {\isacharequal}\ p\ {\isasymor}\ executable{\isacharunderscore}ancestor\ t\ p\ a{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
 
-Note that \isa{efficient\_ancestor\_simp} is tagged with a $\isa{code}$ ``attribute'', a hint that this theorem should be used as a transformation during code generation.
-Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{efficient\_ancestor} relation and is able to directly translate this to a recursive function definition in each target backend---this transformation is ``semantics preserving'', as the characterisation was proved as a theorem within HOL.
+Note that \isa{executable\_ancestor\_simp} is tagged with a $\isa{code}$ ``attribute'', a hint that this theorem should be used as a transformation during code generation.
+Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{executable\_ancestor} relation and is able to translate this to a recursive function definition in each target backend---this transformation is ``semantics preserving'', as the characterisation was proved as a theorem within HOL.
 
-Next, we demonstrate the correctness of our efficient definitions against our abstract definitions, and the properties that we prove are best described using an example, as they all follow a similar pattern.
-We use the lemma \isa{efficient\_do\_op\_simulates} as our exemplar:
+We demonstrate the correctness of our executable definitions against our abstract definitions.
+The properties proved are best described using an example, as they all follow a similar pattern.
+We use the lemma \isa{executable\_do\_op\_simulates} as our exemplar:
 
 % DPM: add efficient_do_op_simulates here
 \begin{isabelle}
 \isacommand{lemma}\isamarkupfalse%
-\ efficient{\isacharunderscore}do{\isacharunderscore}op{\isacharunderscore}simulates{\isacharcolon}\isanewline
+\ executable{\isacharunderscore}do{\isacharunderscore}op{\isacharunderscore}simulates{\isacharcolon}\isanewline
 \ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}t\ {\isasympreceq}\ T{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ T{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
-We show that the \isa{efficient\_do\_op} and the \isa{do\_op} functions are in ``lock-step'', mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations whenever they are applied to the same input operation, \isa{oper}.
-This lock-step is repeated bottom-up for every efficient-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
+We show that the \isa{executable\_do\_op} and the \isa{do\_op} functions are in ``lock-step'', mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations whenever they are applied to the same input operation, \isa{oper}.
+This lock-step is repeated bottom-up for every executable-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
 
 %DPM: add efficient_apply_ops_simulates here
 \begin{isabelle}
 \isacommand{lemma}\isamarkupfalse%
-\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}simulates{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}simulates{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
 \end{isabelle}
 
 That is, if both algorithms are applied to the same set of operations then they produce identical logs and also produce trees that contain the same set of key-value bindings---i.e. the two trees are extensionally equivalent, despite having very different concrete representations.
-Moreover, we have the following corollaries of the theorems \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, further establishing the correctness of our efficient algorithms:\footnote{The ``efficient'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
+Moreover, we have the following corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, further establishing the correctness of our executable algorithms:\footnote{The ``executable'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
 
 % DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
-\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
+\ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
 \ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}set\ ops{\isadigit{1}}\ {\isacharequal}\ set\ ops{\isadigit{2}}{\isacartoucheclose}\isanewline
 \ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{1}}{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{4}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{1}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{5}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{2}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{4}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{1}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isadigit{5}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{2}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ hm{\isachardot}lookup\ c\ t\ {\isacharequal}\ hm{\isachardot}lookup\ c\ u{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{theorem}\isamarkupfalse%
-\ efficient{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}efficient{\isacharunderscore}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}{\isasymnexists}n{\isachardot}\ efficient{\isacharunderscore}ancestor\ t\ n\ n{\isacartoucheclose}
+\ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
+\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}{\isasymnexists}n{\isachardot}\ executable{\isacharunderscore}ancestor\ t\ n\ n{\isacartoucheclose}
 \end{isabelle}
 
-Note the statement of \isa{efficient\_apply\_ops\_commutes} differs from that of \isa{apply\_ops\_commutes}---the latter asserts identical sets are obtained from convergence, whilst the former asserts that reading any key binding in $t$ gives the same result as a reading in $u$.
-Whilst this statement appears weaker than that of \isa{apply\_ops\_acyclic}, it is correct, and the strongest statement one can hope for: the resulting hash-maps may contain the same key-value bindings but may not be structurally equal, depending on the ordering of operations.
+Note the statement of \isa{executable\_apply\_ops\_commutes} differs from \isa{apply\_ops\_commutes}---the latter asserts identical sets are obtained from convergence, whilst the former asserts that reading any key binding in $t$ gives the same result as a reading in $u$.
+Whilst this is weaker than that of \isa{apply\_ops\_acyclic}, it is the strongest statement one can hope for: the resulting hash-maps may contain the same key-value bindings but may not be structurally equal, depending on the ordering of operations.
 
 \begin{figure}
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plots.png}
@@ -937,13 +938,13 @@ Whilst this statement appears weaker than that of \isa{apply\_ops\_acyclic}, it 
 
 \subsubsection{Experimental setup and results}
 
-We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in Subsection~\ref{subsect.extracting}, and wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
+We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in \S\ref{subsect.extracting}, and wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
 We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
 The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
 
 We perform a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
 We use Lamport timestamps~\cite{Lamport:1978jq} as operation timestamps, and string values to identify tree nodes.
-When a replica generates an operation, it immediately applies that operation to the local replica state, and then asynchronously sends the operation to the other two replicas via gRPC requests.
+When a replica generates an operation, it immediately applies that operation to its local state, and then asynchronously sends the operation to the other two replicas via gRPC requests.
 When a replica receives an operation from a remote replica, it also applies that operation to its own replica state.
 Thus, of the operations applied by each replica, approximately one third are locally generated, and two thirds are received from the other two replicas.
 
@@ -955,9 +956,9 @@ We do not plot the exact values for execution times above 12~ms because they are
 
 \subsubsection{Interpretation of results}
 
-A locally generated operation always has a timestamp that is higher than any existing operation at the generating replica at that time (by the definition of Lamport timestamps), and thus applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, explaining the near-constant execution time.
-On the other hand, for remote operations, some number of undos and redos needs to be performed, depending on the degree of concurrency.
-As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to put operations into timestamp order.
+A locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (from the use of Lamport timestamps), and thus applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, hence the near-constant execution time.
+However, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
+As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required order operations by timestamp.
 
 The time taken to apply a remote operation is proportional to the number of undos and redos required.
 Above 25 operations/sec the CPU utilisation of our virtual machines grows to the point that incoming network requests from other replicas start queueing before they are processed.
@@ -969,10 +970,10 @@ As the remote operation execution times above this threshold depend more on the 
 
 \subsubsection{Practical relevance of results}
 
-The Scala implementation generated from our Isabelle definitions is optimised for correctness, not for performance; we expect that a more optimised implementation could achieve much higher throughput than our 24 operations/sec.
-Nevertheless, we believe that our evaluation sends a positive signal about the practical applicability of our algorithm.
+A hand-optimised implementation of our algorithm could achieve higher throughput than our 24 operations/sec: despite \S\ref{subsect.extracting}, the code generated from our HOL definitions contains many optimisation opportunities due to its extraction from a theorem prover.
+Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm, and the generated code could serve as an executable ``golden model'' for validating other implementations.
 
-Note that when a user is interacting with a system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
+Note that when a user is interacting with a system they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
 Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
 The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
