@@ -773,6 +773,26 @@ definition example_apply_ops ::
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
  where \<open>example_apply_ops = efficient_apply_ops\<close>
 
+(*
+Alternative version that uses BigInt for nodes and replica identifiers.
+Compared to the version above that uses String everywhere, this version is
+approximately 2.5 times faster for do_op, and 23% faster for undo/do/redo.
+
+definition example_apply_op ::
+   \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer,  String.literal \<times> integer) HashMap.hashmap \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+where \<open>example_apply_op = efficient_apply_op\<close>
+
+definition example_apply_ops ::
+   \<open>((integer \<times> integer), integer, String.literal) operation list \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+   where \<open>example_apply_ops = efficient_apply_ops\<close>
+*)
+
 export_code example_apply_op example_apply_ops in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
 
 text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
