@@ -1028,13 +1028,24 @@ Unison is unable to automatically synchronise the move operations shown in Figur
 As a result, depending on user choice, both replicas can end up in one of four states, including those shown in Figure~\ref{fig:move-cycle}~(b), (c) or (d) or with an empty root directory on both replicas. 
 In all cases, Unison successfully ensures both replicas are in the same state after synchronisation.
 
-Coda is a distributed file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
+Coda is a distributed client-server file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
 Clients can edit copies of data held in the cache while offline, during which time a kernel module keeps track of all updates. 
 When the client comes back online, the client attempts to resynchronise changes with the repository. 
 This design means that conflicts may arise if multiple clients edit the same files or directories while one or more clients are offline. 
-One proposed solution to this is to support application-specific resolvers which "encapsulate the knowledge needed for file resolution"~\cite{Kumar:1995wf}, an approach is similar to that found in Bayou~\cite{Terry:1995dn}.
+One proposed solution to resolving conflicts in files is to support application-specific resolvers which ``encapsulate the knowledge needed for file resolution''~\cite{Kumar:1995wf}, an approach is similar to that found in Bayou~\cite{Terry:1995dn}.
+Concurrent edits on directory entries across different replicas in Coda have been considered, but the authors note that they do ``not address transparent resolution of cross-directory [move operations] in [their] current implementation.''~\cite{kumar1993log}.
+Furthermore, while the authors consider a number of conflicts associated with directory move operations, they do not highlight the potential for the creation of cycles as seen in Figure~\ref{fig:move-cycle} (a).
 
-Ficus~\cite{Reiher:1994wh}, Rumor~\cite{Guy:1999gy}, Roam~\cite{Ratner:1999fh}
+The Ficus replicated file system~\cite{Reiher:1994wh} is a in-kernel SunOS-based replicated peer-to-peer file system. 
+Ficus supported updates to replicas during periods of network partition and claims ``conflicting updates to directories are detected an automatically repaired''~\cite{guy1990implementation}. 
+Unfortunately we were unable to find a precise definition of the algorithm used in any of the available publications. 
+Rumor~\cite{Guy:1999gy} is the successor to Ficus. 
+An important distinction is between Rumor and previous work is that it operates at the application layer and needs to be invoked periodically by the user or a deamon process.
+Rumor is therefore very similar in operation and design to Unison described earlier.
+
+%The user manual (in Archive) is quite helpful for Rumor: https://web.archive.org/web/20170705140958/ftp://ftp.cs.ucla.edu/pub/rumor/rumor_users_manual.ps. Note that this also makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
+
+TODO: Roam~\cite{Ratner:1999fh}
 
 \section{Conclusions}
 
