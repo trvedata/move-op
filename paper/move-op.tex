@@ -100,16 +100,16 @@
 Many systems use a tree-structured data model.
 For example:
 \begin{itemize}
-    \item The \textbf{filesystem} on most operating systems is organised as a tree: folders or directories are branch nodes, and files are leaf nodes.
-        In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
-        Strictly speaking, filesystems that support hardlinks form a DAG, but we will focus on trees for now and show in \S\ref{sec:hardlinks} how to add support for links.
-    \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, bulleted and numbered lists, figures, sections, and so on.
-        These can be nested inside each other: for example, a paragraph may appear inside a bullet point of a bulleted list, which may in turn appear inside a numbered point of an enumeration.
+    \item Most \textbf{filesystems} are organised as a tree with directories as branch nodes and files as leaf nodes.
+        % In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
+        Strictly speaking, filesystems with hardlinks form a DAG; we will focus on trees now and show in \S\ref{sec:hardlinks} how to add support for links.
+    \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, lists, figures, sections, and so on.
+        These can be nested: for example, a paragraph may appear inside a bulleted list item, which may in turn appear inside a numbered point of an enumeration.
         Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
-    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, ellipses, lines, and so on.
+    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, lines, and so on.
         These objects are contained within nodes representing pages of a document, or slides of a presentation.
-        Multiple objects may be combined into a \emph{group} so that they can be manipulated as a unit; this corresponds to making these objects children of a common parent node.
-        Multiple objects and groups may in turn be combined into higher-level groups, forming a tree.
+        Objects may be combined into a \emph{group} and manipulated as a unit; this corresponds to making these objects children of a common parent node.
+        Multiple objects and groups may be combined further into higher-level groups, forming a tree.
     \item \textbf{Note-taking} and \textbf{task-management tools} such as Org-mode for Emacs~\cite{OrgMode} or OmniOutliner~\cite{OmniOutliner} present the user with a tree structure that they can inspect and manipulate.
 \end{itemize}
 
@@ -130,7 +130,7 @@ In summary, our contributions are:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in \S\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
-    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of the algorithm.
+    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08} and obtain a computer-checked proof of correctness of the algorithm.
         In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) while keeping the data in a tree structure.
     \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an efficient implementation within Isabelle/HOL and prove the equivalence of the two.
         We then extract a formally verified, executable Scala implementation from the Isabelle/HOL definitions and evaluate its performance with replicas across three continents.
@@ -517,7 +517,7 @@ The meaning of an operation \isa{Move t p m c} is that at time \isa{t}, the chil
 The operation does not specify the old location of \isa{c}; the algorithm simply ``steals'' \isa{c} from wherever it is currently located in the tree, and moves it to \isa{p}.
 If \isa{c} does not currently exist in the tree, it is created as a child of \isa{p}.
 For this reason we do not need a separate operation type to create tree nodes: simply performing a move with a fresh child node \isa{c} is sufficient to create \isa{c}.
-Nor do we need to define a remove operation: instead, we can designate a particular tree node as the ``trash'', and perform deletion of a node \isa{c} by moving \isa{c} to be a child of the trash node.
+Nor do we need to define a remove operation: instead, we can designate a tree node as the ``trash'', and perform deletion of a node \isa{c} by moving \isa{c} to be a child of the trash node.
 
 The metadata field \isa{m} in a move operation allows additional information to be associated with the parent-child relationship of \isa{p} and \isa{c}.
 For example, in a filesystem, the parent and child would be the inodes of a directory and a file within it, respectively, and the metadata would contain the filename of the child.
@@ -579,7 +579,7 @@ The \isa{do\_op} function is sufficient for applying operations if all replicas 
 However, in an optimistic replication setting, each replica may apply the operations in a different order, and we need to ensure that the replica state nevertheless converges towards a consistent state.
 This goal is accomplished by the \isa{undo\_op}, \isa{redo\_op}, and \isa{apply\_op} functions (lines 33--51).
 
-The intuition behind these functions is as follows: when a replica needs to apply an operation with timestamp \isa{t}, it first undoes the effect of any operations with a timestamp greater than \isa{t}, then performs the new operation, and finally re-applies the previously undone operations.
+Intuitively, when a replica needs to apply an operation with timestamp \isa{t}, it first undoes the effect of any operations with a timestamp greater than \isa{t}, then performs the new operation, and finally re-applies the previously undone operations.
 The result of this procedure is that the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
 The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
@@ -618,8 +618,8 @@ For this reason, the operation log must include all operations, even those that 
 
 One final type of conflict that we have not discussed so far is multiple child nodes with the same parent and the same metadata.
 For example, in a filesystem, two users could concurrently create files with the same name in the same directory.
-Our algorithm does not take any measures to prevent such conflict, but simply retains both child nodes.
-In practice, the filename collision would be resolved by making the filenames distinct, e.g.\ by appending a replica identifier to the filenames.
+Our algorithm does not prevent such a conflict but simply retains both child nodes.
+In practice, the collision would be resolved by making the filenames distinct, e.g.\ by appending a replica identifier to the filenames.
 
 \subsection{Algorithm extensions}\label{sec:extensions}
 
@@ -672,10 +672,8 @@ The \isa{foldl} function from the Isabelle/HOL standard library performs the ite
 \subsection{Tree invariants}\label{sec:tree-invariants}
 
 A tree is an acyclic graph in which every node has exactly one parent, except for the root, which has no parent.
-To prove that our algorithm always maintains a tree structure, no matter which operations are applied, we need to prove that these invariants hold.
-
-In fact, we slightly generalise this property: we allow more than one root to exist, so the graph is actually a forest.
-This allows an application to move nodes between multiple trees, if desired.
+To prove that our algorithm maintains a tree structure, no matter which operations are applied, we prove that these invariants hold.
+In fact, we slightly generalise this property and allow more than one root to exist, so the graph represents a forest, allowing an application to move nodes between multiple trees, if desired.
 For example, the ``trash'' node used for deletion (\S\ref{sec:ops-trees}) can be separate from the main tree.
 
 \subsubsection{Each node's parent is unique}\label{sec:unique-parent}
@@ -721,9 +719,9 @@ Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} 
 However, in that case, the predicate \isa{ancestor tree1 c newp} on line 30 would have been true, which contradicts the earlier assumption.
 Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
 
-To prove that \isa{apply\_op} preserves acyclicity, we first show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
+To prove \isa{apply\_op} preserves acyclicity we show that trees obtained from \isa{apply\_ops} can be built from repeated use of \isa{do\_op} invocations alone, without \isa{undo\_op} or \isa{redo\_op}.
 (This is the case when operations are applied in order of increasing timestamp.)
-Then, by the result of the previous paragraph, any tree produced by \isa{apply\_ops} must be acyclic.
+Then, from our previous results, any tree produced by \isa{apply\_ops} is acyclic.
 
 \subsection{Convergence}\label{sec:convergence}
 
@@ -804,8 +802,8 @@ We now consider three cases:
 \subsubsection{Strong eventual consistency}
 
 Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs.
-Based on the commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
-The details of this proof are given in our open source Isabelle proof files~\cite{SourceFiles}.
+Using our commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
+We refer the reader to our Isabelle theory files~\cite{SourceFiles}.
 
 \subsection{Making the HOL definitions executable} \label{subsect.extracting}
 
@@ -963,7 +961,7 @@ Note that when a user is interacting with a system they only have to wait for lo
 Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
 The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
-However, performing an operation on such a system requires waiting for synchronous communication with a server potentially located on a different continent, taking hundreds of milliseconds (Table~\ref{tab:rpc-times}); by contrast, a local operation taking a fraction of a millisecond is orders of magnitude faster.
+Then, performing an operation requires waiting for synchronous communication with a server potentially located on a different continent, taking hundreds of milliseconds (Table~\ref{tab:rpc-times}); by contrast, a local operation taking a fraction of a millisecond is orders of magnitude faster.
 Moreover, a local operation requires no waiting for network communication, and thus it supports disconnected operation: mobile devices can read and modify the replicated tree even while disconnected from the Internet, which is not the case with centralised systems.
 
 \section{Related work}\label{sec:relwork}
@@ -983,7 +981,7 @@ For tree data structures, several approaches have been proposed:
 \begin{itemize}
     \item Martin et al.~\cite{Martin:2010ih} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT for JSON.
         However, these algorithms only deal with insertion and deletion of tree nodes, and do not support a move operation.
-    \item As discussed in \S\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two alternative implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
+    \item As discussed in \S\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
     \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} survey approaches to handling conflicts on trees without providing concrete algorithms.
     \item Tao et al.~\cite{Tao:2015gd} propose handling conflicting move operations by allowing the same object to appear in more than one location; thus, their datatype is strictly a DAG, not a tree.
         Some conflicts are handled by duplicating tree nodes.
