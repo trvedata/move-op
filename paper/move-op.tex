@@ -100,9 +100,9 @@
 Many systems use a tree-structured data model.
 For example:
 \begin{itemize}
-    \item Most \textbf{filesystems} are organised as a tree with directories as branch nodes and files as leaf nodes.
-        % In Unix-style filesystems, the nodes of the tree are known as \emph{inodes}.
-        Strictly speaking, filesystems with hardlinks form a DAG; we will focus on trees now and show in \S\ref{sec:hardlinks} how to add support for links.
+    \item The \textbf{filesystem} on most operating systems is a tree: directories are branch nodes, and files are leaf nodes.
+        In Unix systems the nodes of the tree are known as \emph{inodes}.
+        Strictly speaking, filesystems with hardlinks form a DAG; we will focus on trees now and show in \S\ref{sec:hardlinks} how to support links.
     \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, lists, figures, sections, and so on.
         These can be nested: for example, a paragraph may appear inside a bulleted list item, which may in turn appear inside a numbered point of an enumeration.
         Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
@@ -130,10 +130,10 @@ In summary, our contributions are:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in \S\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
-    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08} and obtain a computer-checked proof of correctness of the algorithm.
+    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of the algorithm.
         In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) while keeping the data in a tree structure.
-    \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an efficient implementation within Isabelle/HOL and prove the equivalence of the two.
-        We then extract a formally verified, executable Scala implementation from the Isabelle/HOL definitions and evaluate its performance with replicas across three continents.
+    \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an executable implementation within Isabelle/HOL and prove the equivalence of the two.
+        We then extract a formally verified Scala implementation from the Isabelle/HOL definitions and evaluate its performance with replicas across three continents.
     \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
 
@@ -561,8 +561,8 @@ In line 14 we define the datatype for the state of a replica: a pair \isa{(log, 
 \subsection{Preventing cycles}\label{sec:prevent-cycles}
 
 Recall from \S\ref{sec:move-cycle} that in order to prevent a cycle being introduced, the node being moved must not be an ancestor of the destination node.
-To implement this in Figure~\ref{fig:code}, we first define the \isa{ancestor} relation in lines 22--24.
-This relation is the transitive closure of the parent-child relation of a tree: if \isa{(p, m, c) {\isasymin} tree} then \isa{p} is an ancestor of \isa{c} (line 23); moreover, if \isa{(p, m, c) {\isasymin} tree} and \isa{a} is an ancestor of \isa{p}, then \isa{a} is also an ancestor of \isa{c} (line 24).
+To implement this we first define the \isa{ancestor} relation in lines 22--24.
+It is the transitive closure of a tree's parent-child relation: if \isa{(p, m, c) {\isasymin} tree} then \isa{p} is an ancestor of \isa{c} (line 23); moreover, if \isa{a} is an ancestor of \isa{p} and \isa{(p, m, c) {\isasymin} tree}, then \isa{a} is also an ancestor of \isa{c} (line 24).
 The \textbf{inductive} keyword indicates that this recursive definition is iterated until the least fixed point is reached.
 
 The \isa{do\_op} function (lines 26--31) now performs the actual work of applying a move operation.
@@ -579,8 +579,8 @@ The \isa{do\_op} function is sufficient for applying operations if all replicas 
 However, in an optimistic replication setting, each replica may apply the operations in a different order, and we need to ensure that the replica state nevertheless converges towards a consistent state.
 This goal is accomplished by the \isa{undo\_op}, \isa{redo\_op}, and \isa{apply\_op} functions (lines 33--51).
 
-Intuitively, when a replica needs to apply an operation with timestamp \isa{t}, it first undoes the effect of any operations with a timestamp greater than \isa{t}, then performs the new operation, and finally re-applies the previously undone operations.
-The result of this procedure is that the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
+When a replica needs to apply an operation with timestamp \isa{t}, it first undoes the effect of any operations with a timestamp greater than \isa{t}, then performs the new operation, and finally re-applies the undone operations.
+As a result, the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
 The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
 The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a total order.
@@ -593,6 +593,7 @@ If the log is nonempty (line 48), we take \isa{logop} to be the first element of
 (The hash character in \isa{logop {\isacharhash} ops} is the \emph{cons} operator that adds one element to the head of a list.)
 If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 49) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 50).
 Otherwise we perform the operation using \isa{do\_op}, and add the corresponding \isa{LogMove} record as the head of the log (line 51).
+
 This logic ensures that the log is maintained in descending timestamp order, with the greatest timestamp at the head.
 \isa{undo\_op} (lines 33--36) inverts the effect of a previous move operation by restoring the prior parent and metadata that were recorded in the \isa{LogMove}'s additional field.
 \isa{redo\_op} (lines 38--41) uses \isa{do\_op} to perform an operation again and recomputes the \isa{LogMove} record (which might have changed due to the effect of the new operation).
@@ -618,7 +619,7 @@ For this reason, the operation log must include all operations, even those that 
 
 One final type of conflict that we have not discussed so far is multiple child nodes with the same parent and the same metadata.
 For example, in a filesystem, two users could concurrently create files with the same name in the same directory.
-Our algorithm does not prevent such a conflict but simply retains both child nodes.
+Our algorithm does not prevent such a conflict, but simply retains both child nodes.
 In practice, the collision would be resolved by making the filenames distinct, e.g.\ by appending a replica identifier to the filenames.
 
 \subsection{Algorithm extensions}\label{sec:extensions}
@@ -662,7 +663,7 @@ We discuss distributed filesystems further in \S\ref{sec:filesystems}.
 
 We now discuss the correctness properties of the algorithm from \S\ref{sec:algorithm}.
 All theorems stated here have been formally proved and mechanically checked using Isabelle.
-For space reasons we give only a brief sketch of the proofs in this paper, but the full details can be found in our open source Isabelle files~\cite{SourceFiles}.
+For space reasons we give only a brief sketch of the proofs in this paper, but the full details can be found in our open source Isabelle theory files~\cite{SourceFiles}.
 
 To reason about the state of a replica we define the function \isa{apply\_ops} on lines 53--54 of Figure~\ref{fig:code}.
 It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
@@ -690,7 +691,7 @@ We state this theorem in Isabelle as follows, where \isa{apply\_ops\_unique\_par
 We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 56--57 of Figure~\ref{fig:code}: it states that whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
 
 As we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
-Proving it is easy because each of the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintains the invariant \isa{unique\_parent tree}, and thus \isa{apply\_op} also maintains the invariant.
+Proving it is easy because the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintain the invariant \isa{unique\_parent tree}, and thus \isa{apply\_op} also maintains the invariant.
 
 \subsubsection{The graph contains no cycles}\label{sec:no-cycles}
 
@@ -719,9 +720,9 @@ Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} 
 However, in that case, the predicate \isa{ancestor tree1 c newp} on line 30 would have been true, which contradicts the earlier assumption.
 Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
 
-To prove \isa{apply\_op} preserves acyclicity we show that trees obtained from \isa{apply\_ops} can be built from repeated use of \isa{do\_op} invocations alone, without \isa{undo\_op} or \isa{redo\_op}.
+Next, we show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
 (This is the case when operations are applied in order of increasing timestamp.)
-Then, from our previous results, any tree produced by \isa{apply\_ops} is acyclic.
+Then, from the result of the previous paragraph, any tree produced by \isa{apply\_ops} is acyclic.
 
 \subsection{Convergence}\label{sec:convergence}
 
@@ -803,7 +804,7 @@ We now consider three cases:
 
 Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs.
 Using our commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
-We refer the reader to our Isabelle theory files~\cite{SourceFiles}.
+The details appear in our Isabelle theory files~\cite{SourceFiles}.
 
 \subsection{Making the HOL definitions executable} \label{subsect.extracting}
 
@@ -925,7 +926,7 @@ We used Isabelle/HOL's code generation mechanism to extract executable Scala cod
 We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
 The network delays for communication between these regions are substantial; see Table~\ref{tab:rpc-times}.
 
-We use a synthetic workload wherein each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
+We use a synthetic workload in which each replica generates move operations at the same rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
 For a given operation rate we run the system for 10 minutes to reach a steady state.
 We use Lamport timestamps~\cite{Lamport:1978jq} as operation timestamps, and string values to identify tree nodes.
 When a replica generates an operation, it immediately applies that operation to its local state, and asynchronously sends the operation to the other two replicas via gRPC requests.
@@ -940,9 +941,10 @@ We do not plot the exact values for execution times above 12~ms because they are
 
 \subsubsection{Interpretation of results}
 
-A locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (from the use of Lamport timestamps), and thus applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, hence the near-constant execution time.
+A locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
+Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, hence the near-constant execution time.
 However, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
-As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required order operations by timestamp.
+As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
 
 The time taken to apply a remote operation is proportional to the number of undos and redos required.
 Above 25 operations/sec the CPU utilisation of our virtual machines grows to the point that incoming network requests from other replicas start queueing before they are processed.
@@ -954,10 +956,11 @@ As the remote operation execution times above this threshold depend more on the 
 
 \subsubsection{Practical relevance of results}
 
-A hand-optimised implementation of our algorithm could achieve higher throughput than our 24 operations/sec: despite \S\ref{subsect.extracting}, the code generated from our HOL definitions contains many optimisation opportunities due to its extraction from a theorem prover.
-Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm, and the generated code could serve as an executable ``golden model'' for validating other implementations.
+A hand-optimised implementation of our algorithm could achieve higher throughput than our 24 operations/sec, since code generated from HOL definitions contains inefficiencies.
+Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm.
+The generated code could also serve as a reference implementation against which other implementations could be tested.
 
-Note that when a user is interacting with a system they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
+Note that when a user is interacting with a system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
 Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
 The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
