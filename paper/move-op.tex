@@ -954,6 +954,9 @@ Our algorithm has better availability characteristics in the presence of network
 
 \subsection{Distributed filesystems}\label{sec:filesystems}
 
+Many distributed filesystems, such as NFS, rely on synchronous interaction with a server.
+While this has the advantage of not requiring conflict resolution, it rules out users working while offline.
+
 Coda is a client-server filesystem that allows clients to locally cache copies of files stored in a server-side data repository~\cite{kistler1992coda}. 
 Clients can edit data in the cache while offline, during which time a kernel module keeps track of all updates. 
 When the client comes back online it attempts to resynchronise changes with the server. 
@@ -980,26 +983,18 @@ Unison is unable to automatically synchronise the move operations shown in Figur
 
 \section{Conclusions}
 
-In this paper we have defined a novel algorithm that handles arbitrary concurrent modifications on a tree data structure in a peer-to-peer  setting.
-Our approach ensures that all replicas converge to the same consistent state and the data structure remains a tree; in other words, no cycles are introduced.
-Updates made to a local replica appear immediately, while operations from remote replicas can be applied in the background without affecting user interaction.
-This approach means user interaction is consistently fast, even in the face of unbounded communication delays between replicas.
+In this paper we have defined a novel algorithm that handles arbitrary concurrent modifications of a tree data structure---adding, moving, and removing nodes---in a peer-to-peer setting.
+It is applicable to distributed filesystems and many other applications that use a tree-structured data model.
+Our approach ensures that all replicas converge to the same consistent state without requiring any manual conflict resolution, and without needing application developers to implement conflict handling logic.
+Updates made to a local replica take effect immediately, while operations from remote replicas can be applied in the background.
+This approach means that user interaction is consistently fast, even in the face of unbounded communication delays between replicas, e.g.\ during disconnected operation of mobile devices.
 
-We formally proved the correctness of our algorithm in the Isabelle/HOL theorem prover and evaluated the performance of our formally verified implementation between three replicas located in California, Ireland and Singapore.
-Our implementation is able to apply local updates in under 1~ms, orders of magnitude faster than is possible with a central server (master replica) or consensus protocol operating over these distances.
-The current implementation is able to sustain up to 24 remote updates per second. 
-Unfortunately rates above 24 remote updates per second quickly generate unbounded delays and hence failure since the implementation is unable to keep up with the number of undo and redos required by the algorithm.
-We hypothesise this limitation is because the current implementation uses Isabelle/HOL's code generation mechanism to extract executable Scala code which is not optimised. 
-We plan to develop a significantly more scaleable implementation as part of future work.
+While existing systems exhibit anomalies (such as duplicating nodes or introducing cycles) or error messages (like in Figure~\ref{fig:gdrive-error}) in the face of concurrent move operations, our algorithm is free from such problems.
+We formally verified the correctness of our algorithm using the Isabelle/HOL proof assistant; our theorems show that replicas can apply operations in any order, and that the result is always a valid tree (nodes have at most one parent, and the graph does not contain any cycles).
 
-% Disconnected operation
-% - No Synchronisation or consensus required. Available in the sense of CAP
-% - Rely only on uniqueness of node IDs, e.g. inode numbers
-% - Composing JSON/XML tree by using list datatype
-% - Location is Lww register. Concurrent move does not duplicate
-% - Unlike NFS, can work offline 
-% - Garbage collection: discard causally stable prefix
-
+We also extracted a formally verified Scala implementation from our Isabelle/HOL definitions, and evaluated its performance across three replicas located in California, Ireland and Singapore.
+Our implementation is able to apply local updates in under 1~ms, orders of magnitude faster than is possible with a central server or consensus protocol operating over these distances.
+The current implementation is able to sustain up to 24 updates per second; we plan to develop a more scalable implementation in future work.
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
