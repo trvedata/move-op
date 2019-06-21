@@ -984,7 +984,17 @@ In all cases, Unison successfully ensures both replicas are in the same state af
 
 \section{Conclusions}
 
-TODO.
+In this paper we have defined a novel algorithm that handles arbitrary concurrent modifications on a tree data structure in a peer-to-peer  setting.
+Our approach ensures that all replicas converge to the same consistent state and the data structure remains a tree; in other words, no cycles are introduced.
+Updates made to a local replica appear immediately, while operations from remote replicas can be applied in the background without affecting user interaction.
+This approach means user interaction is consistently fast, even in the face of unbounded communication delays between replicas.
+
+We formally proved the correctness of our algorithm in the Isabelle/HOL theorem prover and evaluated the performance of our formally verified implementation between three replicas located in California, Ireland and Singapore.
+Our implementation is able to apply local updates in under 1~ms, orders of magnitude faster than is possible with a central server (master replica) or consensus protocol operating over these distances.
+The current implementation is able to sustain up to 24 remote updates per second. 
+Unfortunately rates above 24 remote updates per second quickly generate unbounded delays and hence failure since the implementation is unable to keep up with the number of undo and redos required by the algorithm.
+We hypothesise this limitation is because the current implementation uses Isabelle/HOL's code generation mechanism to extract executable Scala code which is not optimised. 
+We plan to develop a significantly more scaleable implementation as part of future work.
 
 % Disconnected operation
 % - No Synchronisation or consensus required. Available in the sense of CAP
