@@ -873,9 +873,7 @@ Moreover, we can prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\
 
 \section{Evaluation}\label{sec:evaluation}
 
-\subsection{Performance experiments}
-
-\subsubsection{Experimental setup and results}
+\subsection{Experimental setup and results}
 
 We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in \S\ref{subsect.extracting}, and wrapped this implementation in a network service using the Akka~\cite{Akka} actor framework, using gRPC~\cite{gRPC} for network communication.
 We deployed three replicas of this service on Amazon EC2 \texttt{t2.small} instances in different regions worldwide: one in Northern California (region \texttt{us-west-1}), one in Ireland (\texttt{eu-west-1}), and one in Singapore (\texttt{ap-southeast-1}).
@@ -894,12 +892,12 @@ The execution time for local operations is near-constant (median times mostly be
 Above 25 operations/sec the execution time for remote operations suddenly increases to over 30~ms (off the scale of Figure~\ref{fig:plots}).
 We do not plot the exact values for execution times above 12~ms because they are less meaningful, as explained below.
 
-\subsubsection{Interpretation of results}
+\subsection{Interpretation of results}
 
 A locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
 Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, hence the near-constant execution time.
 However, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
-As the rate of operations increases, the time between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
+As the rate of operations increases, the time interval between successive operations becomes smaller than the network delay between replicas; thus, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
 
 The time taken to apply a remote operation is proportional to the number of undos and redos required.
 Above 25 operations/sec the CPU utilisation of our virtual machines grows to the point that incoming network requests from other replicas start queueing before they are processed.
@@ -912,14 +910,14 @@ As the remote operation execution times above this threshold depend more on the 
 \subsubsection{Practical relevance of results}
 
 A hand-optimised implementation of our algorithm could achieve higher throughput than our 24 operations/sec, since code generated from HOL definitions contains inefficiencies.
-Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm.
-The generated code could also serve as a reference implementation against which other implementations could be tested.
+The generated code could serve as a reference implementation against which other implementations could be tested.
 
+Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm.
 Note that when a user is interacting with a system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
 Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
 The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
-Then, performing an operation requires waiting for synchronous communication with a server potentially located on a different continent, taking hundreds of milliseconds (Table~\ref{tab:rpc-times}); by contrast, a local operation taking a fraction of a millisecond is orders of magnitude faster.
+Performing an operation then requires waiting for synchronous communication with a server potentially located on a different continent, taking hundreds of milliseconds (Table~\ref{tab:rpc-times}); by contrast, a local operation taking a fraction of a millisecond is orders of magnitude faster.
 Moreover, a local operation requires no waiting for network communication, and thus it supports disconnected operation: mobile devices can read and modify the replicated tree even while disconnected from the Internet, which is not the case with centralised systems.
 
 \section{Related work}\label{sec:relwork}
@@ -947,10 +945,10 @@ For tree data structures, several approaches have been proposed:
     \item In our previous unpublished work \cite{ExtendedVersion} we develop the foundations for the algorithm described in this paper.
 \end{itemize}
 
-Besides CRDTs, another family of algorithms for concurrent modification of data structures is called \emph{Operational Transformation}~\cite{Sun:1998vf}.
-Several authors have defined collaboratively editable tree structures using the Operational Transformation approach \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only consider insertion and deletion of tree nodes, and do not support a move operation.
+Besides CRDTs, another family of algorithms for concurrent modification of data structures is \emph{Operational Transformation} (OT)~\cite{Sun:1998vf}.
+Several authors have defined concurrent tree structures using OT \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only consider insertion and deletion of nodes, and do not support a move operation.
 
-Molli et al.~\cite{Molli:2003cd} define an Operational Transformation tree structure with a move operation.
+Molli et al.~\cite{Molli:2003cd} define an OT tree structure with a move operation.
 However, it requires that all communication between replicas is performed via total order broadcast, which in turn requires the use of a sequencer server or a consensus algorithm~\cite{Chandra:1996cp}.
 Our algorithm has better availability characteristics in the presence of network partitions because it allows messages to be delivered in any order.
 
