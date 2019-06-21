@@ -954,33 +954,29 @@ Our algorithm has better availability characteristics in the presence of network
 
 \subsection{Distributed filesystems}\label{sec:filesystems}
 
-Coda is a distributed client-server file system which allows clients to cache or \emph{hoard} copies of files otherwise stored in a shared data repository~\cite{kistler1992coda}. 
-Clients can edit copies of data held in the cache while offline, during which time a kernel module keeps track of all updates. 
-When the client comes back online, the client attempts to resynchronise changes with the repository. 
-This design means that conflicts may arise if multiple clients edit the same files or directories while one or more clients are offline. 
-One proposed solution to resolving conflicts in files is to support application-specific resolvers which ``encapsulate the knowledge needed for file resolution''~\cite{Kumar:1995wf}, an approach similar to that found in Bayou~\cite{Terry:1995dn}.
-Concurrent edits on directory entries across different replicas in Coda have been considered, but the authors note that they do ``not address transparent resolution of cross-directory [move operations] in [their] current implementation''~\cite{kumar1993log}.
-Furthermore, while the authors consider a number of conflicts associated with directory move operations, they do not highlight the potential for the creation of cycles as seen in Figure~\ref{fig:move-cycle} (a).
+Coda is a client-server filesystem that allows clients to locally cache copies of files stored in a server-side data repository~\cite{kistler1992coda}. 
+Clients can edit data in the cache while offline, during which time a kernel module keeps track of all updates. 
+When the client comes back online it attempts to resynchronise changes with the server. 
+To resolve conflicts due to concurrent updates, Coda uses application-specific resolvers~\cite{Kumar:1995wf}, similarly to Bayou's approach~\cite{Terry:1995dn}.
+Concurrent renaming and move operations have been considered, but the authors note that they do ``not address transparent resolution of cross-directory renames [i.e.\ move operations] in [their] current implementation''~\cite{kumar1993log}.
+Furthermore, while the authors consider a number of conflicts associated with directory move operations, they do not highlight the potential for the creation of cycles.
 
-The Ficus replicated file system~\cite{Reiher:1994wh} was a in-kernel SunOS-based replicated peer-to-peer file system. 
-Ficus supported updates to replicas during periods of network partition and claims ``conflicting updates to directories are detected and automatically repaired''~\cite{guy1990implementation}. 
+Ficus~\cite{Reiher:1994wh} is an in-kernel SunOS-based replicated peer-to-peer filesystem. 
+Ficus supports updates to replicas during periods of network partition and claims ``conflicting updates to directories are detected and automatically repaired''~\cite{guy1990implementation}. 
 Unfortunately we were unable to find a precise definition of the algorithm used in any of the available publications. 
-Rumor~\cite{Guy:1999gy} is the successor to Ficus. 
-An important distinction between Rumor and previous work is that it operates at the application layer and needs to be invoked periodically by the user or by a deamon process. 
-The original version of Rumor was unable to scale beyond 20 replicas, however an extension called Roam~\cite{Ratner:1999fh} allowed an order of magnitude better scaling. 
-We obtained the user manual and source code for Rumor from \url{archive.org}, however after modest effort, we were unable to get the software running.
-%The user manual (in Archive) is quite helpful for Rumor: https://web.archive.org/web/20170705140958/ftp://ftp.cs.ucla.edu/pub/rumor/rumor_users_manual.ps. Note that this also makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
 
-Unison is a file synchronisation tool with a formal specification~\cite{PierceVouillon:UnisonSpecTR} which allows two replicas, such as laptops, desktops or servers, to synchronise the state of a directory.
-Unison permits offline updates to both replicas.
-Like Rumor, Unison also works at the application layer and supports the resynchronisation of two (possibly divergent) replicas by executing a copy of Unison on both nodes. 
-Unison records a summary record of the state of the filesystem on each replica whenever it is run.
-By inspecting this summary whenever the Unison program is invoked, and by sharing any update information with the other replica, both replicas can determine the changes made to the filesystems on each replica since they were last synchronised. 
-This approach has the benefit that no special kernel extension or daemon process is required; instead the user invokes the Unison program whenever synchronisation is needed.
-When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}~(a). 
-Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to confirm whether changes made to directories A and B should be propagated or deleted. 
-As a result, depending on user choice, both replicas can end up in one of four states, including those shown in Figure~\ref{fig:move-cycle}~(b), (c) or (d) or with an empty root directory on both replicas. 
-In all cases, Unison successfully ensures both replicas are in the same state after synchronisation.
+Rumor~\cite{Guy:1999gy,RumorManual} is the successor to Ficus.
+While previous work uses the kernel filesystem interface, Rumor is a userspace process that is invoked periodically by the user or by a deamon; when run, it compares the state of the replicas.
+The original version of Rumor was unable to scale beyond 20 replicas, but an extension called Roam~\cite{Ratner:1999fh} allowed better scaling. 
+In an attempt to test Rumor's conflict handling we obtained the source code from archive.org~\cite{RumorSource}; however, we were unable to get it running after modest effort.
+%The user manual \cite{RumorManual} makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
+
+Unison is a file synchronisation tool with a formal specification~\cite{PierceVouillon:UnisonSpecTR} that allows two replicas to synchronise the state of a directory.
+It permits offline updates to both replicas.
+Like Rumor, Unison is a userspace process that works by comparing replica states.
+Whenever it is run, Unison records a summary of the filesystem state on each replica, and it uses this summary to determine the changes made since the last synchronisation. 
+When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}a. 
+Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to choose one of four possible resolutions: those shown in Figure~\ref{fig:move-cycle}b, \ref{fig:move-cycle}c, \ref{fig:move-cycle}d, or to delete both directories.
 
 \section{Conclusions}
 
