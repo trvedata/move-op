@@ -811,89 +811,44 @@ The details appear in our Isabelle theory files~\cite{SourceFiles}.
 Isabelle/HOL can generate executable Haskell, OCaml, Scala, and Standard ML code from HOL definitions using a sophisticated code generation mechanism~\cite{DBLP:conf/flops/HaftmannN10}.
 However, not all definitions can be realised in executable form: for example, the use of choice principles (like in \isa{get\_parent}) and inductively defined relations (e.g.\ \isa{ancestor}) cause problems.
 Moreover, HOL's \isa{set} type allows infinite sets.
-Whilst these constructs are convenient for theorem proving, they do not translate well to efficient code.
+Whilst these constructs are convenient for theorem proving, they do not translate well to executable code.
+
 We therefore produce variants of the definitions in Figure~\ref{fig:code} that are designed for execution rather than theorem proving.
 Rather than representing the tree as a set of (parent, metadata, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (metadata, parent) pairs, written in Isabelle as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
-The \isa{hashable} type class on keys means that keys must have an associated hashing function.
+The \isa{hashable} type class means that keys must have a hashing function.
 In effect, this hash-map is an index over the set of triples, using the fact that the parent and metadata for a given child are unique (\S\ref{sec:unique-parent}).
-We use the hash-map implementation from the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
+The hash-map implementation is from the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
 
-We use a \emph{simulation relation} between our two representations of trees, and say that a hash-map $\isa{t}$ of type $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ \emph{simulates} a set $T$ of type $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ whenever
-\begin{displaymath}
-\isa{hm.lookup}\ c\ t = \isa{Some}\ (m, p) \quad\text{iff}\quad (p, m, c) \in T \quad\text{forall $c$, $m$, and $p$}
-\end{displaymath}
-where $hm.lookup$ searches for a binding for key $\isa{c}$ in hash-map $t$, returning $\isa{Some}\ (m, p)$ when a binding from $c$ to $(m, p)$ exists in the hash-map, or $\isa{None}$ otherwise.
-Write $t \preceq T$ to assert that $t$ and $T$ are contained within the simulation relation.
-Note some corollaries follow immediately: e,g,~we have $t \preceq T$ implies $\isa{unique\_parent}\ \isa{T}$.
-
-We produce a new set of definitions---mirroring the structure of our existing ones---wherein we replace all occurrences of the $(\isa{'n} \times \isa{'m} \times \isa{'n})\ \isa{set}$ type, and any associated set operations, with the $(\isa{'n}, \isa{'m} \times \isa{'n})\ \isa{hm}$ type and associated hash-map operations.
-For clarity, we refer to any definition using hash-maps as an ``executable'' definition, and any definition making use of the \isa{set} type as an ``abstract'' definition.
-For most definitions this is a mechanical process, and we elide further discussion of the required changes, referring the interested reader to our Isabelle/HOL source code.
-However \isa{ancestor} is different to other definitions as it is an inductively defined relation rather than a recursive function, and we need further work to make this executable.
-We characterise this relation with the following:
-
-% DPM: add efficient_ancestor_simp here
+We say a hash-map \isa{t} of type \isa{('n, 'm {\isasymtimes} 'n) hm} \emph{simulates} a set \isa{T} of type \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set} when they have the same entries:
 \begin{isabelle}
-\isacommand{theorem}\isamarkupfalse%
-\ executable{\isacharunderscore}ancestor{\isacharunderscore}simp\ {\isacharbrackleft}code{\isacharbrackright}{\isacharcolon}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}executable{\isacharunderscore}ancestor\ t\ p\ c\ {\isasymlongleftrightarrow}\isanewline
-\ \ \ \ \ \ \ \ \ \ {\isacharparenleft}case\ hm{\isachardot}lookup\ c\ t\ of\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ None\ {\isasymRightarrow}\ False\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ {\isacharbar}\ Some\ {\isacharparenleft}m{\isacharcomma}\ a{\isacharparenright}\ {\isasymRightarrow}\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ {\isacharequal}\ p\ {\isasymor}\ executable{\isacharunderscore}ancestor\ t\ p\ a{\isacharparenright}{\isacartoucheclose}
+\isacommand{definition}\isamarkupfalse%
+\ simulates\ \isakeyword{where}\ {\isacartoucheopen}simulates\ t\ T\ {\isasymequiv}\isanewline
+\ \ {\isacharparenleft}{\isasymforall}p\ m\ c{\isachardot}\ hm{\isachardot}lookup\ c\ t\ {\isacharequal}\ Some\ {\isacharparenleft}m{\isacharcomma}\ p{\isacharparenright}\ {\isasymlongleftrightarrow}\ {\isacharparenleft}p{\isacharcomma}\ m{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ T{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
-
-Note that \isa{executable\_ancestor\_simp} is tagged with a $\isa{code}$ ``attribute'', a hint that this theorem should be used as a transformation during code generation.
-Isabelle/HOL takes this theorem as the definition, for code generation, of the \isa{executable\_ancestor} relation and is able to translate this to a recursive function definition in each target backend---this transformation is ``semantics preserving'', as the characterisation was proved as a theorem within HOL.
-
-We demonstrate the correctness of our executable definitions against our abstract definitions.
-The properties proved are best described using an example, as they all follow a similar pattern.
-We use the lemma \isa{executable\_do\_op\_simulates} as our exemplar:
-
-% DPM: add efficient_do_op_simulates here
+\noindent where \isa{hm.lookup c t} looks up the key \isa{c} in the hash-map \isa{t}.
+We can now prove the equivalence of the set-based and the hash-map-based versions of each function.
+For example, \isa{executable\_do\_op} is the equivalent of the \isa{do\_op} function based on a hash-map:
 \begin{isabelle}
 \isacommand{lemma}\isamarkupfalse%
 \ executable{\isacharunderscore}do{\isacharunderscore}op{\isacharunderscore}simulates{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}t\ {\isasympreceq}\ T{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ T{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}simulates\ t\ T{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}executable{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ T{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ simulates\ u\ U{\isacartoucheclose}
 \end{isabelle}
 
-We show that the \isa{executable\_do\_op} and the \isa{do\_op} functions are in ``lock-step'', mapping related trees $t \preceq T$ to related trees $u \preceq U$ and producing identical logs of operations whenever they are applied to the same input operation, \isa{oper}.
-This lock-step is repeated bottom-up for every executable-abstract algorithm pairs, until we reach the final correctness theorem for \isa{apply\_ops}:
-
-%DPM: add efficient_apply_ops_simulates here
+Similarly, we can show this simulation relation holds for each function in our algorithm, all the way to \isa{apply\_ops}:
 \begin{isabelle}
 \isacommand{lemma}\isamarkupfalse%
 \ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}simulates{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ opers\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ u\ {\isasympreceq}\ U{\isacartoucheclose}
+\ \ \isakeyword{assumes}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ T{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ simulates\ t\ T{\isacartoucheclose}
 \end{isabelle}
 
-That is, if both algorithms are applied to the same operations then they produce identical logs and trees that contain the same set of bindings---i.e. the two trees are extensionally equivalent, despite having in-memory representations.
-Moreover, we have corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, further establishing the correctness of our executable algorithms:\footnote{The ``executable'' analogue of \isa{apply\_ops\_unique\_parent} is trivially true, as the output tree is stored as a hash-map, and therefore too trivial to state as a theorem.}:
-
-% DPM: add efficient_apply_ops_commutes and efficient_apply_ops_acyclic here
-\begin{isabelle}
-\isacommand{theorem}\isamarkupfalse%
-\ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}set\ ops{\isadigit{1}}\ {\isacharequal}\ set\ ops{\isadigit{2}}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{2}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{1}}{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{3}}{\isacharcolon}\ {\isacartoucheopen}distinct\ {\isacharparenleft}map\ move{\isacharunderscore}time\ ops{\isadigit{2}}{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{4}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{1}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isadigit{5}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops{\isadigit{2}}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ hm{\isachardot}lookup\ c\ t\ {\isacharequal}\ hm{\isachardot}lookup\ c\ u{\isacartoucheclose}\isanewline
-\isanewline
-\isacommand{theorem}\isamarkupfalse%
-\ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isadigit{1}}{\isacharcolon}\ {\isacartoucheopen}executable{\isacharunderscore}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ t{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}{\isasymnexists}n{\isachardot}\ executable{\isacharunderscore}ancestor\ t\ n\ n{\isacartoucheclose}
-\end{isabelle}
-
-Note the statement of \isa{executable\_apply\_ops\_commutes} differs from \isa{apply\_ops\_commutes}---the latter asserts identical sets are obtained from convergence, whilst the former asserts that reading any key binding in $t$ gives the same result as a reading in $u$.
-Whilst this is weaker than that of \isa{apply\_ops\_acyclic}, it is the strongest statement one can hope for: the resulting hash-maps may contain the same key-value bindings but may not be structurally equal, depending on the ordering of operations.
+That is, if \isa{executable\_apply\_ops} and \isa{apply\_ops} are applied to the same list of operations then they produce identical logs, and also produce trees that contain the same set of key-value bindings---i.e. the two trees are extensionally equivalent, despite having very different in-memory representations.
+Moreover, we can prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic}, respectively, for the hash-map-based implementation.
+%The analogue of \isa{apply\_ops\_unique\_parent} holds trivially since by construction, the hash-map contains at most one (metadata, parent) pair for a given child.
 
 \begin{figure}
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plots.png}
