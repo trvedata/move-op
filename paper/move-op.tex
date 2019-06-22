@@ -399,7 +399,7 @@ Najafzadeh et al. propose two solutions to this problem: either to duplicate tre
 The downside of a locking protocol is that the move operation is no longer highly available in the presence of network partitions, since it must wait for synchronous communication with other replicas.
 
 While these solutions are valid, the authors go on to claim that ``no file system can support an unsynchronised move without anomalies, such as loss or duplication''~\cite{Najafzadeh:2018bw}.
-We revisit that claim in this paper: our algorithm does not perform any locking, coordination or synchronisation among replicas, but it nevertheless ensures that the tree invariants are always satisified (in particular, it never introduces cycles), and it never duplicates or loses any tree nodes.
+We revisit that claim in this paper: our algorithm does not perform any locking, coordination or synchronisation among replicas, but it nevertheless ensures that the tree invariants are always satisfied (in particular, it never introduces cycles), and it never duplicates or loses any tree nodes.
 To our knowledge, our algorithm is the first to provide all of these properties simultaneously.
 We give a precise specification of our algorithm's consistency properties in \S\ref{sec:proof}.
 
@@ -707,7 +707,7 @@ In Isabelle:
 
 Proof sketch: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
 Further assume \isa{acyclic tree1}.
-We can then prove by contradiction that \isa{tree2} is also acylic.
+We can then prove by contradiction that \isa{tree2} is also acyclic.
 Assume to the contrary that \isa{tree2} contains a cycle.
 If \isa{do\_op} left the tree unchanged (line 30), we immediately have a contradiction.
 Otherwise we can assume \isa{{\isasymnot}(ancestor tree c newp {\isasymor} c = newp)} and we have:
@@ -901,7 +901,7 @@ As the rate of operations increases, the time interval between successive operat
 
 The time taken to apply a remote operation is proportional to the number of undos and redos required.
 Above 25 operations/sec the CPU utilisation of our virtual machines grows to the point that incoming network requests from other replicas start queueing before they are processed.
-When a remote operation spends time queueing, more concurrent operations have been applied by the time it is processed, and thus more undos and redos are required to apply the incoming operation, which in turn increases the CPU utilization and further increases queueing.
+When a remote operation spends time queueing, more concurrent operations have been applied by the time it is processed, and thus more undos and redos are required to apply the incoming operation, which in turn increases the CPU utilisation and further increases queueing.
 This self-reinforcing effect explains the sudden dramatic increase in Figure~\ref{fig:plots}.
 
 Above 25 operations/sec the queueing delay increases so much that some RPC requests time out, and thus not all operations are received by all replicas.
@@ -969,7 +969,7 @@ Ficus supports updates to replicas during periods of network partition and claim
 Unfortunately we were unable to find a precise definition of the algorithm used in any of the available publications. 
 
 Rumor~\cite{Guy:1999gy,RumorManual} is the successor to Ficus.
-While previous work uses the kernel filesystem interface, Rumor is a userspace process that is invoked periodically by the user or by a deamon; when run, it compares the state of the replicas.
+While previous work uses the kernel filesystem interface, Rumor is a userspace process that is invoked periodically by the user or by a daemon; when run, it compares the state of the replicas.
 The original version of Rumor was unable to scale beyond 20 replicas, but an extension called Roam~\cite{Ratner:1999fh} allowed better scaling. 
 In an attempt to test Rumor's conflict handling we obtained the source code from archive.org~\cite{RumorSource}; however, we were unable to get it running after modest effort.
 %The user manual \cite{RumorManual} makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
