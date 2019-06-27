@@ -353,6 +353,11 @@ def less_int(k: int, l: int): Boolean = integer_of_int(k) < integer_of_int(l)
 trait preorder[A] extends ord[A] {
 }
 object preorder {
+  implicit def `generated.preorder_integer`: preorder[BigInt] = new
+    preorder[BigInt] {
+    val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
+    val `generated.less` = (a: BigInt, b: BigInt) => a < b
+  }
   implicit def
     `generated.preorder_prod`[A : preorder, B : preorder]: preorder[(A, B)] =
     new preorder[(A, B)] {
@@ -377,6 +382,10 @@ object preorder {
 trait order[A] extends preorder[A] {
 }
 object order {
+  implicit def `generated.order_integer`: order[BigInt] = new order[BigInt] {
+    val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
+    val `generated.less` = (a: BigInt, b: BigInt) => a < b
+  }
   implicit def `generated.order_prod`[A : order, B : order]: order[(A, B)] = new
     order[(A, B)] {
     val `generated.less_eq` = (a: (A, B), b: (A, B)) => less_eq_prod[A, B](a, b)
@@ -399,6 +408,11 @@ object order {
 trait linorder[A] extends order[A] {
 }
 object linorder {
+  implicit def `generated.linorder_integer`: linorder[BigInt] = new
+    linorder[BigInt] {
+    val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
+    val `generated.less` = (a: BigInt, b: BigInt) => a < b
+  }
   implicit def
     `generated.linorder_prod`[A : linorder, B : linorder]: linorder[(A, B)] =
     new linorder[(A, B)] {
@@ -516,6 +530,12 @@ def hashcode[A](a: A)(implicit A: hashable[A]): Int = A.`generated.hashcode`(a)
 def def_hashmap_size[A](a: itself[A])(implicit A: hashable[A]): nat =
   A.`generated.def_hashmap_size`(a)
 object hashable {
+  implicit def `generated.hashable_integer`: hashable[BigInt] = new
+    hashable[BigInt] {
+    val `generated.hashcode` = (a: BigInt) => hashcode_integer(a)
+    val `generated.def_hashmap_size` = (a: itself[BigInt]) =>
+      def_hashmap_size_integer.apply(a)
+  }
   implicit def `generated.hashable_literal`: hashable[String] = new
     hashable[String] {
     val `generated.hashcode` = (a: String) => hashcode_literal(a)
@@ -535,6 +555,9 @@ trait equal[A] {
 def equal[A](a: A, b: A)(implicit A: equal[A]): Boolean =
   A.`generated.equal`(a, b)
 object equal {
+  implicit def `generated.equal_integer`: equal[BigInt] = new equal[BigInt] {
+    val `generated.equal` = (a: BigInt, b: BigInt) => a == b
+  }
   implicit def `generated.equal_literal`: equal[String] = new equal[String] {
     val `generated.equal` = (a: String, b: String) => a == b
   }
@@ -600,6 +623,11 @@ def less_prod[A : ord, B : ord](x0: (A, B), x1: (A, B)): Boolean = (x0, x1)
   case ((x1, y1), (x2, y2)) =>
     less[A](x1, x2) || less_eq[A](x1, x2) && less[B](y1, y2)
 }
+
+def def_hashmap_size_integer: (itself[BigInt]) => nat =
+  ((_: itself[BigInt]) => nat_of_integer(BigInt(16)))
+
+def hashcode_integer(i: BigInt): Int = i.intValue
 
 abstract sealed class color
 final case class R() extends color
@@ -1232,7 +1260,7 @@ def executable_apply_op[A : linorder, B : equal : hashable,
            })
 }
 
-def example_apply_op:
+def string_apply_op:
       (operation[(int, String), String, String]) =>
         ((List[log_op[(int, String), String, String]],
           hashmap[String, (String, String)])) =>
@@ -1245,6 +1273,19 @@ def example_apply_op:
       =>
     executable_apply_op[(int, String), String, String](a, b))
 
+def integer_apply_op:
+      (operation[(BigInt, BigInt), BigInt, String]) =>
+        ((List[log_op[(BigInt, BigInt), BigInt, String]],
+          hashmap[BigInt, (String, BigInt)])) =>
+          (List[log_op[(BigInt, BigInt), BigInt, String]],
+            hashmap[BigInt, (String, BigInt)])
+  =
+  ((a: operation[(BigInt, BigInt), BigInt, String]) =>
+    (b: (List[log_op[(BigInt, BigInt), BigInt, String]],
+          hashmap[BigInt, (String, BigInt)]))
+      =>
+    executable_apply_op[(BigInt, BigInt), BigInt, String](a, b))
+
 def executable_apply_ops[A : linorder, B : equal : hashable,
                           C](ops: List[operation[A, B, C]]):
       (List[log_op[A, B, C]], hashmap[B, (C, B)])
@@ -1256,12 +1297,20 @@ def executable_apply_ops[A : linorder, B : equal : hashable,
                           executable_apply_op[A, B, C](oper, state)),
                          (Nil, hm_empty[B, (C, B)].apply(())), ops)
 
-def example_apply_ops:
+def string_apply_ops:
       (List[operation[(int, String), String, String]]) =>
         (List[log_op[(int, String), String, String]],
           hashmap[String, (String, String)])
   =
   ((a: List[operation[(int, String), String, String]]) =>
     executable_apply_ops[(int, String), String, String](a))
+
+def integer_apply_ops:
+      (List[operation[(BigInt, BigInt), BigInt, String]]) =>
+        (List[log_op[(BigInt, BigInt), BigInt, String]],
+          hashmap[BigInt, (String, BigInt)])
+  =
+  ((a: List[operation[(BigInt, BigInt), BigInt, String]]) =>
+    executable_apply_ops[(BigInt, BigInt), BigInt, String](a))
 
 } /* object generated */

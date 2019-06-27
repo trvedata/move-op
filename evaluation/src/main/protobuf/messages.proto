@@ -8,12 +8,12 @@ service MoveService {
 
 message LamportTS {
     uint64 counter = 1;
-    string replica = 2;
+    uint64 replica = 2;
 }
 
 message Move {
     LamportTS timestamp = 1;
-    string parent = 2;
+    uint64 parent = 2;
     string metadata = 3;
-    string child = 4;
+    uint64 child = 4;
 }

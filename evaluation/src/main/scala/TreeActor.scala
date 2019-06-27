@@ -3,33 +3,31 @@ import akka.event.Logging
 import com.codahale.metrics.MetricRegistry
 
 object TreeActor {
-  case class RequestMove(parent: String, metadata: String, child: String)
+  case class RequestMove(parent: Long, metadata: String, child: Long)
 
-  def props(actorId: String, metrics: MetricRegistry) = Props(new TreeActor(actorId, metrics))
+  def props(actorId: Long, metrics: MetricRegistry) = Props(new TreeActor(actorId, metrics))
 }
 
-class TreeActor(actorId: String, metrics: MetricRegistry) extends Actor {
+class TreeActor(actorId: Long, metrics: MetricRegistry) extends Actor {
   val log = Logging(context.system, this)
   val localTimer  = metrics.timer("TreeActor.local")
   val remoteTimer = metrics.timer("TreeActor.remote")
 
   var counter: Long = 0
 
-  var state: (List[generated.log_op[(generated.int, String),String,String]], generated.hashmap[String,(String, String)])
-    = (Nil, generated.hm_empty[String, (String, String)].apply(()))
-
-  def int(value: Long): generated.int = generated.int_of_integer(BigInt(value))
+  var state: (List[generated.log_op[(BigInt, BigInt), BigInt, String]], generated.hashmap[BigInt, (String, BigInt)])
+    = (Nil, generated.hm_empty[BigInt, (String, BigInt)].apply(()))
 
   def applyOp(op: examplerpc.Move) {
     val opCounter = op.timestamp.get.counter
-    val timestamp = (int(opCounter), op.timestamp.get.replica)
-    val operation = generated.Move(timestamp, op.parent, op.metadata, op.child)
+    val timestamp = (BigInt(opCounter), BigInt(op.timestamp.get.replica))
+    val operation = generated.Move(timestamp, BigInt(op.parent), op.metadata, BigInt(op.child))
     //log.info("Applied %s".format(operation))
-    state = generated.example_apply_op(operation)(state)
+    state = generated.integer_apply_op(operation)(state)
     if (opCounter > counter) counter = opCounter
   }
 
-  def generateOp(parent: String, metadata: String, child: String): examplerpc.Move = {
+  def generateOp(parent: Long, metadata: String, child: Long): examplerpc.Move = {
     val timestamp = examplerpc.LamportTS(counter + 1, actorId)
     val operation = examplerpc.Move(Some(timestamp), parent, metadata, child)
     applyOp(operation)

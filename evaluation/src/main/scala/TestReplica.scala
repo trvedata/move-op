@@ -38,7 +38,7 @@ object TestReplica {
 
     ConsoleReporter.forRegistry(metrics).build().start(20, SECONDS)
 
-    val treeActor = sys.actorOf(TreeActor.props(args(0), metrics), "treeActor")
+    val treeActor = sys.actorOf(TreeActor.props(args(0).toLong, metrics), "treeActor")
     val service: HttpRequest => Future[HttpResponse] = MoveServiceHandler(new ReplicaService(treeActor, sys, metrics))
 
     val binding = Http().bindAndHandleAsync(service, interface = "0.0.0.0", port = PORT,
@@ -85,9 +85,7 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
   }
 
   def generateOperation() {
-    val parent  = "%d".format(random.nextInt(1000))
-    val child   = "%d".format(random.nextInt(1000))
-    val request = TreeActor.RequestMove(parent, "", child)
+    val request = TreeActor.RequestMove(random.nextInt(1000), "", random.nextInt(1000))
     implicit val timeout: Timeout = 3 seconds
 
     (treeActor ? request).mapTo[examplerpc.Move].onComplete {

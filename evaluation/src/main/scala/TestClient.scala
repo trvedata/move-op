@@ -34,8 +34,8 @@ object TestClient {
 
     def runSingleRequestReplyExample(): Unit = {
       val timer = requests.time()
-      val timestamp = examplerpc.LamportTS(0, "a")
-      val operation = examplerpc.Move(Some(timestamp), "parent", "meta", "child")
+      val timestamp = examplerpc.LamportTS(0, 1)
+      val operation = examplerpc.Move(Some(timestamp), 0, "meta", 1)
       val reply = client.sendMove(operation)
       reply.onComplete {
         case Success(msg) =>

@@ -759,41 +759,43 @@ export_code executable_ancestor executable_do_op executable_undo_op executable_r
 export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
   executable_apply_op executable_apply_ops in Haskell
 
-definition example_apply_op ::
+definition integer_apply_op ::
+   \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer,  String.literal \<times> integer) HashMap.hashmap \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+where \<open>integer_apply_op = executable_apply_op\<close>
+  
+definition integer_apply_ops ::
+   \<open>((integer \<times> integer), integer, String.literal) operation list \<Rightarrow>
+    ((integer \<times> integer), integer, String.literal) log_op list \<times>
+      (integer, String.literal \<times> integer) HashMap.hashmap\<close>
+   where \<open>integer_apply_ops = executable_apply_ops\<close>
+
+text\<open>The following is an alternative version that uses @{type String.literal} everywhere,
+while the version above uses BigInt for nodes and replica identifiers.
+The versionthat uses strings is approximately 2.5 times slower for @{term do_op} and
+23% slower for @{term undo_op} and @{term redo_op} due to the use of a slow hash function.\<close>
+
+definition string_apply_op ::
     \<open>((int \<times> String.literal), String.literal, String.literal) operation \<Rightarrow>
      ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap \<Rightarrow>
      ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
- where \<open>example_apply_op = executable_apply_op\<close>
+  where \<open>string_apply_op = executable_apply_op\<close>
 
-definition example_apply_ops ::
+definition string_apply_ops ::
     \<open>((int \<times> String.literal), String.literal, String.literal) operation list \<Rightarrow>
      ((int \<times> String.literal), String.literal, String.literal) log_op list \<times>
        (String.literal, String.literal \<times> String.literal) HashMap.hashmap\<close>
- where \<open>example_apply_ops = executable_apply_ops\<close>
+  where \<open>string_apply_ops = executable_apply_ops\<close>
 
-text\<open>The following is an alternative version that uses BigInt for nodes and replica identifiers.
-Compared to the version above that uses @{type String.literal} everywhere, this version is
-approximately 2.5 times faster for @{term do_op} and 23% faster for @{term undo_op} and
-@{term redo_op}:
 
-  definition example_apply_op ::
-     \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
-      ((integer \<times> integer), integer, String.literal) log_op list \<times>
-        (integer,  String.literal \<times> integer) HashMap.hashmap \<Rightarrow>
-      ((integer \<times> integer), integer, String.literal) log_op list \<times>
-        (integer, String.literal \<times> integer) HashMap.hashmap\<close>
-  where \<open>example_apply_op = executable_apply_op\<close>
-  
-  definition example_apply_ops ::
-     \<open>((integer \<times> integer), integer, String.literal) operation list \<Rightarrow>
-      ((integer \<times> integer), integer, String.literal) log_op list \<times>
-        (integer, String.literal \<times> integer) HashMap.hashmap\<close>
-     where \<open>example_apply_ops = executable_apply_ops\<close>
-\<close>
-
-export_code example_apply_op example_apply_ops in Scala module_name generated file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
+export_code integer_apply_op integer_apply_ops string_apply_op string_apply_ops
+  in Scala module_name generated
+  file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
 
 text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
      an SML/Scala/OCaml/Haskell compiler, as appropriate, we can show that this code compiles and
