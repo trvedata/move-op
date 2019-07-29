@@ -91,6 +91,7 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
       val requestStream = opStream.map { move =>
         val timer = timers.get(remoteIp).time()
         requests.get(remoteIp).putIfAbsent(move.timestamp.get, timer)
+        println(s"Request: ${move.timestamp.get} to ${remoteIp}")
         move
       }
 
@@ -104,6 +105,7 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
     for ((remoteIp, responses) <- responseStreams) {
       responses.runForeach { response =>
         requests.get(remoteIp).remove(response).stop()
+        println(s"Response: ${response} from ${remoteIp}")
       }
     }
   }
