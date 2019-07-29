@@ -1,3 +1,4 @@
+import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.UseHttp2.Always
@@ -5,12 +6,15 @@ import akka.http.scaladsl.model.{ HttpRequest, HttpResponse }
 import akka.http.scaladsl.{ Http, HttpConnectionContext }
 import akka.pattern.ask
 import akka.stream.{ ActorMaterializer, Materializer }
+import akka.stream.scaladsl.{ BroadcastHub, Keep, Sink, Source }
 import akka.util.Timeout
-import com.codahale.metrics.{ ConsoleReporter, MetricRegistry, Meter, Timer }
+import com.codahale.metrics.{ ConsoleReporter, MetricRegistry, Timer }
 import com.typesafe.config.ConfigFactory
 import examplerpc.{ MoveService, MoveServiceClient, MoveServiceHandler }
 import java.util.concurrent.TimeUnit.SECONDS
+import java.util.concurrent.ConcurrentHashMap
 import java.util.Random
+import scala.collection.JavaConversions._
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
@@ -24,7 +28,7 @@ object TestReplica {
   val OPERATION_INTERVAL = 1000 millis
 
   def main(args: Array[String]): Unit = {
-    if (args.length < 2) {
+    if (args.length < 1) {
       throw new Exception("Usage: TestReplica own-ip remote-ip1 [remote-ip2 ...]")
     }
 
@@ -62,51 +66,53 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
      implicit val ec: ExecutionContext, implicit val metrics: MetricRegistry) {
 
   val random = new Random()
-
-  val clients: Array[examplerpc.Move => Unit] = remoteReplicas.map { remoteIp =>
-    val requests = metrics.timer(s"LoadGenerator($remoteIp).requests")
-    val errors   = metrics.meter(s"LoadGenerator($remoteIp).errors")
-    val config   = GrpcClientSettings.connectToServiceAt(remoteIp, TestReplica.PORT)
-      .withDeadline(20 seconds)
-      .withTls(false)
-    sendRequest(remoteIp, MoveServiceClient(config), requests, errors)(_)
-  }
-
-  def sendRequest(remoteIp: String, client: MoveService, requests: Timer, errors: Meter)(operation: examplerpc.Move) {
-    val timer = requests.time()
-    client.sendMove(operation).onComplete {
-      case Success(msg) =>
-        timer.stop()
-      case Failure(e) =>
-        sys.log.info(s"Error in request to $remoteIp: $e")
-        timer.stop()
-        errors.mark()
-    }
-  }
-
-  def generateOperation() {
-    val request = TreeActor.RequestMove(random.nextInt(1000), "", random.nextInt(1000))
-    implicit val timeout: Timeout = 3 seconds
-
-    (treeActor ? request).mapTo[examplerpc.Move].onComplete {
-      case Success(operation) =>
-        for (client <- clients) client(operation)
-      case Failure(e) =>
-        sys.log.info(s"Error generating operation: $e")
-    }
-  }
+  val timers = new ConcurrentHashMap[String, Timer]()
+  val requests = new ConcurrentHashMap[String, ConcurrentHashMap[examplerpc.LamportTS, Timer.Context]]()
 
   def run() {
+    implicit val timeout: Timeout = 3 seconds
+
     // Initially wait 20 seconds to allow all the replicas to boot up, then generate
     // operations in quick succession
-    sys.scheduler.schedule(20 seconds, TestReplica.OPERATION_INTERVAL, () => generateOperation)
+    val opStream: Source[examplerpc.Move, NotUsed] = Source
+      .tick(2 seconds, TestReplica.OPERATION_INTERVAL, "tick")
+      .map { _ => TreeActor.RequestMove(random.nextInt(1000), "", random.nextInt(1000)) }
+      .mapAsync(1) { request => (treeActor ? request).mapTo[examplerpc.Move] }
+      .mapMaterializedValue(_ => NotUsed)
+      // Make the source multi-subscriber, broadcasting each item to all subscribers:
+      // https://doc.akka.io/docs/akka/2.5.23/stream/stream-dynamic.html#using-the-broadcasthub
+      .toMat(BroadcastHub.sink(bufferSize = 256))(Keep.right)
+      .run()
+
+    val responseStreams: Array[Pair[String, Source[examplerpc.LamportTS, NotUsed]]] = remoteReplicas.map { remoteIp =>
+      timers.putIfAbsent(remoteIp, metrics.timer(s"LoadGenerator($remoteIp).requests"))
+      requests.putIfAbsent(remoteIp, new ConcurrentHashMap[examplerpc.LamportTS, Timer.Context]())
+
+      val requestStream = opStream.map { move =>
+        val timer = timers.get(remoteIp).time()
+        requests.get(remoteIp).putIfAbsent(move.timestamp.get, timer)
+        move
+      }
+
+      val config = GrpcClientSettings.connectToServiceAt(remoteIp, TestReplica.PORT)
+        .withDeadline(20 seconds)
+        .withTls(false)
+
+      (remoteIp, MoveServiceClient(config).sendMove(requestStream))
+    }
+
+    for ((remoteIp, responses) <- responseStreams) {
+      responses.runForeach { response =>
+        requests.get(remoteIp).remove(response).stop()
+      }
+    }
   }
 }
 
 class ReplicaService(treeActor: ActorRef, sys: ActorSystem, metrics: MetricRegistry) extends examplerpc.MoveService {
-  override def sendMove(move: examplerpc.Move): Future[examplerpc.LamportTS] = {
+  override def sendMove(in: Source[examplerpc.Move, NotUsed]): Source[examplerpc.LamportTS, NotUsed] = {
     implicit val timeout: Timeout = 3 seconds
     import sys.dispatcher
-    (treeActor ? move).mapTo[examplerpc.LamportTS]
+    in.mapAsyncUnordered(10) { move => (treeActor ? move).mapTo[examplerpc.LamportTS] }
   }
 }

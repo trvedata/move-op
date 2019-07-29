@@ -3,7 +3,7 @@ syntax = "proto3";
 package examplerpc;
 
 service MoveService {
-    rpc SendMove (Move) returns (LamportTS) {}
+    rpc SendMove (stream Move) returns (stream LamportTS) {}
 }
 
 message LamportTS {
