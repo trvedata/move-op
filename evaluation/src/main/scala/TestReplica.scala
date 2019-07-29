@@ -72,10 +72,10 @@ class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
   def run() {
     implicit val timeout: Timeout = 3 seconds
 
-    // Initially wait 20 seconds to allow all the replicas to boot up, then generate
-    // operations in quick succession
     val opStream: Source[examplerpc.Move, NotUsed] = Source
-      .tick(2 seconds, TestReplica.OPERATION_INTERVAL, "tick")
+      // Initially wait 20 seconds to allow all the replicas to boot up, then generate
+      // operations in quick succession
+      .tick(20 seconds, TestReplica.OPERATION_INTERVAL, "tick")
       .map { _ => TreeActor.RequestMove(random.nextInt(1000), "", random.nextInt(1000)) }
       .mapAsync(1) { request => (treeActor ? request).mapTo[examplerpc.Move] }
       .mapMaterializedValue(_ => NotUsed)
