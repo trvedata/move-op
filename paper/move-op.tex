@@ -1,4 +1,8 @@
-\documentclass[sigconf]{acmart}
+\documentclass[sigplan,anonymous]{acmart}
+
+% EuroSys recommended formatting
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
 
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
@@ -93,6 +97,8 @@
     In this paper we present an algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas eventually converge towards the same consistent state.
     We formally prove the correctness of our algorithm using the Isabelle/HOL interactive proof assistant, and we evaluate the performance of our formally verified implementation in a geo-replicated setting to demonstrate its viability in practice.
 \end{abstract}
+
+\settopmatter{printfolios=true} % Recommended EuroSys formatting
 \maketitle
 
 \section{Introduction}\label{sec:intro}
