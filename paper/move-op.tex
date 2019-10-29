@@ -90,12 +90,11 @@
 %\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
 
 \begin{abstract}
-    Replicated tree data structures are found in distributed filesystems, such as Google Drive and Dropbox, and applications with a JSON or XML data model.
+    Replicated tree data structures are a fundamental building block of distributed filesystems, such as Google Drive and Dropbox, and collaborative applications with a JSON or XML data model.
     These systems need to support a \emph{move} operation that allows a subtree to be moved to a new location within the tree.
-    Such a move operation is easy to implement in a centralised system, e.g.\ with a designated primary replica, but it is difficult in settings where different replicas can concurrently perform arbitrary move operations.
-    For example, we find that Google Drive and Dropbox fail to correctly synchronise files when users on different devices concurrently perform certain move operations.
-    In this paper we present an algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas eventually converge towards the same consistent state.
-    We formally prove the correctness of our algorithm using the Isabelle/HOL interactive proof assistant, and we evaluate the performance of our formally verified implementation in a geo-replicated setting to demonstrate its viability in practice.
+    However, such a move operation is difficult to implement correctly if different replicas can concurrently perform arbitrary move operations, and we demonstrate bugs in Google Drive and Dropbox that arise with concurrent moves.
+    In this paper we present an algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas converge towards the same consistent state.
+    We formally prove the correctness of our algorithm using the Isabelle/HOL proof assistant, and we evaluate the performance of our formally verified implementation in a geo-replicated setting.
 \end{abstract}
 
 \settopmatter{printfolios=true} % Recommended EuroSys formatting
@@ -108,11 +107,10 @@ For example:
 \begin{itemize}
     \item The \textbf{filesystem} on most operating systems is a tree: directories are branch nodes, and files are leaf nodes.
         In Unix systems the nodes of the tree are known as \emph{inodes}.
-        Strictly speaking, filesystems with hardlinks form a DAG; we will focus on trees now and show in \S\ref{sec:hardlinks} how to support links.
-    \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, lists, figures, sections, and so on.
-        These can be nested: for example, a paragraph may appear inside a bulleted list item, which may in turn appear inside a numbered point of an enumeration.
-        Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
-    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, lines, and so on~\cite{Wallace:2019vf}.
+        Strictly speaking, filesystems with hardlinks form a DAG; we will focus on trees for now and show in \S\ref{sec:hardlinks} how to support links.
+    \item \textbf{Rich text editors} maintain a HTML or XML structure: a tree of textual elements such as paragraphs, lists, figures, sections, and so on.
+        These can be nested: for example, a paragraph may appear inside a bulleted list item, which may in turn appear inside an enumeration.
+    \item \textbf{Vector graphics} and \textbf{presentation software} represent images using graphical objects such as text boxes, rectangles, lines, and so on~\cite{Wallace:2019vf}.
         These objects are contained within nodes representing pages of a document, or slides of a presentation.
         Objects may be combined into a \emph{group} and manipulated as a unit; this corresponds to making these objects children of a common parent node.
         Multiple objects and groups may be combined further into higher-level groups, forming a tree.
@@ -122,25 +120,25 @@ For example:
 In this paper we consider applications that use such a tree data model, and that replicate this tree across multiple nodes.
 Moreover, we focus on \emph{optimistic replication}~\cite{Saito:2005jw}, that is, systems in which any replica can autonomously make changes to the data, without waiting for communication or coordination with any other replicas.
 Such systems have the advantage that they can continue processing read and write requests even in the presence of arbitrary network partitions; in other words, they are \emph{available} and \emph{partition-tolerant} in the sense of the CAP theorem~\cite{Gilbert:2002il}.
-This approach is desirable since it enables disconnected operation in a mobile computing context, and high availability in geo-replicated settings.
+This approach is desirable since it enables disconnected operation on mobile devices, and high availability in geo-replicated settings.
 
-As the tree structure may be concurrently modified on different replicas, the state of these replicas may temporarily diverge.
-In this paper we show how the replicas can nevertheless achieve \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}: as the replicas communicate, we guarantee that they will converge towards a consistent state.
+As the tree structure is concurrently modified on different replicas, the state of these replicas temporarily diverges.
+In this paper we show how we can nevertheless achieve \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}: as the replicas communicate, we guarantee that they converge to a consistent state.
 Our algorithm for achieving convergence is an example of a \emph{Conflict-free Replicated Data Type} or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un}.
 
 In this paper we use an abstract model of a tree that can support any of the applications listed above, including distributed filesystems.
 We allow replicas to manipulate this tree in any way: by creating new nodes, deleting nodes, or moving subtrees to a new location within the tree.
 While there are many existing systems that support creating and deleting nodes (see \S\ref{sec:relwork}), the key innovation of our algorithm is the support for moving subtrees.
 We explain in \S\ref{sec:move-is-hard} why this move operation is so challenging.
-In summary, our contributions are:
+Our contributions are:
 \begin{itemize}
     \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
         As discussed in \S\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
-    \item We formalise an abstract algorithm using Isabelle/HOL~\cite{DBLP:conf/tphol/WenzelPN08}, an interactive proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness of the algorithm.
-        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge towards a consistent state (strong eventual consistency) while keeping the data in a tree structure.
-    \item To demonstrate the practical viability of our approach, we refine our abstract algorithm to an executable implementation within Isabelle/HOL and prove the equivalence of the two.
-        We then extract a formally verified Scala implementation from the Isabelle/HOL definitions and evaluate its performance with replicas across three continents.
-    \item We perform experiments with replicated filesystem products such as Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
+    \item We formalise the algorithm using Isabelle/HOL \cite{DBLP:conf/tphol/WenzelPN08}, a proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness.
+        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge to a consistent state (strong eventual consistency) while keeping the data in a tree structure.
+    \item To demonstrate the practical viability of our approach, we refine the algorithm to an executable implementation within Isabelle/HOL and prove the equivalence of the two.
+        We then extract a formally verified Scala implementation from Isabelle and evaluate its performance with replicas across three continents.
+    \item We perform experiments with Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
 
 \begin{figure*}
@@ -288,7 +286,7 @@ In summary, our contributions are:
   \node [rectangle,draw] at (10.95,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.3,-1.3) rectangle (1,1.2);
-      \node [fill=red!15] at (-1.12,1.05) {(\emph{a})};
+      \node [fill=red!15] at (-1.10,1.03) {(\emph{a})};
       \node at (0,1) {$\mathsf{root}$};
       \node (a1) {$A$} child {node (b1) {$B$}} child {node {$C$}};
       \draw (b1.south west) .. controls (-2,-2) and (0,1.5) .. (a1.north);
@@ -297,7 +295,7 @@ In summary, our contributions are:
   \node [rectangle,draw] at (13.8,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (0.97,0.05) {(\emph{b})};
+      \node [fill=red!15] at (0.94,0.03) {(\emph{b})};
       \tikzstyle{level 1}=[sibling distance=12mm]
       \tikzstyle{level 2}=[sibling distance=6mm]
       \node {$\mathsf{root}$}
@@ -308,14 +306,14 @@ In summary, our contributions are:
   \node [rectangle,draw] (start) at (10.95,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.17,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (-1.00,0.05) {(\emph{c})};
+      \node [fill=red!15] at (-0.98,0.03) {(\emph{c})};
       \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
       \end{tikzpicture}
   };
   \node [rectangle,draw] (right) at (13.8,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (0.96,0.05) {(\emph{d})};
+      \node [fill=red!15] at (0.93,0.03) {(\emph{d})};
       \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
       \end{tikzpicture}
   };
@@ -327,28 +325,27 @@ In summary, our contributions are:
 \begin{figure*}
   \centering
   \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
-  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}.}
+  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}, indicating a bug in the underlying sync implementation.}
   \label{fig:gdrive-error}
   \Description{Screenshot showing the errors ``Can't remove files with changes pending. Try again after sync is complete.'' and ``An unknown error occurred.''}
 \end{figure*}
 
 \section{Why a move operation is hard}\label{sec:move-is-hard}
 
-Applications that rely on a tree data model often need to move a node from one location to another location within the tree, whereby all children of the moved node move along with it.
-For example:
+Applications that rely on a tree data model often need to move a node from one location to another location within the tree, such that all of its children move along with it:
 \begin{itemize}
     \item In a filesystem, any file or directory can be moved to a different parent directory.
         Moreover, renaming a file or directory is equivalent to moving it to a new name without changing its parent directory.
     \item In a rich text editor, a paragraph can be turned into a bullet point.
-        In the DOM tree this corresponds to creating a new bullet list node, creating a new bullet point node within it, and then moving the paragraph node inside the bullet point.
-    \item In presentation software, grouping two graphical objects corresponds to creating a new group node, and then moving the two objects to be children of the new group node.
+        In the XML tree this corresponds to creating new list and bullet point nodes, and then moving the paragraph node inside the bullet point.
+    \item In presentation software, grouping two graphical objects corresponds to creating a new group node, and then moving the two objects into the new group node.
 \end{itemize}
 As these operations are so common, it is not obvious why a move operation should be difficult in a replicated setting.
-In this section we demonstrate by example some of the problems that arise with replicated trees, before proceeding to our solution in \S\ref{sec:algorithm}.
+In this section we demonstrate some problems that arise with replicated trees, before proceeding to our solution in \S\ref{sec:algorithm}.
 
 \subsection{Concurrent moves of the same node}\label{sec:move-same-item}
 
-The first difficulty arises when a node is concurrently moved into different locations on different replicas.
+The first difficulty arises when the same node is concurrently moved into different locations on different replicas.
 This scenario is illustrated in Figure~\ref{fig:move-same-item}, where replica 1 moves node $A$ to be a child of $B$, while concurrently replica 2 moves $A$ to be a child of $C$.
 After the replicas communicate, what should the merged state of the tree be?
 
@@ -357,18 +354,17 @@ We believe that this duplication is undesirable, since subsequent edits to nodes
 Two users who believe they are collaborating on the same file may in fact be editing two different copies, which will then become inconsistent with each other.
 In the rich text editor and presentation software examples, such duplication is also undesirable.
 
-Rather than duplicating the moved subtree, another possible resolution is for the destination locations of both moves to refer to the same node, as shown in Figure~\ref{fig:move-same-item}b.
+Another possible resolution is for the destination locations of both moves to refer to the same node, as shown in Figure~\ref{fig:move-same-item}b.
 However, the result is a DAG, not a tree.
-POSIX-compliant filesystems do not allow this outcome, since they allow hardlinks only to files, but not to directories.
+POSIX filesystems do not allow this outcome, since they do not allow hardlinks to directories.
 
 In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:move-same-item}c and~\ref{fig:move-same-item}d: the moved subtree appears either in replica 1's destination location or in replica 2's destination location, but not in both.
 Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
-For example, the ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
-All replicas pick the same operation as winner, and effectively ignore the conflicting operation.
+The ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
 (The \emph{timestamp} in this context need not come from a physical clock; it could also be logical, such as a Lamport timestamp~\cite{Lamport:1978jq}.)
 
-We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, logged into the same Dropbox/Google accounts, and configured them to each sync a directory on the local filesystem with the corresponding cloud service.
-To test concurrent operations, we turned off the network interface on both computers, performed a move operation on the local filesystem of each computer, then reconnected both computers to the Internet and waited for them to sync.}
+We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, logged into the same Dropbox/Google accounts, and configured them to sync a directory on the local filesystem.
+To test concurrent operations, we disconnected both computers from the Internet, performed a move operation on the local filesystem of each computer, then reconnected and waited for them to sync.}
 Dropbox exhibited the undesirable duplication behaviour of Figure~\ref{fig:move-same-item}a, while the outcome on Google Drive was as in Figure~\ref{fig:move-same-item}c/d.
 
 \subsection{Moving a node to be a descendant of itself}\label{sec:move-cycle}
@@ -378,35 +374,34 @@ For example, if \texttt{b} is a subdirectory of \texttt{a}, then the Unix shell 
 This restriction is required because allowing this operation would introduce a cycle into the directory graph, and so the filesystem would no longer be a tree.
 The same restriction is required in any other tree structure that supports a move operation.
 
-In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, then the operation is rejected.
-However, a new problem arises in a replicated setting: different replicas may perform operations that are individually safe, but whose combination leads to a cycle.
-
-One example of such a scenario is illustrated in Figure~\ref{fig:move-cycle}.
+In an unreplicated tree it is easy to prevent cycles being introduced: if the node being moved is an ancestor of the destination node, the operation is rejected.
+However, in a replicated setting, different replicas may perform operations that are individually safe, but whose combination leads to a cycle.
+One such example is illustrated in Figure~\ref{fig:move-cycle}.
 Here, replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$.
-As each replica propagates its operation to the other replica, a careless implementation might end up in the state shown in Figure~\ref{fig:move-cycle}a, in which $A$ and $B$ have become locked in a cycle and detached from the tree.
+As each replica propagates its operation to the other replica, a careless implementation might end up in the state shown in Figure~\ref{fig:move-cycle}a, in which $A$ and $B$ have formed a cycle, detached from the tree.
 
 Another possible resolution is shown in Figure~\ref{fig:move-cycle}b: the nodes involved in the concurrent moves (and their children) could be duplicated, so that both ``$A$ as a child of $B$'' and ``$B$ as a child of $A$'' can exist in the tree.
 However, such duplication is undesirable for the same reasons as in \S\ref{sec:move-same-item}.
 
 In our opinion, the best way of handling the conflicting operations of Figure~\ref{fig:move-cycle} is to choose either Figure~\ref{fig:move-cycle}c or~\ref{fig:move-cycle}d: that is, either the result of applying replica 1's operation and ignoring replica 2's operation, or vice versa.
-Like in \S\ref{sec:move-same-item}, the winning operation can be picked based on an operation timestamp.
+Like in \S\ref{sec:move-same-item}, the winning operation can be picked based on a timestamp.
 
 As before, we tested this scenario with Google Drive and Dropbox.
 In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed the ``unknown error'' message shown in Figure~\ref{fig:gdrive-error}.
-The replica in an error state refused to sync the conflicting directory, and its filesystem state remained inconsistent with the other replica.
+The replica in an error state refused to sync the conflicting directory, and its filesystem state remained permanently inconsistent with the other replica.
 This error state persisted until the directories on the erroring replica were manually moved to match the state of the other replica.
 On the other hand, Dropbox exhibited the duplication behaviour shown in Figure~\ref{fig:move-cycle}b.
 
-\subsection{The impossibility of a highly-available move operation}\label{sec:impossibility}
+\subsection{A highly-available move operation: impossible?}\label{sec:impossibility}
 
-Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} have previously implemented a replicated filesystem with a move operation, and analysed the case of concurrent move operations introducing a cycle, as in \S\ref{sec:move-cycle}.
-Using the CISE ('Cause I'm Strong Enough) proof tool~\cite{DBLP:conf/popl/GotsmanYFNS16,Najafzadeh:2016fi} the authors confirm that it is not sufficient for the replica that generates a move operation to check whether the operation introduces a cycle: like in Figure~\ref{fig:move-cycle}, two concurrent operations may be safe individually, but introduce a cycle when combined.
+Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} previously implemented a replicated filesystem with a move operation, and analysed the case of concurrent move operations introducing a cycle.
+Using the CISE proof tool~\cite{DBLP:conf/popl/GotsmanYFNS16,Najafzadeh:2016fi} the authors confirm that it is not sufficient for the replica that generates a move operation to check whether the operation introduces a cycle: like in Figure~\ref{fig:move-cycle}, two concurrent operations may be safe individually, but introduce a cycle when combined.
 
 Najafzadeh et al. propose two solutions to this problem: either to duplicate tree nodes, as in Figure~\ref{fig:move-cycle}b, or to execute a synchronous locking protocol that prevents two move operations from concurrently modifying the same part of the tree.
-The downside of a locking protocol is that the move operation is no longer highly available in the presence of network partitions, since it must wait for synchronous communication with other replicas.
+The downside of a locking protocol is that the move operation is no longer highly available in the presence of network partitions, since it must wait for synchronous communication with other replicas or a lock server.
 
 While these solutions are valid, the authors go on to claim that ``no file system can support an unsynchronised move without anomalies, such as loss or duplication''~\cite{Najafzadeh:2018bw}.
-We revisit that claim in this paper: our algorithm does not perform any locking, coordination or synchronisation among replicas, but it nevertheless ensures that the tree invariants are always satisfied (in particular, it never introduces cycles), and it never duplicates or loses any tree nodes.
+We refute that claim in this paper: our algorithm does not perform any locking, coordination or synchronisation among replicas, but it nevertheless ensures that the tree invariants are always satisfied (in particular, it never introduces cycles), and it never duplicates or loses any tree nodes.
 To our knowledge, our algorithm is the first to provide all of these properties simultaneously.
 We give a precise specification of our algorithm's consistency properties in \S\ref{sec:proof}.
 
@@ -495,11 +490,11 @@ We give a precise specification of our algorithm's consistency properties in \S\
 
 \section{The replicated move operation}\label{sec:algorithm}
 
-We now introduce our algorithm for a replicated tree data structure that supports a move operation.
+We now introduce our algorithm for a replicated tree that supports a move operation.
 We model each replica as a state machine that transitions from one state to the next by applying an operation.
 The algorithm is executed independently on each replica with no shared memory between replicas.
 
-When the user wants to make a change to the tree, they generate an operation object and apply it on their local replica.
+When the user wants to make a change to the tree, they generate an operation and apply it on their local replica.
 Every operation is also asynchronously sent over the network to all other replicas, and applied on every remote replica using the same algorithm as for local operations.
 The network may deliver operations in any order; thus, the communication can be performed peer-to-peer, and it does not require any central server or consensus protocol.
 We only assume that eventually every operation is applied on every replica, provided that network partitions are of a finite duration.
@@ -507,38 +502,37 @@ We only assume that eventually every operation is applied on every replica, prov
 The key consistency property of our algorithm is \emph{convergence}: that is, whenever any two replicas have applied the same set of operations, then they must be in the same state---even if the operations were applied in a different order on different replicas.
 We prove this in \S\ref{sec:proof} by showing that applying operations is commutative.
 
-Figure~\ref{fig:code} gives the full source code for our algorithm, implemented using the Isabelle/HOL language~\cite{DBLP:conf/tphol/WenzelPN08}.
+Figure~\ref{fig:code} gives the full source code for our algorithm in the Isabelle/HOL language~\cite{DBLP:conf/tphol/WenzelPN08}.
 We choose this language because it combines the conciseness of pseudocode with the precision of mathematical notation.
-It supports formal reasoning, allowing us to prove the correctness of the algorithm (\S\ref{sec:proof}), and it also allows executable code to be exported to common functional programming languages such as Scala, Haskell, or OCaml.
+It supports formal reasoning, allowing us to prove the correctness of the algorithm (\S\ref{sec:proof}), and it can be exported to Scala, Haskell, or OCaml.
 
-In this section we walk through the code in Figure~\ref{fig:code} step by step, explaining features of the Isabelle/HOL syntax as we encounter them.
+In this section we walk through the code in Figure~\ref{fig:code} step by step, explaining the Isabelle/HOL syntax as we encounter it.
 Additional background documentation is available~\cite{DBLP:books/sp/NipkowK14}.
 
 \subsection{Operations and trees}\label{sec:ops-trees}
 
-We define only one kind of operation: \isa{Move t p m c} (Figure~\ref{fig:code}, lines 1--5).
-A move operation is a record consisting of four fields: a timestamp \isa{t} of type \isa{'t}, a parent node \isa{p} of type \isa{'n}, a metadata field \isa{m} of type \isa{'m}, and a child node \isa{c} of type \isa{'n}.
-Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be substituted for arbitrary types; our only requirement is that timestamps \isa{'t} are globally unique and have an associated total order (e.g. Lamport timestamps~\cite{Lamport:1978jq} would suffice).
+We define one kind of operation: \isa{Move t p m c} (line 1--5).
+A move operation is a 4-tuple consisting of a timestamp \isa{t} of type \isa{'t}, a parent node ID \isa{p} of type \isa{'n}, a metadata field \isa{m} of type \isa{'m}, and a child node ID \isa{c} of type \isa{'n}.
+Here, \isa{'t}, \isa{'n} and \isa{'m} are \emph{type variables} that can be replaced with arbitrary types; we only require that node identifiers \isa{'n} are globally unique (e.g.\ UUIDs); timestamps \isa{'t} need to be globally unique and totally ordered (e.g. Lamport timestamps~\cite{Lamport:1978jq}).
 
-The meaning of an operation \isa{Move t p m c} is that at time \isa{t}, the child node \isa{c} is moved to be a child of parent node \isa{p}.
-The operation does not specify the old location of \isa{c}; the algorithm simply ``steals'' \isa{c} from wherever it is currently located in the tree, and moves it to \isa{p}.
+The meaning of an operation \isa{Move t p m c} is that at time \isa{t}, the node with ID \isa{c} is moved to be a child of the parent node with ID \isa{p}.
+The operation does not specify the old location of \isa{c}; the algorithm simply removes \isa{c} from wherever it is currently located in the tree, and moves it to \isa{p}.
 If \isa{c} does not currently exist in the tree, it is created as a child of \isa{p}.
-For this reason we do not need a separate operation type to create tree nodes: simply performing a move with a fresh child node \isa{c} is sufficient to create \isa{c}.
-Nor do we need to define a remove operation: instead, we can designate a tree node as the ``trash'', and perform deletion of a node \isa{c} by moving \isa{c} to be a child of the trash node.
+For this reason we do not need a separate operation type to create tree nodes: simply performing a move with a fresh child node ID \isa{c} is sufficient to create \isa{c}.
+To delete \isa{c}, we move \isa{c} to be a child of the ``trash'' (a designated node ID that does not exist in the tree), so \isa{c} is removed from the tree.
 
 The metadata field \isa{m} in a move operation allows additional information to be associated with the parent-child relationship of \isa{p} and \isa{c}.
 For example, in a filesystem, the parent and child would be the inodes of a directory and a file within it, respectively, and the metadata would contain the filename of the child.
 Thus, a file with inode \isa{c} can be renamed by performing a \isa{Move t p m c}, where the new parent directory \isa{p} is the unchanged inode of the existing parent directory, but the metadata \isa{m} contains the new filename.
 
-When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations to their local replica.
-The timestamp \isa{t} of each operation must be globally unique; the other fields \isa{p}, \isa{m} and \isa{c} can be chosen freely.
+When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations to their local replica using the algorithm described in the rest of this section.
 
 We can now represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
 When we have \isa{(p, m, c) {\isasymin} tree}, that means \isa{c} is a child of \isa{p} in the tree, with associated metadata \isa{m}.
-Given a \isa{tree}, we can move the child \isa{c} to a new parent \isa{p}, with associated metadata \isa{m}, as follows:
-\begin{quote}
-\isa{\{(p', m', c') {\isasymin} tree. c' {\isasymnoteq} c\} {\isasymunion} \{(p, m, c)\}}
-\end{quote}
+Given a \isa{tree}, we can construct a new \isa{tree'} in which the child \isa{c} is moved to a new parent \isa{p}, with associated metadata \isa{m}, as follows:
+\begin{isabelle}
+tree' = \{(p', m', c') {\isasymin} tree. c' {\isasymnoteq} c\} {\isasymunion} \{(p, m, c)\}
+\end{isabelle}
 That is, we remove any existing parent-child relationship for \isa{c} from the set \isa{tree}, and then add \isa{\{(p, m, c)\}} to represent the new parent-child relationship.
 This expression appears on lines 31 and 36 of Figure~\ref{fig:code}, as we shall explain shortly.
 
@@ -546,22 +540,22 @@ This expression appears on lines 31 and 36 of Figure~\ref{fig:code}, as we shall
 
 In order to correctly apply move operations, a replica needs to maintain not only the current state of the tree, but also an \emph{operation log}.
 The log is a list of \isa{LogMove} records in descending timestamp order.
-A \isa{LogMove t oldp p m c} record (lines 7--12) is similar to a record \isa{Move t p m c}; the only difference is that the \isa{LogMove} has an additional field \isa{oldp} of type \isa{('n {\isasymtimes} 'm) option}.
-This \isa{option} type means the field can either take the value \isa{None} (intuitively similar to null), or a pair of an inode and a metadata field.
+\isa{LogMove t oldp p m c} (lines 7--12) is similar to \isa{Move t p m c}; the difference is that \isa{LogMove} has an additional field \isa{oldp} of type \isa{('n {\isasymtimes} 'm) option}.
+This \isa{option} type means the field can either take the value \isa{None} (similar to null), or a pair of a node ID and a metadata field.
 
 When a replica applies a \isa{Move} operation to its tree, it also records a corresponding \isa{LogMove} operation in its log.
 The \isa{t}, \isa{p}, \isa{m} and \isa{c} fields are taken directly from the \isa{Move} record, while the \isa{oldp} field is filled in based on the state of the tree before the move.
 If \isa{c} did not exist in the tree, \isa{oldp} is set to \isa{None}.
-Otherwise, \isa{oldp} records the previous parent and metadata of \isa{c}, that is: if there exist \isa{p'} and \isa{m'} such that \isa{(p', m', c) {\isasymin} tree}, then \isa{oldp} is set to \isa{Some (p', m')}.
+Otherwise, \isa{oldp} records the previous parent and metadata of \isa{c}: if there exist \isa{p'} and \isa{m'} such that \isa{(p', m', c) {\isasymin} tree}, then \isa{oldp} is set to \isa{Some (p', m')}.
 The \isa{get\_parent} function implements this (lines 16--20).
 
 In the first line of \isa{get\_parent}, the expression between \isa{::} and \textbf{where} is the type signature of the function, in this case:
 \begin{quote}
 \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set {\isasymRightarrow} 'n {\isasymRightarrow} ('n {\isasymtimes} 'm) option}
 \end{quote}
-This signature denotes a function that takes two arguments: a tree \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set} and a node \isa{'n}.
+This signature denotes a function that takes two arguments: a tree \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set} and a node ID \isa{'n}.
 It then returns a \isa{('n {\isasymtimes} 'm) option}.
-The operator \isa{{\isasymexists}!x} means ``there exists a unique value \isa{x} such that\dots'', while \isa{THE x}\dots means ``\emph{choose} the unique value \isa{x} such that\ldots''.
+The operator \isa{{\isasymexists}!x} means ``there exists a unique value \isa{x} such that\dots'', while \isa{THE x} means ``\emph{choose} the unique value \isa{x} such that\ldots''.
 
 In line 14 we define the datatype for the state of a replica: a pair \isa{(log, tree)} where \isa{log} is a list of \isa{LogMove} records, and \isa{tree} is a set of \isa{(parent, meta, child)} triples as before.
 
@@ -595,7 +589,6 @@ This comparison occurs on line 49.
 
 Recall that the replica state includes the operation log (line 14), and we use this log to perform the undo-do-redo cycle.
 Lines 45--47 handle the case where the log is empty: in this case, we simply perform the operation using \isa{do\_op}, and return the new tree along with a log containing a single \isa{LogMove} record.
-
 If the log is nonempty (line 48), we take \isa{logop} to be the first element of the log, and \isa{ops} to be the rest.
 (The hash character in \isa{logop {\isacharhash} ops} is the \emph{cons} operator that adds one element to the head of a list.)
 If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 49) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 50).
@@ -1011,6 +1004,7 @@ It is able to sustain 24 updates per second; we plan to develop a more scalable 
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
+% AWS credits from the AWS Educate program
 \end{acks}
 
 \bibliographystyle{ACM-Reference-Format}
