@@ -106,7 +106,7 @@ For example:
     \item \textbf{Rich text editors} maintain a tree of textual structures such as paragraphs, lists, figures, sections, and so on.
         These can be nested: for example, a paragraph may appear inside a bulleted list item, which may in turn appear inside a numbered point of an enumeration.
         Rich text documents are typically represented in memory using the Document Object Model (DOM), and written to file in HTML, XML, or JSON format.
-    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, lines, and so on.
+    \item \textbf{Vector graphics} and \textbf{presentation software} represents images using graphical objects such as text boxes, rectangles, lines, and so on~\cite{Wallace:2019vf}.
         These objects are contained within nodes representing pages of a document, or slides of a presentation.
         Objects may be combined into a \emph{group} and manipulated as a unit; this corresponds to making these objects children of a common parent node.
         Multiple objects and groups may be combined further into higher-level groups, forming a tree.
@@ -981,6 +981,12 @@ Like Rumor, Unison is a userspace process that works by comparing replica states
 Whenever it is run, Unison records a summary of the filesystem state on each replica, and it uses this summary to determine the changes made since the last synchronisation. 
 When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}a. 
 Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to choose one of four possible resolutions: those shown in Figure~\ref{fig:move-cycle}b, \ref{fig:move-cycle}c, \ref{fig:move-cycle}d, or to delete both directories.
+
+Hughes et al.~\cite{Hughes:2016fp} test Dropbox and Google Drive against a formal specification, but they do not consider moving files, and thus do not find the issue described in \S~\ref{sec:move-cycle}.
+
+Bj{\o}rner~\cite{Bjorner:2007hp} discusses the development of the Distributed File System Replication (DFS-R) component of Windows Server, during which a model checker found an issue with concurrent moves similar to Figure~\ref{fig:move-cycle}a.
+Bj{\o}rner outlines several possible solutions, but notes that model-checking their algorithm was not feasible due to state space explosion.
+Our use of proof by induction, rather than model-checking, allows us to verify the correctness of our algorithm in unbounded executions.
 
 \section{Conclusions}
 
