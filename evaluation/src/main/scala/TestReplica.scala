@@ -221,7 +221,6 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
       val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
       this.applyMove(move)
       for (client <- clients) client.send(move)
-      println(s"Generated: ${move}")
     } finally {
       timer.stop()
     }
