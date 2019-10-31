@@ -1,120 +1,260 @@
-import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem }
-import akka.grpc.GrpcClientSettings
-import akka.http.scaladsl.UseHttp2.Always
-import akka.http.scaladsl.model.{ HttpRequest, HttpResponse }
-import akka.http.scaladsl.{ Http, HttpConnectionContext }
-import akka.pattern.ask
-import akka.stream.{ ActorMaterializer, Materializer }
-import akka.stream.scaladsl.{ BroadcastHub, Keep, Sink, Source }
-import akka.util.Timeout
 import com.codahale.metrics.{ ConsoleReporter, MetricRegistry, Timer }
-import com.typesafe.config.ConfigFactory
-import examplerpc.{ MoveService, MoveServiceClient, MoveServiceHandler }
-import java.util.concurrent.TimeUnit.SECONDS
-import java.util.concurrent.ConcurrentHashMap
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream, InputStream, OutputStream }
+import java.net.{ ServerSocket, Socket }
+import java.util.concurrent.{ArrayBlockingQueue, ConcurrentHashMap, TimeUnit}
 import java.util.Random
-import scala.collection.JavaConversions._
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.duration._
-import scala.util.{ Failure, Success }
 
 object TestReplica {
 
-  // TCP port number for gRPC
+  // TCP port number for communication between replicas
   val PORT = 8080
 
   // Time interval between generated operations (= 1 / operation rate)
-  val OPERATION_INTERVAL = 1000 millis
+  val OPERATION_INTERVAL = TimeUnit.MILLISECONDS.toNanos(1000)
+
+  // How long to run the test before shutting down
+  val RUN_DURATION = TimeUnit.MINUTES.toNanos(10)
 
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
-      throw new Exception("Usage: TestReplica own-ip remote-ip1 [remote-ip2 ...]")
+      throw new Exception("Usage: TestReplica replica-id remote-ip1 [remote-ip2 ...]")
     }
-
-    val conf = ConfigFactory.parseString("akka.http.server.preview.enable-http2 = on")
-      .withFallback(ConfigFactory.defaultApplication())
 
     implicit val metrics = new MetricRegistry()
-    implicit val sys: ActorSystem = ActorSystem("TestReplica", conf)
-    implicit val mat: Materializer = ActorMaterializer()
-    implicit val ec: ExecutionContext = sys.dispatcher
+    ConsoleReporter.forRegistry(metrics).build().start(20, TimeUnit.SECONDS)
 
-    ConsoleReporter.forRegistry(metrics).build().start(20, SECONDS)
+    val replica = new ReplicaThread(args(0).toLong, metrics)
+    val replicaThread = new Thread(replica)
+    replicaThread.start()
 
-    val treeActor = sys.actorOf(TreeActor.props(args(0).toLong, metrics), "treeActor")
-    val service: HttpRequest => Future[HttpResponse] = MoveServiceHandler(new ReplicaService(treeActor, sys, metrics))
+    val server = new Thread(new AcceptThread(replica))
+    server.setDaemon(true)
+    server.start()
 
-    val binding = Http().bindAndHandleAsync(service, interface = "0.0.0.0", port = PORT,
-      connectionContext = HttpConnectionContext(http2 = Always))
+    TimeUnit.SECONDS.sleep(10) // time for other servers to come up
 
-    binding.foreach { binding =>
-      println(s"gRPC server bound to: ${binding.localAddress}")
-    }
-
-    val generator = new LoadGenerator(treeActor, args.drop(1))
-    generator.run()
-
-    sys.scheduler.scheduleOnce(10 minutes) {
-      sys.terminate()
+    for (remoteIp <- args.drop(1)) {
+      val client = new ClientThread(remoteIp, metrics)
+      val clientThread = new Thread(client)
+      clientThread.setDaemon(true)
+      clientThread.start()
+      replica.addClient(client)
     }
   }
 }
 
-class LoadGenerator(treeActor: ActorRef, remoteReplicas: Array[String])
-    (implicit val sys: ActorSystem, implicit val mat: Materializer,
-     implicit val ec: ExecutionContext, implicit val metrics: MetricRegistry) {
+// Encoding/decoding objects <--> bytes
+object Protocol {
+  case class Move(time: Long, replica: Long, parent: Long, child: Long)
+  case class Ack(time: Long, replica: Long)
 
-  val random = new Random()
-  val timers = new ConcurrentHashMap[String, Timer]()
-  val requests = new ConcurrentHashMap[String, ConcurrentHashMap[examplerpc.LamportTS, Timer.Context]]()
+  def encodeMove(move: Move): Array[Byte] = {
+    val bytes = new ByteArrayOutputStream(4 * 8)
+    val data = new DataOutputStream(bytes)
+    data.writeLong(move.time)
+    data.writeLong(move.replica)
+    data.writeLong(move.parent)
+    data.writeLong(move.child)
+    bytes.toByteArray()
+  }
 
+  def encodeAck(ack: Ack): Array[Byte] = {
+    val bytes = new ByteArrayOutputStream(2 * 8)
+    val data = new DataOutputStream(bytes)
+    data.writeLong(ack.time)
+    data.writeLong(ack.replica)
+    bytes.toByteArray()
+  }
+
+  def decodeMove(bytes: Array[Byte]): Move = {
+    val data = new DataInputStream(new ByteArrayInputStream(bytes))
+    val time    = data.readLong()
+    val replica = data.readLong()
+    val parent  = data.readLong()
+    val child   = data.readLong()
+    Move(time, replica, parent, child)
+  }
+
+  def decodeAck(bytes: Array[Byte]): Ack = {
+    val data = new DataInputStream(new ByteArrayInputStream(bytes))
+    val time    = data.readLong()
+    val replica = data.readLong()
+    Ack(time, replica)
+  }
+}
+
+// Base class for ClientThread and ServerThread. Assumes that each incoming
+// message has a fixed size in bytes (given as recvFrameSize).
+abstract class Connection(socket: Socket, recvFrameSize: Int) extends Runnable {
+  socket.setTcpNoDelay(true)
+
+  def send(bytes: Array[Byte]) {
+    this.synchronized {
+      socket.getOutputStream().write(bytes)
+    }
+  }
+
+  // Called when a whole incoming message has been received
+  def receive(bytes: Array[Byte])
+
+  // The run loop blocks waiting for bytes to be received. It waits for a message
+  // (recvFrameSize bytes) to be received and then calls receive().
   def run() {
-    implicit val timeout: Timeout = 3 seconds
-
-    val opStream: Source[examplerpc.Move, NotUsed] = Source
-      // Initially wait 20 seconds to allow all the replicas to boot up, then generate
-      // operations in quick succession
-      .tick(20 seconds, TestReplica.OPERATION_INTERVAL, "tick")
-      .map { _ => TreeActor.RequestMove(random.nextInt(1000), "", random.nextInt(1000)) }
-      .mapAsync(1) { request => (treeActor ? request).mapTo[examplerpc.Move] }
-      .mapMaterializedValue(_ => NotUsed)
-      // Make the source multi-subscriber, broadcasting each item to all subscribers:
-      // https://doc.akka.io/docs/akka/2.5.23/stream/stream-dynamic.html#using-the-broadcasthub
-      .toMat(BroadcastHub.sink(bufferSize = 256))(Keep.right)
-      .run()
-
-    val responseStreams: Array[Pair[String, Source[examplerpc.LamportTS, NotUsed]]] = remoteReplicas.map { remoteIp =>
-      timers.putIfAbsent(remoteIp, metrics.timer(s"LoadGenerator($remoteIp).requests"))
-      requests.putIfAbsent(remoteIp, new ConcurrentHashMap[examplerpc.LamportTS, Timer.Context]())
-
-      val requestStream = opStream.map { move =>
-        val timer = timers.get(remoteIp).time()
-        requests.get(remoteIp).putIfAbsent(move.timestamp.get, timer)
-        println(s"Request: ${move.timestamp.get} to ${remoteIp}")
-        move
+    try {
+      val recvBuf = new Array[Byte](recvFrameSize)
+      val inputStream = socket.getInputStream()
+      var bytesRead = 0
+      while (true) {
+        val ret = inputStream.read(recvBuf, bytesRead, recvFrameSize - bytesRead)
+        if (ret <= 0) return
+        bytesRead += ret
+        if (bytesRead == recvFrameSize) {
+          receive(recvBuf)
+          bytesRead = 0
+        }
       }
-
-      val config = GrpcClientSettings.connectToServiceAt(remoteIp, TestReplica.PORT)
-        .withDeadline(20 seconds)
-        .withTls(false)
-
-      (remoteIp, MoveServiceClient(config).sendMove(requestStream))
-    }
-
-    for ((remoteIp, responses) <- responseStreams) {
-      responses.runForeach { response =>
-        requests.get(remoteIp).remove(response).stop()
-        println(s"Response: ${response} from ${remoteIp}")
-      }
+    } finally {
+      println(s"Closing connection: ${this}")
+      socket.close()
     }
   }
 }
 
-class ReplicaService(treeActor: ActorRef, sys: ActorSystem, metrics: MetricRegistry) extends examplerpc.MoveService {
-  override def sendMove(in: Source[examplerpc.Move, NotUsed]): Source[examplerpc.LamportTS, NotUsed] = {
-    implicit val timeout: Timeout = 3 seconds
-    import sys.dispatcher
-    in.mapAsyncUnordered(10) { move => (treeActor ? move).mapTo[examplerpc.LamportTS] }
+// Thread that handles the client side of a connection. It sends Move requests
+// to the server, and waits for Ack responses in reply.
+class ClientThread(val remoteIp: String, metrics: MetricRegistry)
+    extends Connection(new Socket(remoteIp, TestReplica.PORT), 2 * 8) {
+
+  val MAX_PENDING_REQUESTS = 10 // backpressure kicks in if more than this pending
+  val timer = metrics.timer(s"ClientThread($remoteIp).requests")
+  val requests = new ConcurrentHashMap[Protocol.Ack, Timer.Context]()
+
+  def send(move: Protocol.Move) {
+    val requestId = Protocol.Ack(move.time, move.replica)
+    requests.putIfAbsent(requestId, timer.time())
+    this.send(Protocol.encodeMove(move))
+  }
+
+  def receive(bytes: Array[Byte]) {
+    val ack = Protocol.decodeAck(bytes)
+    requests.remove(ack).stop()
+  }
+
+  // Returns false if we're happy to accept more requests, and true if we need
+  // to hold off on enqueueing more requests for now.
+  def backpressure: Boolean = {
+    requests.size() >= MAX_PENDING_REQUESTS
+  }
+}
+
+// Thread that handles the server side of a connection. It waits for Move
+// requests from a client, gets the replica to process them, and sends Ack
+// responses back to the client when done.
+class ServerThread(replica: ReplicaThread, socket: Socket) extends Connection(socket, 4 * 8) {
+  def send(ack: Protocol.Ack) {
+    this.send(Protocol.encodeAck(ack))
+  }
+
+  def receive(bytes: Array[Byte]) {
+    replica.request(Protocol.decodeMove(bytes), this)
+  }
+}
+
+// Thread that accepts connections on a server socket, and spawns a new
+// ServerThread for each incoming connection.
+class AcceptThread(replica: ReplicaThread) extends Runnable {
+  def run() {
+    val server = new ServerSocket(TestReplica.PORT)
+    while (true) {
+      val socket = server.accept()
+      println(s"Incoming connection: ${socket}")
+      new Thread(new ServerThread(replica, socket)).start()
+    }
+  }
+}
+
+// This thread is the main execution loop of a replica. It manages the replica
+// state and calls into the Isabelle-generated code to update the state.
+class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
+  val localTimer   = metrics.timer("ReplicaThread.local")
+  val remoteTimer  = metrics.timer("ReplicaThread.remote")
+  val backpressure = metrics.meter("ReplicaThread.backpressure")
+  val queue = new ArrayBlockingQueue[Tuple2[Protocol.Move, ServerThread]](64)
+  val random = new Random()
+
+  var clients: List[ClientThread] = Nil
+
+  // For Lamport timestamps
+  var counter: Long = 0
+
+  // The current state of the replica (consisting of both log and tree).
+  // Type comes from generated code, hence horrible.
+  var state: (List[generated.log_op[(BigInt, BigInt), BigInt, String]], generated.hashmap[BigInt, (String, BigInt)])
+    = (Nil, generated.hm_empty[BigInt, (String, BigInt)].apply(()))
+
+  def addClient(client: ClientThread) {
+    clients = client :: clients
+  }
+
+  // Incoming request from a ServerThread. The calling object is passed in so
+  // that we know where to send the response once we've processed the operation.
+  def request(move: Protocol.Move, sender: ServerThread) {
+    queue.put((move, sender))
+  }
+
+  // Executes a remote operation. This is called on the replica thread.
+  private[this] def processRequest(move: Protocol.Move, sender: ServerThread) {
+    val timer = remoteTimer.time()
+    try {
+      applyMove(move)
+      sender.send(Protocol.Ack(move.time, move.replica))
+    } finally {
+      timer.stop()
+    }
+  }
+
+  // Generates a new move operation, applies it locally, and sends it to all
+  // of the clients.
+  private[this] def generateMove() {
+    val timer = localTimer.time()
+    try {
+      val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
+      this.applyMove(move)
+      for (client <- clients) client.send(move)
+      println(s"Generated: ${move}")
+    } finally {
+      timer.stop()
+    }
+  }
+
+  // Actually applies a move operation to the current state (calls into
+  // Isabelle-generated code). Both local and remote operations.
+  private[this] def applyMove(move: Protocol.Move) {
+    val timestamp = (BigInt(move.time), BigInt(move.replica))
+    val operation = generated.Move(timestamp, BigInt(move.parent), "", BigInt(move.child))
+    state = generated.integer_apply_op(operation)(state)
+    if (move.time > counter) counter = move.time
+  }
+
+  // The run loop does two things: it blocks waiting for incoming requests from
+  // other replicas on the blocking queue, and it also generates a new operation
+  // every REQUEST_INTERVAL (unless backpressure is applied).
+  def run() {
+    TimeUnit.SECONDS.sleep(20) // time for all replicas to start up
+    val startTime = System.nanoTime()
+    var nextTick = startTime + TestReplica.OPERATION_INTERVAL
+    while (System.nanoTime() < startTime + TestReplica.RUN_DURATION) {
+      val request = queue.poll(nextTick - System.nanoTime(), TimeUnit.NANOSECONDS)
+      if (request == null) {
+        if (clients.exists(_.backpressure)) {
+          backpressure.mark()
+        } else {
+          generateMove()
+        }
+        nextTick += TestReplica.OPERATION_INTERVAL
+      } else {
+        processRequest(request._1, request._2)
+      }
+    }
   }
 }

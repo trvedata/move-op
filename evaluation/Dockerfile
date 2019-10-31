@@ -7,7 +7,7 @@ RUN set -x \
     && echo 'deb https://dl.bintray.com/sbt/debian /' >> /etc/apt/sources.list.d/sbt.list \
     && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823 \
     && apt-get update \
-    && apt-get install -y openjdk-8-jdk sbt \
+    && apt-get install -y openjdk-8-jdk-headless sbt \
     && wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2019.1-docker.zip -P /tmp/ \
     && unzip /tmp/YourKit-JavaProfiler-2019.1-docker.zip -d /usr/local \
     && rm /tmp/YourKit-JavaProfiler-2019.1-docker.zip
