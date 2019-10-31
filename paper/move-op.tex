@@ -494,8 +494,8 @@ We now introduce our algorithm for a replicated tree that supports a move operat
 We model each replica as a state machine that transitions from one state to the next by applying an operation.
 The algorithm is executed independently on each replica with no shared memory between replicas.
 
-When the user wants to make a change to the tree, they generate an operation and apply it on their local replica.
-Every operation is also asynchronously sent over the network to all other replicas, and applied on every remote replica using the same algorithm as for local operations.
+When the user wants to make a change to the tree, they generate an operation and apply it to their local replica.
+Every operation is also asynchronously sent over the network to all other replicas, and applied to every remote replica using the same algorithm as for local operations.
 The network may deliver operations in any order; thus, the communication can be performed peer-to-peer, and it does not require any central server or consensus protocol.
 We only assume that eventually every operation is applied on every replica, provided that network partitions are of a finite duration.
 
@@ -527,7 +527,7 @@ Thus, a file with inode \isa{c} can be renamed by performing a \isa{Move t p m c
 
 When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations to their local replica using the algorithm described in the rest of this section.
 
-We can now represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
+We can now represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle/HOL as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
 When we have \isa{(p, m, c) {\isasymin} tree}, that means \isa{c} is a child of \isa{p} in the tree, with associated metadata \isa{m}.
 Given a \isa{tree}, we can construct a new \isa{tree'} in which the child \isa{c} is moved to a new parent \isa{p}, with associated metadata \isa{m}, as follows:
 \begin{isabelle}
@@ -584,13 +584,13 @@ When a replica needs to apply an operation with timestamp \isa{t}, it first undo
 As a result, the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
 The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
-The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a total order.
+The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a linear (or total) order.
 This comparison occurs on line 49.
 
 Recall that the replica state includes the operation log (line 14), and we use this log to perform the undo-do-redo cycle.
 Lines 45--47 handle the case where the log is empty: in this case, we simply perform the operation using \isa{do\_op}, and return the new tree along with a log containing a single \isa{LogMove} record.
 If the log is nonempty (line 48), we take \isa{logop} to be the first element of the log, and \isa{ops} to be the rest.
-(The hash character in \isa{logop {\isacharhash} ops} is the \emph{cons} operator that adds one element to the head of a list.)
+(The hash character in \isa{logop {\isacharhash} ops} is the \emph{list cons} operator that adds one element to the head of a list.)
 If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 49) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 50).
 Otherwise we perform the operation using \isa{do\_op}, and add the corresponding \isa{LogMove} record as the head of the log (line 51).
 
@@ -648,7 +648,7 @@ For example, in a graphics application, the order of nodes determines visibility
 This can be implemented by maintaining an additional list CRDT for each branch node, e.g.\ using RGA~\cite{Roh:2011dw}, Treedoc~\cite{Preguica:2009fz}, Logoot~\cite{Weiss:2010hx}, or LSEQ~\cite{Nedelec:2013ky}.
 These algorithms assign a unique ID to each element of the list, and this ID can be included in the metadata field of move operations in order to determine the order of sibling nodes.
 
-This approach to determining ordering also easily supports reordering of child nodes within a parent, e.g.\ to implement the ``bring to front'' and ``send to back'' feature of applications like PowerPoint.
+This approach to determining ordering also easily supports reordering of child nodes within a parent, e.g.\ to implement the ``bring to front'' and ``send to back'' feature of applications like Microsoft PowerPoint.
 To move a node to a different position in a list, we use the list CRDT to generate a new ID at the desired position in the sequence.
 Then we perform a move operation in which the parent node is unchanged, but the metadata is changed to this new ID.
 
@@ -680,7 +680,7 @@ For example, the ``trash'' node used for deletion (\S\ref{sec:ops-trees}) can be
 \subsubsection{Each node's parent is unique}\label{sec:unique-parent}
 
 The first invariant we prove is that each tree node has either no parent (if it is the root of a tree) or exactly one parent (if it is a non-root node).
-We state this theorem in Isabelle as follows, where \isa{apply\_ops\_unique\_parent} is the name we give to this theorem:
+We state this theorem in Isabelle/HOL as follows, where \isa{apply\_ops\_unique\_parent} is the name we give to this theorem:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}unique{\isacharunderscore}parent{\isacharcolon}\isanewline
@@ -696,7 +696,7 @@ Proving it is easy because the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} f
 \subsubsection{The graph contains no cycles}\label{sec:no-cycles}
 
 The second invariant we require is that the graph must not contain any cycles.
-In Isabelle:
+In Isabelle/HOL:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
@@ -705,7 +705,7 @@ In Isabelle:
 \end{isabelle}
 \noindent The \isa{acyclic} predicate is defined on lines 59--60 of Figure~\ref{fig:code}, using the \isa{ancestor} relation (the transitive closure of the graph's edges): a graph contains no cycles if no node is an ancestor of itself.
 
-Proof sketch: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
+\emph{Proof sketch}: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
 Further assume \isa{acyclic tree1}.
 We can then prove by contradiction that \isa{tree2} is also acyclic.
 Assume to the contrary that \isa{tree2} contains a cycle.
@@ -727,7 +727,7 @@ Then, from the result of the previous paragraph, any tree produced by \isa{apply
 \subsection{Convergence}\label{sec:convergence}
 
 As discussed in \S\ref{sec:applying}, we require that when replicas apply the same set of operations, they converge towards the same state, regardless of the order in which the operations are applied.
-We formalise this in Isabelle as follows:
+We formalise this in Isabelle/HOL as follows:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}commutes{\isacharcolon}\isanewline
@@ -774,8 +774,8 @@ For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op ope
 On the other hand, \isa{apply\_op oper1 (apply\_op oper2 ([], tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes \isa{oper2} again to yield the original \isa{tree} (per \isa{do\_undo\_op\_inv}), then applies \isa{oper1} using \isa{do\_op}, and finally reapplies \isa{oper2} using \isa{redo\_op}.
 The final states are the same on both sides of the equality.
 
-For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{cons} operator).
-We now need to show that
+For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{list cons} operator).
+We now need to show that:
 \begin{isabelle}
 apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree)) =\\
 apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree)).
@@ -792,7 +792,7 @@ We now consider three cases:
         The end result is the same.
     \item \isa{t1 < t2 < t3}.
         Then both applying \isa{oper1} and applying \isa{oper2} first undoes \isa{logop}, yielding \isa{tree' = undo\_op (logop, tree)}.
-        From the inductive hypothesis we have
+        From the inductive hypothesis we have:
         \begin{isabelle}
         apply\_op oper2 (apply\_op oper1 (ops, tree')) =\\
         apply\_op oper1 (apply\_op oper2 (ops, tree'))
@@ -814,7 +814,7 @@ Moreover, HOL's \isa{set} type allows infinite sets.
 Whilst these constructs are convenient for theorem proving, they do not translate well to executable code.
 
 We therefore produce variants of the definitions in Figure~\ref{fig:code} that are designed for execution rather than theorem proving.
-Rather than representing the tree as a set of (parent, metadata, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (metadata, parent) pairs, written in Isabelle as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
+Rather than representing the tree as a set of (parent, metadata, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (metadata, parent) pairs, written in Isabelle/HOL as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
 The \isa{hashable} type class means that keys must have a hashing function.
 In effect, this hash-map is an index over the set of triples, using the fact that the parent and metadata for a given child are unique (\S\ref{sec:unique-parent}).
 The hash-map implementation is from the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
@@ -878,9 +878,9 @@ We do not plot the exact execution times above 12~ms because they are less meani
     \toprule
                & California & Ireland & Singapore \\
     \midrule
-    California &            & 395 ms  & 491 ms    \\
-    Ireland    & 395 ms     &         & 547 ms    \\
-    Singapore  & 491 ms     & 547 ms  &           \\
+    California &      ---      & 395 ms  & 491 ms    \\
+    Ireland    & 395 ms     &    ---     & 547 ms    \\
+    Singapore  & 491 ms     & 547 ms  &     ---      \\
     \bottomrule
 \end{tabular}
 \end{table}
@@ -970,7 +970,7 @@ Unfortunately we were unable to find a precise definition of the algorithm used 
 Rumor~\cite{Guy:1999gy,RumorManual} is the successor to Ficus.
 While previous work uses the kernel filesystem interface, Rumor is a userspace process that is invoked periodically by the user or by a daemon; when run, it compares the state of the replicas.
 The original version of Rumor was unable to scale beyond 20 replicas, but an extension called Roam~\cite{Ratner:1999fh} allowed better scaling. 
-In an attempt to test Rumor's conflict handling we obtained the source code from archive.org~\cite{RumorSource}; however, we were unable to get it running after modest effort.
+In an attempt to test Rumor's conflict handling we obtained the source code from \emph{archive.org}~\cite{RumorSource}; however, we were unable to get it running after modest effort.
 %The user manual \cite{RumorManual} makes the claim that "Unix directories are an important example of a kind of file for which Rumor automatically resolves conflicts"
 
 Unison is a file synchronisation tool with a formal specification that allows two replicas to synchronise the state of a directory~\cite{PierceVouillon:UnisonSpecTR}.
