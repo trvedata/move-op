@@ -527,7 +527,7 @@ Thus, a file with inode \isa{c} can be renamed by performing a \isa{Move t p m c
 
 When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations to their local replica using the algorithm described in the rest of this section.
 
-We can now represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle/HOL as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
+We can represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle/HOL as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
 When we have \isa{(p, m, c) {\isasymin} tree}, that means \isa{c} is a child of \isa{p} in the tree, with associated metadata \isa{m}.
 Given a \isa{tree}, we can construct a new \isa{tree'} in which the child \isa{c} is moved to a new parent \isa{p}, with associated metadata \isa{m}, as follows:
 \begin{isabelle}
@@ -814,7 +814,7 @@ Moreover, HOL's \isa{set} type allows infinite sets.
 Whilst these constructs are convenient for theorem proving, they do not translate well to executable code.
 
 We therefore produce variants of the definitions in Figure~\ref{fig:code} that are designed for execution rather than theorem proving.
-Rather than representing the tree as a set of (parent, metadata, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (metadata, parent) pairs, written in Isabelle/HOL as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
+Rather than representing the tree as a set of (parent, meta, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (meta, parent) pairs, written in Isabelle/HOL as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
 The \isa{hashable} type class means that keys must have a hashing function.
 In effect, this hash-map is an index over the set of triples, using the fact that the parent and metadata for a given child are unique (\S\ref{sec:unique-parent}).
 The hash-map implementation is from the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
