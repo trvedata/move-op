@@ -15,6 +15,9 @@ object TestReplica {
   // How long to run the test before shutting down
   val RUN_DURATION = TimeUnit.MINUTES.toNanos(10)
 
+  // Backpressure kicks in if more than this number of requests in flight
+  val MAX_PENDING_REQUESTS = 50
+
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
       throw new Exception("Usage: TestReplica replica-id remote-ip1 [remote-ip2 ...]")
@@ -125,7 +128,6 @@ abstract class Connection(socket: Socket, recvFrameSize: Int) extends Runnable {
 class ClientThread(val remoteIp: String, metrics: MetricRegistry)
     extends Connection(new Socket(remoteIp, TestReplica.PORT), 2 * 8) {
 
-  val MAX_PENDING_REQUESTS = 10 // backpressure kicks in if more than this pending
   val timer = metrics.timer(s"ClientThread($remoteIp).requests")
   val requests = new ConcurrentHashMap[Protocol.Ack, Timer.Context]()
 
@@ -143,7 +145,7 @@ class ClientThread(val remoteIp: String, metrics: MetricRegistry)
   // Returns false if we're happy to accept more requests, and true if we need
   // to hold off on enqueueing more requests for now.
   def backpressure: Boolean = {
-    requests.size() >= MAX_PENDING_REQUESTS
+    requests.size() >= TestReplica.MAX_PENDING_REQUESTS
   }
 }
 
