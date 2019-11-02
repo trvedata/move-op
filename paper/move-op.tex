@@ -876,17 +876,17 @@ We do not plot the exact execution times above 12~ms because they are less meani
   \label{tab:rpc-times}
   \begin{tabular}{r|rrr}
     \toprule
-               & California & Ireland & Singapore \\
+                    & to California & to Ireland & to Singapore \\
     \midrule
-    California &      ---      & 395 ms  & 491 ms    \\
-    Ireland    & 395 ms     &    ---     & 547 ms    \\
-    Singapore  & 491 ms     & 547 ms  &     ---      \\
+    from California & ---           & 139 ms     & 175 ms       \\
+    from Ireland    & 145 ms        & ---        & 182 ms       \\
+    from Singapore  & 176 ms        & 178 ms     & ---          \\
     \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}
-  \includegraphics[width=\columnwidth,keepaspectratio=true]{plots.png}
+  \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 t2.small instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
   \Description{Plot in which the x axis goes from 0 to 30 move operations per second, and the y axis goes from 0 to 12 milliseconds. Local operations take a near-constant time less than 1ms; the time for remote operations gradually increases to 2ms until 24 operations/sec, at which point it suddenly shoots up off the top of the scale.}
