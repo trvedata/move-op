@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# This script executes on an EC2 VM. It runs a replica that generates
+# operations with a given inter-operation interval.
+
 INTERVAL="${1?Please specify interval}"
 REPLICA_ID="${2?Please specify replica ID}"
 REMOTE1="${3?Please specify remote IP 1}"
