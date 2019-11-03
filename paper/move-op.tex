@@ -996,7 +996,7 @@ This approach means that user interaction is consistently fast, even in the face
 
 While existing systems exhibit anomalies (such as duplicating nodes or introducing cycles) or bugs and internal errors (like in Figure~\ref{fig:gdrive-error}) in the face of concurrent move operations, our algorithm is free from such problems.
 We formally verified the correctness of our algorithm using the Isabelle/HOL proof assistant; our theorems show that replicas can apply operations in any order, and that the result is always a valid tree (nodes have at most one parent, and the graph does not contain any cycles).
-Moreover, these results are \emph{strong} in the sense that they apply to unbounded executions and an arbitrary number of replicas: an inherent advantage of using proof rather than model checking.
+Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an inherent advantage of using a proof assistant rather than other formal approaches such as model checking.
 
 We also extracted a formally verified Scala implementation from our Isabelle/HOL definitions, and evaluated its performance across three replicas in California, Ireland and Singapore.
 Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a central server or consensus protocol operating over these distances.
