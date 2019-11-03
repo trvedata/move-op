@@ -602,7 +602,7 @@ This logic ensures that the log is maintained in descending timestamp order, wit
 \subsection{Handling conflicts}\label{sec:conflicts}
 
 Due to the undo-do-redo cycle, the state of the tree is as if all operations had been applied using \isa{do\_op} in increasing timestamp order, regardless of the order in which they were actually applied.
-This provides a clear approach to the handling of conflicts:
+This provides a clear and consistent approach to the handling of conflicts:
 \begin{itemize}
     \item If two operations concurrently move the same node, the operation with the lower timestamp moves the node first, and then the operation with the greater timestamp moves it again, so the final parent is determined by the latter.
         Since move operations do not specify the old location of a node, but only the new location, this sequential execution of concurrent operations is well-defined.
