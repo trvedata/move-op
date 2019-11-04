@@ -913,6 +913,15 @@ The alternative to our optimistic replication approach would be to use a central
 Performing an operation then requires waiting for communication with a server potentially located on a different continent, taking over 100~ms (Table~\ref{tab:rpc-times}); by contrast, a local operation taking around 50~{\textmu}s is at least three orders of magnitude faster.
 Moreover, a local operation requires no waiting for network communication, and thus it supports disconnected operation: mobile devices can read and modify the replicated tree even while disconnected from the Internet, which is not the case with centralised systems.
 
+\subsection{Evaluation of formal proof}
+
+The formalisation of our algorithm, and the proofs of its properties as described in \S\ref{sec:proof}, have been formally checked by Isabelle/HOL.
+Our proofs contain no unproven assumptions (i.e. no occurrences of the \textbf{sorry} keyword).
+Checking all of the proofs takes 3.5 minutes on a 2018 MacBook Pro.
+
+Besides the 60 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,166 lines of code.
+Of this, we use 203 lines to prove that every node has a unique parent, 443 lines to prove that the tree contains no cycles, 450 lines to prove that move operations commute and replicas converge, 327 lines to prove the strong eventual consistency of our algorithm using the framework of Gomes et al.~\cite{Gomes:2017gy}, and 743 lines to define the executable variant of our algorithm (\S\ref{subsect.extracting}) and prove its equivalence to the abstract definitions of Figure~\ref{fig:code}.
+
 \section{Related work}\label{sec:relwork}
 
 Many replicated data systems use optimistic replication~\cite{Saito:2005jw}, which allows the state of replicas to temporarily diverge, in order to achieve better performance and availability in the presence of faults than strongly consistent systems~\cite{Bailis:2014th,Gilbert:2002il}.
@@ -1002,8 +1011,8 @@ We also extracted a formally verified Scala implementation from our Isabelle/HOL
 Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a central server or consensus protocol operating over these distances.
 It is able to sustain 600 updates per second; a more scalable implementation could be created by optimising the automatically extracted Scala code.
 
-As mentioned in the introduction, our work is especially interesting due to the ubiquity of the tree-structured data model across a range of different computing systems.
-In future work we hope to build novel peer-to-peer distributed systems, such as a distributed file-system, that make use of our algorithm.
+As mentioned in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different computing systems.
+In future work we hope to build novel peer-to-peer distributed systems, such as a distributed filesystem, based on our algorithm.
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
