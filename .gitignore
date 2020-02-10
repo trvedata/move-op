@@ -8,6 +8,12 @@ evaluation/target
 /paper/move-op.log
 /paper/move-op.out
 /paper/move-op.pdf
+/paper/list-move.aux
+/paper/list-move.bbl
+/paper/list-move.blg
+/paper/list-move.log
+/paper/list-move.out
+/paper/list-move.pdf
 /output
 /ancestor.ML
 /generated.SML
