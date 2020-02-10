@@ -30,6 +30,9 @@
 }
 
 \begin{abstract}
+    List CRDTs (Conflict-free Replicated Data Types) allow multiple users to concurrently insert and delete items in a shared list.
+    However, existing algorithms behave poorly when users concurrently reorder items in the list, or move items to a new position.
+    We describe an extension to list CRDTs that improves their support for reordering.
 \end{abstract}
 
 \settopmatter{printfolios=true} % Recommended EuroSys formatting
@@ -66,7 +69,7 @@ This is a surprising omission because reordering is a commonly required operatio
 In this paper we introduce an algorithm that allows an existing list CRDT to be extended with a reorder operation.
 The algorithm is generic in the sense that it can be implemented on top of any of the aforementioned list CRDTs.
 
-\section{Semantics of Concurrent Moves}
+\section{Semantics of Concurrent Moves}\label{sec:semantics}
 
 The simplest way of moving a list element is to delete it from its existing position, and to re-insert it at the new position.
 However, if two replicas concurrently move the same element, the result is that the element is duplicated: the two deletions of the same element behave the same as one deletion, and the two insertions independently re-insert the element twice.
@@ -187,11 +190,45 @@ Later, when the phone is online again and synchronises with the laptop, any item
 This behaviour is especially confusing if the same item was moved to the same position (e.g.\ to the top of the list) on both devices, in which case the duplicated items are likely to be adjacent in the final list, as in Fig.~\ref{fig:duplication} (depending on any other insertions that might have taken place).
 However, even if the concurrent move operations had different destination positions, duplicating the moved item at both destinations is unlikely to be desirable behaviour in most applications.
 
-Rather, we argue that the best semantics in this situation is for the system to pick one of the destination positions as the ``winner''; as the replicas communicate, they all converge towards a list in which the moved element is located at the winning position, and nowhere else.
+Rather, we argue that the best semantics in this situation is for the system to pick one of the destination positions as the ``winner''; as the replicas communicate, they all converge towards a list in which the moved element is located only at the winning position, and nowhere else.
 This approach is illustrated in Fig.~\ref{fig:concurrent}.
 Any deterministic method of picking the winner is suitable (e.g.\ based on a priority given to each replica, or based on the timestamp of the operations).
 
-\section{A Generic Reordering Algorithm}
+\section{A Generic Reordering Algorithm}\label{sec:algorithm}
+
+Intuitively, if we want to pick one winner from among several concurrent moves for the same element, we can use a long-established CRDT: a last-writer wins (LWW) register~\cite{Shapiro:2011wy,Johnson:1975we}.
+We need one such register for each list element, containing the position of that element.
+Moving an element to a new location is then merely a matter of updating the value of that element's register.
+
+In general, we could also use a multi-value (MV) register~\cite{Shapiro:2011wy}, which would allow an element to exist at multiple positions in the list simultaneously after having experienced conflicting moves.
+This is not the same as the duplication described in Section~\ref{sec:semantics}, since the multiple positions still belong to the same element, and a subsequent move would collapse them back into a single position again.
+The MV register option can be used if the LWW behaviour (discarding all but one of the concurrent moves of the same element) is unacceptable.
+
+Regardless of whether a LWW or MV register is used, this approach requires a stable way of referencing some position in the list (i.e.\ the value held by the register).
+An integer index is not suitable, because an insertion or deletion at any position would require changing all of the indices following that position.
+Fortunately, all known list CRDTs already incorporate schemes for stable position identifiers.
+The details vary: Treedoc uses a path through a binary tree~\cite{Preguica:2009fz}, Logoot uses a list of (integer, replicaID) pairs~\cite{Weiss:2009ht}, RGA uses a so-called s4vector~\cite{Roh:2011dw}, Causal Trees/Timestamped Insertion Trees use a timestamp~\cite{Grishchenko:2014eh,Attiya:2016kh}, and so on.
+But all of these approaches have in common that they can uniquely refer to a particular position in a list, in a way that is not affected by operations on other list positions.
+
+Assume now that $p_1, p_2, \dots$ are position identifiers according to one of the aforementioned schemes.
+We can now model the state of the list as a set of $(\mathit{value}, \mathit{register})$ pairs contained in an add-wins set CRDT:
+\begin{align*}
+\mathit{state} = \mathrm{AWSet}(\{ & (v_1, \mathrm{LWWRegister}(p_1)),\\
+    & (v_2, \mathrm{LWWRegister}(p_2)), \;\dots\})
+\end{align*}
+In some schemes (such as Treedoc, Logoot and LSEQ), the position identifiers themselves encode their relative ordering~\cite{Interleaving}, and thus no further state is required.
+In others (such as RGA and CT), the list CRDT requires an additional data structure that determines the order in which position identifiers appear in the list.
+
+In order to iterate over the current state of the list, we need to query the above set by the position identifiers stored within the registers.
+We can do this efficiently by using a database index, which allows us to find all the tuples within a set that contain a certain value (or range of values).
+
+Note that when the position of a list element is changed, the old position identifier no longer has any value associated with it, and thus it should be regarded as nonexistent (like a tombstone in some CRDTs).
+It is also possible for multiple list elements to have the same position identifier, and thus for several list elements to appear at the same position.
+This situation is similar to having a multi-value register of values at each list position.
+(Note this situation is different from our earlier use of a MV register, which was about one element having multiple positions, not one position having multiple elements.)
+
+We can avoid having multiple list elements with the same position identifier by always creating a fresh position identifier as the destination of a move operation.
+All of the aforementioned list CRDTs have methods of creating new position identifiers that are guaranteed to be globally unique.
 
 \begin{acks}
 Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.
