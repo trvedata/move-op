@@ -1,6 +1,7 @@
 \documentclass[sigplan,10pt]{acmart}
 
 \usepackage{tikz}
+\usetikzlibrary{arrows.meta}
 
 \setcopyright{rightsretained}
 \copyrightyear{2020}
@@ -51,7 +52,7 @@ Replicated lists can be used to implement a variety of important applications, s
   \centering
   \includegraphics{smiley.pdf}
   \caption{Graphics software often places objects in a list that determines the z-index; objects higher in the list occlude lower ones. %
-    Here, the eyeballs are placed above the yellow face, and the pupils in turn are placed above the eyeballs.}
+    Here, the eyeballs and mouth are placed above the yellow face, and the pupils in turn are placed above the eyeballs.}
   \label{fig:smiley}
 \end{figure*}
 
@@ -64,6 +65,131 @@ This is a surprising omission because reordering is a commonly required operatio
 
 In this paper we introduce an algorithm that allows an existing list CRDT to be extended with a reorder operation.
 The algorithm is generic in the sense that it can be implemented on top of any of the aforementioned list CRDTs.
+
+\section{Semantics of Concurrent Moves}
+
+The simplest way of moving a list element is to delete it from its existing position, and to re-insert it at the new position.
+However, if two replicas concurrently move the same element, the result is that the element is duplicated: the two deletions of the same element behave the same as one deletion, and the two insertions independently re-insert the element twice.
+
+\begin{figure*}
+    \centering
+    \vspace{3em}
+    \begin{tikzpicture}[auto,scale=1.0]
+        \tikzstyle{item}=[rectangle,draw,inner ysep=4pt,text height=9pt,text depth=2pt,minimum width=2.2cm]
+        \tikzstyle{network}=[thick,dashed,blue,-{Stealth[length=3mm]}]
+        \path [draw,dotted] (0,2) -- (17.5,2);
+        \node at (1, 4) {Replica $A$:};
+        \node at (1, 0) {Replica $B$:};
+        \matrix [row sep={19pt,between origins},nodes=item] at (4, 4) {
+            \node [minimum width=0.5cm] {1.}; & \node (top1) {buy milk}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {water plants}; \\
+            \node [minimum width=0.5cm,fill=red!10] {3.}; & \node [fill=red!10] (joe1) {phone joe}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (4, 0) {
+            \node [minimum width=0.5cm] {1.}; & \node (top2) {buy milk}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {water plants}; \\
+            \node [minimum width=0.5cm,fill=red!10] {3.}; & \node [fill=red!10] (joe2) {phone joe}; \\
+        };
+        \draw [->,red,thick] (joe1.east) to [in=0, out=0] node [right,near end] {move} (top1.north east);
+        \draw [->,red,thick] (joe2.east) to [in=0, out=0] node [right,near end] {move} (top2.north east);
+        \draw [->,thick] (6, 0) -- (8.5, 0);
+        \draw [->,thick] (6, 4) -- (8.5, 4);
+        \matrix [row sep={19pt,between origins},nodes=item] at (10, 4) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (10, 0) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+        \draw [->,thick] (11.5, 0) -- (14.5, 0);
+        \draw [->,thick] (11.5, 4) -- (14.5, 4);
+        \draw [network] (12.5, 0) to [out=90,in=270] (13.1, 4);
+        \draw [network] (12.5, 4) to [out=270,in=90] (13.1, 0);
+        \node [rotate=90,blue,font=\footnotesize] at (13.5, 2) {network communication};
+        \matrix [row sep={19pt,between origins},nodes=item] at (16, 4) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm,fill=red!10] {2.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {4.}; & \node {water plants}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (16, 0) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm,fill=red!10] {2.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {4.}; & \node {water plants}; \\
+        };
+    \end{tikzpicture}
+    \caption{If reordering is implemented by deleting and re-inserting, concurrent moves of the same item result in the anomaly shown here: the moved item is duplicated.}
+    \label{fig:duplication}
+\end{figure*}
+
+\begin{figure*}
+    \centering
+    \vspace{3em}
+    \begin{tikzpicture}[auto,scale=1.0]
+        \tikzstyle{item}=[rectangle,draw,inner ysep=4pt,text height=9pt,text depth=2pt,minimum width=2.2cm]
+        \tikzstyle{network}=[thick,dashed,blue,-{Stealth[length=3mm]}]
+        \path [draw,dotted] (0,1.5) -- (17.5,1.5);
+        \node at (1, 3) {Replica $A$:};
+        \node at (1, 0) {Replica $B$:};
+        \matrix [row sep={19pt,between origins},nodes=item] at (4, 3) {
+            \node [minimum width=0.5cm] {1.}; & \node (top1) {buy milk}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {water plants}; \\
+            \node [minimum width=0.5cm,fill=red!10] {3.}; & \node [fill=red!10] (joe1) {phone joe}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (4, 0) {
+            \node [minimum width=0.5cm] {1.}; & \node (top2) {buy milk}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {water plants}; \\
+            \node [minimum width=0.5cm,fill=red!10] {3.}; & \node [fill=red!10] (joe2) {phone joe}; \\
+        };
+        \draw [->,red,thick] (joe1.east) to [in=0, out=0] node [right,near end] {move} (top1.north east);
+        \draw [->,red,thick] (joe2.east) to [in=0, out=0] node [right,at end,inner xsep=8pt] {move} (top2.south east);
+        \draw [->,thick] (6, 0) -- (8.5, 0);
+        \draw [->,thick] (6, 3) -- (8.5, 3);
+        \matrix [row sep={19pt,between origins},nodes=item] at (10, 3) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (10, 0) {
+            \node [minimum width=0.5cm] {1.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm,fill=red!10] {2.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+        \draw [->,thick] (11.5, 0) -- (14.5, 0);
+        \draw [->,thick] (11.5, 3) -- (14.5, 3);
+        \draw [network] (12.5, 0) to [out=90,in=270] (13.1, 3);
+        \draw [network] (12.5, 3) to [out=270,in=90] (13.1, 0);
+        \node [rotate=90,blue,font=\footnotesize] at (13.5, 1.5) {network communication};
+        \matrix [row sep={19pt,between origins},nodes=item] at (16, 3) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+        \matrix [row sep={19pt,between origins},nodes=item] at (16, 0) {
+            \node [minimum width=0.5cm,fill=red!10] {1.}; & \node [fill=red!10] {phone joe}; \\
+            \node [minimum width=0.5cm] {2.}; & \node {buy milk}; \\
+            \node [minimum width=0.5cm] {3.}; & \node {water plants}; \\
+        };
+    \end{tikzpicture}
+    \caption{When the same item is concurrently moved to different positions on different replicas, one of those positions should become the ``winning'' position as the replicas converge. In this example, replica $A$'s move operation wins.}
+    \label{fig:concurrent}
+\end{figure*}
+
+We argue that such duplication in the face of concurrency is undesirable, as it is generally not the behaviour expected by users.
+For example, say a user has replicas of their to-do list on their laptop and their smartphone.
+They reorder items on their laptop to match new priorities, and also reorder some items on their phone while the phone is offline, as illustrated in Fig.~\ref{fig:duplication}.
+Later, when the phone is online again and synchronises with the laptop, any items that were moved on both devices will be duplicated.
+
+This behaviour is especially confusing if the same item was moved to the same position (e.g.\ to the top of the list) on both devices, in which case the duplicated items are likely to be adjacent in the final list, as in Fig.~\ref{fig:duplication} (depending on any other insertions that might have taken place).
+However, even if the concurrent move operations had different destination positions, duplicating the moved item at both destinations is unlikely to be desirable behaviour in most applications.
+
+Rather, we argue that the best semantics in this situation is for the system to pick one of the destination positions as the ``winner''; as the replicas communicate, they all converge towards a list in which the moved element is located at the winning position, and nowhere else.
+This approach is illustrated in Fig.~\ref{fig:concurrent}.
+Any deterministic method of picking the winner is suitable (e.g.\ based on a priority given to each replica, or based on the timestamp of the operations).
 
 \section{A Generic Reordering Algorithm}
 
