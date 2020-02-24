@@ -16,7 +16,7 @@
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
 \begin{document}
-\title{Reordering Elements in List CRDTs}
+\title{Moving Elements in List CRDTs}
 
 \author{Martin Kleppmann}
 \email{mk428@cl.cam.ac.uk}
@@ -32,7 +32,7 @@
 
 \begin{abstract}
 Conflict-free Replicated Data Types (CRDTs) for lists allow multiple users to concurrently insert and delete elements in a shared list object.
-However, existing algorithms behave poorly when users concurrently reorder elements in the list (i.e.\ move list elements to a new position).
+However, existing algorithms behave poorly when users concurrently move list elements to a new position (i.e.\ reorder the list elements).
 We demonstrate the need for such a move operation, and describe an algorithm that extends a list CRDT with an explicit move operation.
 Our algorithm can be used in conjunction with any existing list CRDT algorithm.
 In addition to moving a single list element, we also discuss the open problem of moving ranges of elements.
@@ -109,10 +109,10 @@ Many list CRDTs have been developed, such as WOOT~\cite{Oster:2006wj}, Treedoc~\
 Moreover, most of the field of Operational Transformation algorithms is dedicated to algorithms for collaboratively editable text, i.e.\ lists~\cite{Ellis:1989ue,Nichols:1995fd,Ressel:1996wx,Sun:1998vf,Oster:2006tr}.
 
 All of the aforementioned algorithms allow replicas to \emph{insert} or \emph{delete} elements anywhere in the list.
-However, none of them have explicit support for \emph{reordering} or \emph{moving} elements from one position to another position in the list.
-This is a surprising omission because reordering is a commonly required operation: in many to-do list applications, a user can drag and drop list elements to reorder them, and graphics software allows users to reorder the object list with commands such as ``bring to front'' (which moves an object to the top of the list, so that it occludes other objects) and ``send to back'' (which moves an object to the bottom, so that it is occluded by other objects).
+However, none of them have explicit support for \emph{moving} elements from one position to another position in the list (\emph{reordering}).
+This is a surprising omission because moving is a commonly required operation: in many to-do list applications, a user can drag and drop list elements to reorder them, and graphics software allows users to reorder the object list with commands such as ``bring to front'' (which moves an object to the top of the list, so that it occludes other objects) and ``send to back'' (which moves an object to the bottom, so that it is occluded by other objects).
 
-In this paper we introduce an algorithm that allows an existing list CRDT to be extended with a reorder operation.
+In this paper we introduce an algorithm that allows an existing list CRDT to be extended with a move operation.
 The algorithm is generic in the sense that it can be implemented on top of any of the aforementioned list CRDTs.
 
 \section{Semantics of Concurrent Moves}\label{sec:semantics}
@@ -176,7 +176,7 @@ However, if two replicas concurrently move the same element, the result is that 
             \node [minimum width=0.5cm] {4.}; & \node {water plants}; \\
         };
     \end{tikzpicture}
-    \caption{If reordering is implemented by deleting and re-inserting, concurrent moves of the same element result in the anomaly shown here: the moved element is duplicated.}
+    \caption{If moving is implemented by deleting and re-inserting, concurrent moves of the same element result in the anomaly shown here: the moved element is duplicated.}
     \label{fig:duplication}
 \end{figure*}
 
@@ -235,7 +235,7 @@ However, if two replicas concurrently move the same element, the result is that 
 
 We argue that such duplication in the face of concurrency is undesirable, as it is generally not the behaviour expected by users.
 For example, say a user has replicas of their to-do list on their laptop and their smartphone.
-They reorder items on their laptop to match new priorities, and also reorder some items on their phone while the phone is offline, as illustrated in Figure~\ref{fig:duplication}.
+They move items on their laptop to match new priorities, and also move some items on their phone while the phone is offline, as illustrated in Figure~\ref{fig:duplication}.
 Later, when the phone is online again and synchronises with the laptop, any items that were moved on both devices will be duplicated.
 
 This behaviour is especially confusing if the same item was moved to the same position (e.g.\ to the top of the list) on both devices, in which case the duplicated items are likely to be adjacent in the final list, as in Figure~\ref{fig:duplication} (depending on any other insertions that might have taken place).
@@ -368,7 +368,7 @@ Any deterministic method of picking the winner is suitable (e.g.\ based on a pri
     \label{fig:range-bad}
 \end{figure*}
 
-\section{A Generic Reordering Algorithm}\label{sec:algorithm}
+\section{A Generic Moving Algorithm}\label{sec:algorithm}
 
 Intuitively, if we want to pick one winner from among several concurrent moves for the same element, we can use a long-established CRDT: a last-writer wins (LWW) register~\cite{Shapiro:2011wy,Johnson:1975we}.
 We need one such register for each list element, containing the position of that element.
@@ -552,13 +552,13 @@ Part of the solution may be to give each list element a unique identity that is 
 We will briefly discuss one more approach for moving ranges, and explain why it is not sufficient.
 In the example of Figures~\ref{fig:range-bad} and~\ref{fig:range-good}, if the application needs to support reordering of bullet points, we might try to simplify the problem by using a two-level hierarchy instead of a flat sequence of characters.
 That is, we can create a top-level list object in which each list element contains the entire content of a single bullet point, and use a separate text CRDT object for the content of each bullet point.
-In this design, reordering bullet points requires only a single-element move operation.
+In this design, moving bullet points requires only a single-element move operation.
 
 However, this approach has a different problem: when the user presses the enter key in the middle of the text of a bullet point, the usual behaviour in most editors is to split it into two bullet points.
 Conversely, hitting the delete key while the cursor is positioned at the end of a bullet point's text usually joins it with the following bullet point's text.
 If each bullet point is represented as a separate text object, these splitting and joining operations require moving a range of characters from one text object to another.
 
-Thus, representing each bullet point as a single list element for the sake of reordering does not actually obviate the need for moving ranges of characters.
+Thus, representing each bullet point as a single list element for the sake of moving does not actually obviate the need for moving ranges of characters.
 As before, implementing move as delete-and-reinsert has the effect of duplicating text if two users concurrently split or join the same bullet point.
 Thus, it seems that support for moving ranges of characters is an important feature for collaborative document editors.
 
