@@ -10,7 +10,7 @@ REPLICA_ID="${3?Please specify replica ID}"
 REMOTE1="$4"
 REMOTE2="$5"
 
-if [ "$USE_LEADER" = "true"]; then
+if [ "$USE_LEADER" = "true" ]; then
     LOGDIR="data/logs-leader"
 else
     LOGDIR="data/logs"

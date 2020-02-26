@@ -30,7 +30,7 @@ AP_SOUTHEAST_1=54.169.188.185
 # into evaluation/data/logs/*.log.gz. Those logs are then analysed by the
 # script evaluation/data/processing_times.sh.
 
-if [ "$USE_LEADER" = "true"]; then
+if [ "$USE_LEADER" = "true" ]; then
     LOGDIR="data/logs-leader"
     # Define us-west-1 to be the leader
     ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 0 &
