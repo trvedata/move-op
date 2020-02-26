@@ -5,6 +5,9 @@ set -e
 # operations, in microseconds, on each replica.
 INTERVAL="${1?Please specify interval between operations (in microseconds)}"
 
+# If false, runs in CRDT mode. If true, runs in leader-based mode.
+USE_LEADER=false
+
 # To run the experiments, log in to the AWS EC2 console and start up a c5.large
 # instance running Ubuntu 18.04 in each of the three regions us-west-1, eu-west-1,
 # and ap-southeast-1. Then fill in their IP addresses here:
@@ -27,16 +30,25 @@ AP_SOUTHEAST_1=54.169.188.185
 # into evaluation/data/logs/*.log.gz. Those logs are then analysed by the
 # script evaluation/data/processing_times.sh.
 
+if [ "$USE_LEADER" = "true"]; then
+    LOGDIR="data/logs-leader"
+    # Define us-west-1 to be the leader
+    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 0 &
+    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $US_WEST_1 &
+    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 2 $US_WEST_1 &
+else
+    LOGDIR="data/logs"
+    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $EU_WEST_1 $AP_SOUTHEAST_1 &
+    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 2 $US_WEST_1 $AP_SOUTHEAST_1 &
+    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 3 $US_WEST_1 $EU_WEST_1 &
+    wait
+fi
+
 cd "$(dirname "$0")"
-mkdir -p data/logs
+mkdir -p "$LOGDIR"
 
-ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL 1 $EU_WEST_1 $AP_SOUTHEAST_1 &
-ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL 2 $US_WEST_1 $AP_SOUTHEAST_1 &
-ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL 3 $US_WEST_1 $EU_WEST_1 &
-wait
+scp -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1:/home/ubuntu/move-op/evaluation/$LOGDIR/interval_$INTERVAL.log $LOGDIR/interval_${INTERVAL}_us_west_1.log
+scp -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1:/home/ubuntu/move-op/evaluation/$LOGDIR/interval_$INTERVAL.log $LOGDIR/interval_${INTERVAL}_eu_west_1.log
+scp -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1:/home/ubuntu/move-op/evaluation/$LOGDIR/interval_$INTERVAL.log $LOGDIR/interval_${INTERVAL}_ap_southeast_1.log
 
-scp -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1:/home/ubuntu/move-op/evaluation/data/logs/interval_$INTERVAL.log data/logs/interval_${INTERVAL}_us_west_1.log
-scp -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1:/home/ubuntu/move-op/evaluation/data/logs/interval_$INTERVAL.log data/logs/interval_${INTERVAL}_eu_west_1.log
-scp -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1:/home/ubuntu/move-op/evaluation/data/logs/interval_$INTERVAL.log data/logs/interval_${INTERVAL}_ap_southeast_1.log
-
-gzip data/logs/interval_${INTERVAL}_us_west_1.log data/logs/interval_${INTERVAL}_eu_west_1.log data/logs/interval_${INTERVAL}_ap_southeast_1.log
+gzip $LOGDIR/interval_${INTERVAL}_us_west_1.log $LOGDIR/interval_${INTERVAL}_eu_west_1.log $LOGDIR/interval_${INTERVAL}_ap_southeast_1.log
