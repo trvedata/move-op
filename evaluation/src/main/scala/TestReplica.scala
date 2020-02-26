@@ -18,6 +18,16 @@ object TestReplica {
   // Backpressure kicks in if more than this number of requests in flight
   val MAX_PENDING_REQUESTS = 50
 
+  // If false, runs in CRDT mode. If true, uses leader-based replication.
+  val USE_LEADER = false
+
+  def startDaemon[T <: Runnable](runnable: T): T = {
+    val thread = new Thread(runnable)
+    thread.setDaemon(true)
+    thread.start()
+    return runnable
+  }
+
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
       throw new Exception("Usage: TestReplica replica-id remote-ip1 [remote-ip2 ...]")
@@ -26,22 +36,24 @@ object TestReplica {
     implicit val metrics = new MetricRegistry()
     ConsoleReporter.forRegistry(metrics).build().start(20, TimeUnit.SECONDS)
 
-    val replica = new ReplicaThread(args(0).toLong, metrics)
-    val replicaThread = new Thread(replica)
-    replicaThread.start()
+    val replicaId = args(0).toLong
+    val replica = new ReplicaThread(replicaId, metrics)
+    new Thread(replica).start()
 
-    val server = new Thread(new AcceptThread(replica))
-    server.setDaemon(true)
-    server.start()
+    startDaemon(new AcceptThread(replica))
 
     TimeUnit.SECONDS.sleep(10) // time for other servers to come up
 
-    for (remoteIp <- args.drop(1)) {
-      val client = new ClientThread(remoteIp, metrics)
-      val clientThread = new Thread(client)
-      clientThread.setDaemon(true)
-      clientThread.start()
-      replica.addClient(client)
+    if (USE_LEADER) {
+      // Leader mode: connect to only one IP, namely the leader
+      if (replicaId > 0) {
+        replica.addClient(startDaemon(new FollowerThread(args(1), replica, metrics)))
+      }
+    } else {
+      // CRDT mode: connect to all of the remote IPs
+      for (remoteIp <- args.drop(1)) {
+        replica.addClient(startDaemon(new CRDTClientThread(remoteIp, metrics)))
+      }
     }
   }
 }
@@ -123,10 +135,15 @@ abstract class Connection(socket: Socket, recvFrameSize: Int) extends Runnable {
   }
 }
 
+trait ClientThread {
+  def send(move: Protocol.Move)
+  def backpressure: Boolean
+}
+
 // Thread that handles the client side of a connection. It sends Move requests
 // to the server, and waits for Ack responses in reply.
-class ClientThread(val remoteIp: String, metrics: MetricRegistry)
-    extends Connection(new Socket(remoteIp, TestReplica.PORT), 2 * 8) {
+class CRDTClientThread(val remoteIp: String, metrics: MetricRegistry)
+    extends Connection(new Socket(remoteIp, TestReplica.PORT), 2 * 8) with ClientThread {
 
   val timer = metrics.timer(s"ClientThread($remoteIp).requests")
   val requests = new ConcurrentHashMap[Protocol.Ack, Timer.Context]()
@@ -149,12 +166,45 @@ class ClientThread(val remoteIp: String, metrics: MetricRegistry)
   }
 }
 
+// Thread that handles the client side of a connection to a leader. It sends
+// Move requests to the leader, and waits for Move responses in reply.
+class FollowerThread(val leaderIp: String, replica: ReplicaThread, metrics: MetricRegistry)
+    extends Connection(new Socket(leaderIp, TestReplica.PORT), 4 * 8) with ClientThread {
+
+  val timer = metrics.timer(s"ClientThread($leaderIp).requests")
+  val requests = new ConcurrentHashMap[Protocol.Ack, Timer.Context]()
+
+  def send(move: Protocol.Move) {
+    val requestId = Protocol.Ack(move.time, move.replica)
+    requests.putIfAbsent(requestId, timer.time())
+    this.send(Protocol.encodeMove(move))
+  }
+
+  def receive(bytes: Array[Byte]) {
+    val move = Protocol.decodeMove(bytes)
+    val requestId = Protocol.Ack(move.time, move.replica)
+    requests.remove(requestId).stop()
+    replica.request(move, this)
+  }
+
+  // Returns false if we're happy to accept more requests, and true if we need
+  // to hold off on enqueueing more requests for now.
+  def backpressure: Boolean = {
+    requests.size() >= TestReplica.MAX_PENDING_REQUESTS
+  }
+}
+
 // Thread that handles the server side of a connection. It waits for Move
-// requests from a client, gets the replica to process them, and sends Ack
-// responses back to the client when done.
+// requests from a client, and gets the replica to process them. When done, it
+// sends either an Ack response (in CRDT mode) or a Move response (in leader mode)
+// back to the client.
 class ServerThread(replica: ReplicaThread, socket: Socket) extends Connection(socket, 4 * 8) {
   def send(ack: Protocol.Ack) {
     this.send(Protocol.encodeAck(ack))
+  }
+
+  def send(move: Protocol.Move) {
+    this.send(Protocol.encodeMove(move))
   }
 
   def receive(bytes: Array[Byte]) {
@@ -209,20 +259,30 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
     val timer = remoteTimer.time()
     try {
       applyMove(move)
-      sender.send(Protocol.Ack(move.time, move.replica))
+      if (TestReplica.USE_LEADER) {
+        sender.send(move)
+      } else {
+        sender.send(Protocol.Ack(move.time, move.replica))
+      }
     } finally {
       timer.stop()
     }
   }
 
-  // Generates a new move operation, applies it locally, and sends it to all
-  // of the clients.
+  // Generates a new move operation.
+  // In CRDT mode: applies it locally, and sends it to all of the clients.
+  // In leader mode: applies it locally if we are the leader (replicaId == 0),
+  // otherwise sends it to the other replica.
   private[this] def generateMove() {
     val timer = localTimer.time()
     try {
       val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
-      this.applyMove(move)
-      for (client <- clients) client.send(move)
+      if (TestReplica.USE_LEADER) {
+        if (replicaId == 0) this.applyMove(move) else clients.head.send(move)
+      } else {
+        this.applyMove(move)
+        for (client <- clients) client.send(move)
+      }
     } finally {
       timer.stop()
     }
@@ -231,10 +291,15 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
   // Actually applies a move operation to the current state (calls into
   // Isabelle-generated code). Both local and remote operations.
   private[this] def applyMove(move: Protocol.Move) {
-    val timestamp = (BigInt(move.time), BigInt(move.replica))
+    val timestamp = if (TestReplica.USE_LEADER) {
+      counter += 1
+      (BigInt(counter), BigInt(replicaId))
+    } else {
+      if (move.time > counter) counter = move.time
+      (BigInt(move.time), BigInt(move.replica))
+    }
     val operation = generated.Move(timestamp, BigInt(move.parent), "", BigInt(move.child))
     state = generated.integer_apply_op(operation)(state)
-    if (move.time > counter) counter = move.time
   }
 
   // The run loop does two things: it blocks waiting for incoming requests from
