@@ -19,7 +19,7 @@ object TestReplica {
   val MAX_PENDING_REQUESTS = 50
 
   // If false, runs in CRDT mode. If true, uses leader-based replication.
-  val USE_LEADER = false
+  val USE_LEADER = true
 
   def startDaemon[T <: Runnable](runnable: T): T = {
     val thread = new Thread(runnable)
@@ -183,7 +183,8 @@ class FollowerThread(val leaderIp: String, replica: ReplicaThread, metrics: Metr
   def receive(bytes: Array[Byte]) {
     val move = Protocol.decodeMove(bytes)
     val requestId = Protocol.Ack(move.time, move.replica)
-    requests.remove(requestId).stop()
+    val timer = requests.remove(requestId)
+    if (timer != null) timer.stop()
     replica.request(move, null)
   }
 
@@ -199,6 +200,8 @@ class FollowerThread(val leaderIp: String, replica: ReplicaThread, metrics: Metr
 // sends either an Ack response (in CRDT mode) or a Move response (in leader mode)
 // back to the client.
 class ServerThread(replica: ReplicaThread, socket: Socket) extends Connection(socket, 4 * 8) {
+  replica.addServer(this)
+
   def send(ack: Protocol.Ack) {
     this.send(Protocol.encodeAck(ack))
   }
@@ -235,6 +238,7 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
   val random = new Random()
 
   var clients: List[ClientThread] = Nil
+  var servers: List[ServerThread] = Nil
 
   // For Lamport timestamps
   var counter: Long = 0
@@ -248,6 +252,10 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
     clients = client :: clients
   }
 
+  def addServer(server: ServerThread) {
+    servers = server :: servers
+  }
+
   // Incoming request from a ServerThread. The calling object is passed in so
   // that we know where to send the response once we've processed the operation.
   def request(move: Protocol.Move, sender: ServerThread) {
@@ -258,9 +266,10 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
   private[this] def processRequest(move: Protocol.Move, sender: ServerThread) {
     val timer = remoteTimer.time()
     try {
+      //println(s"Received: ${move}")
       applyMove(move)
       if (TestReplica.USE_LEADER) {
-        if (sender != null) sender.send(move)
+        for (server <- servers) server.send(move) // Replicate to all followers
       } else {
         sender.send(Protocol.Ack(move.time, move.replica))
       }
@@ -271,21 +280,21 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
 
   // Generates a new move operation.
   // In CRDT mode: applies it locally, and sends it to all of the clients.
-  // In leader mode: applies it locally if we are the leader (replicaId == 0),
-  // otherwise sends it to the other replica.
+  // In leader mode: does nothing if we are the leader (replicaId == 0),
+  // otherwise generates a move operation and sends it to the leader.
   private[this] def generateMove() {
-    val timer = localTimer.time()
-    try {
-      val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
-      if (TestReplica.USE_LEADER) {
-        if (replicaId == 0) this.applyMove(move) else clients.head.send(move)
-      } else {
+    if (TestReplica.USE_LEADER && replicaId == 0) return
+    val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
+    //println(s"Generated: ${move}")
+    if (!TestReplica.USE_LEADER) {
+      val timer = localTimer.time()
+      try {
         this.applyMove(move)
-        for (client <- clients) client.send(move)
+      } finally {
+        timer.stop()
       }
-    } finally {
-      timer.stop()
     }
+    for (client <- clients) client.send(move)
   }
 
   // Actually applies a move operation to the current state (calls into

@@ -36,6 +36,7 @@ if [ "$USE_LEADER" = "true" ]; then
     ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 0 &
     ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $US_WEST_1 &
     ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 2 $US_WEST_1 &
+    wait
 else
     LOGDIR="data/logs"
     ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $EU_WEST_1 $AP_SOUTHEAST_1 &
