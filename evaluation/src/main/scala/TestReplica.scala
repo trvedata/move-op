@@ -184,7 +184,7 @@ class FollowerThread(val leaderIp: String, replica: ReplicaThread, metrics: Metr
     val move = Protocol.decodeMove(bytes)
     val requestId = Protocol.Ack(move.time, move.replica)
     requests.remove(requestId).stop()
-    replica.request(move, this)
+    replica.request(move, null)
   }
 
   // Returns false if we're happy to accept more requests, and true if we need
@@ -260,7 +260,7 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
     try {
       applyMove(move)
       if (TestReplica.USE_LEADER) {
-        sender.send(move)
+        if (sender != null) sender.send(move)
       } else {
         sender.send(Protocol.Ack(move.time, move.replica))
       }
