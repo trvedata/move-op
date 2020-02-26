@@ -10,7 +10,7 @@ object TestReplica {
   val PORT = 8080
 
   // Time interval between generated operations (= 1 / operation rate)
-  val OPERATION_INTERVAL = TimeUnit.MILLISECONDS.toNanos(1000)
+  val OPERATION_INTERVAL = TimeUnit.MICROSECONDS.toNanos(1000000)
 
   // How long to run the test before shutting down
   val RUN_DURATION = TimeUnit.MINUTES.toNanos(10)

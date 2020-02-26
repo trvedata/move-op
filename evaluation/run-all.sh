@@ -2,8 +2,8 @@
 set -e
 
 # Run this script with one argument: the interval between generated move
-# operations, in milliseconds, on each replica.
-INTERVAL="${1?Please specify interval between operations (in milliseconds)}"
+# operations, in microseconds, on each replica.
+INTERVAL="${1?Please specify interval between operations (in microseconds)}"
 
 # To run the experiments, log in to the AWS EC2 console and start up a c5.large
 # instance running Ubuntu 18.04 in each of the three regions us-west-1, eu-west-1,

@@ -91,6 +91,9 @@ following one-off setup on each:
 
 Once that setup is done, you can run the script `evaluation/run-all.sh` from
 your local machine to perform a test run on all three instances concurrently.
+It takes one argument: the interval between successive move operations generated
+on each replica, in microseconds.
+
 The script logs into the instances by SSH, updates the configuration, runs the
 experiment, and copies the logs off the instances into `evaluation/data/logs/*.log.gz`.
 Each test run lasts for 10 minutes and then automatically shuts down.
