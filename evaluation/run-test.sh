@@ -31,4 +31,4 @@ if [ -f "$LOGFILE" ]; then
     exit 1
 fi
 
-sbt "runMain TestReplica $REPLICA_ID $REMOTE1 $REMOTE2" | tee "$LOGFILE"
+sbt --mem 3072 "runMain TestReplica $REPLICA_ID $REMOTE1 $REMOTE2" 2>&1 | tee "$LOGFILE"

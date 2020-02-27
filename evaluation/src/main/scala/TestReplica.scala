@@ -12,14 +12,14 @@ object TestReplica {
   // Time interval between generated operations (= 1 / operation rate)
   val OPERATION_INTERVAL = TimeUnit.MICROSECONDS.toNanos(1000000)
 
+  // If false, runs in CRDT mode. If true, uses leader-based replication.
+  val USE_LEADER = true
+
   // How long to run the test before shutting down
   val RUN_DURATION = TimeUnit.MINUTES.toNanos(10)
 
   // Backpressure kicks in if more than this number of requests in flight
-  val MAX_PENDING_REQUESTS = 50
-
-  // If false, runs in CRDT mode. If true, uses leader-based replication.
-  val USE_LEADER = true
+  val MAX_PENDING_REQUESTS = if (USE_LEADER) 5000 else 50
 
   def startDaemon[T <: Runnable](runnable: T): T = {
     val thread = new Thread(runnable)
@@ -309,6 +309,11 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
     }
     val operation = generated.Move(timestamp, BigInt(move.parent), "", BigInt(move.child))
     state = generated.integer_apply_op(operation)(state)
+
+    // Truncate the log from time to time
+    if (counter % 100000 == 0) {
+      state = (state._1.take(1000), state._2)
+    }
   }
 
   // The run loop does two things: it blocks waiting for incoming requests from
