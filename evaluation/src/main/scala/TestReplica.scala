@@ -288,7 +288,8 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
   // otherwise generates a move operation and sends it to the leader.
   private[this] def generateMove() {
     if (TestReplica.USE_LEADER && replicaId == 0) return
-    val move = Protocol.Move(counter + 1, replicaId, random.nextInt(1000), random.nextInt(1000))
+    counter += 1
+    val move = Protocol.Move(counter, replicaId, random.nextInt(1000), random.nextInt(1000))
     //println(s"Generated: ${move}")
     if (!TestReplica.USE_LEADER) {
       val timer = localTimer.time()
