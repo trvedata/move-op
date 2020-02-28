@@ -1,4 +1,4 @@
-import com.codahale.metrics.{ ConsoleReporter, MetricRegistry, Timer }
+import com.codahale.metrics.{ ConsoleReporter, MetricRegistry, Timer, Gauge }
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream, InputStream, OutputStream }
 import java.net.{ ServerSocket, Socket }
 import java.util.concurrent.{ArrayBlockingQueue, ConcurrentHashMap, TimeUnit}
@@ -173,6 +173,10 @@ class FollowerThread(val leaderIp: String, replica: ReplicaThread, metrics: Metr
 
   val timer = metrics.timer(s"ClientThread($leaderIp).requests")
   val requests = new ConcurrentHashMap[Protocol.Ack, Timer.Context]()
+
+  metrics.register("RequestsMapSize", new Gauge[Int] {
+    def getValue: Int = requests.size
+  })
 
   def send(move: Protocol.Move) {
     val requestId = Protocol.Ack(move.time, move.replica)
