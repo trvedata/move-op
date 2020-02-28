@@ -1,11 +1,14 @@
-\documentclass[sigplan,anonymous]{acmart}
+\documentclass{vldb}
 
-% EuroSys recommended formatting
-\renewcommand\footnotetextcopyrightpermission[1]{}
-\pagestyle{plain}
-
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp} % \textmu
+\usepackage{booktabs} % \toprule etc.
+\usepackage{setspace} % \setstretch
+\usepackage{balance}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
+
+\urlstyle{rm}
 
 \usepackage{lineno}
 \usepackage{isabelle,isabellesym}
@@ -25,69 +28,42 @@
 \renewcommand{\isacartoucheopen}{}
 \renewcommand{\isacartoucheclose}{}
 
-\setcopyright{rightsretained}
-\copyrightyear{2019}
-\acmYear{2019}
-\acmDOI{}
-\acmConference[]{}{}{}
-\acmBooktitle{}
-\acmPrice{}
-\acmISBN{}
+\vldbTitle{A highly-available move operation for replicated trees}
+\vldbAuthors{Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford}
+\vldbDOI{https://doi.org/10.14778/xxxxxxx.xxxxxxx}
+\vldbVolume{13}
+\vldbNumber{xxx}
+\vldbYear{2020}
 
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
 \begin{document}
 \title{A highly-available move operation for replicated trees}
 
-\author{Martin Kleppmann}
-\email{mk428@cl.cam.ac.uk}
-\orcid{0000-0001-7252-6958}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
+\numberofauthors{4}
+\author{
+\alignauthor
+    Martin Kleppmann\\
+    \affaddr{University of Cambridge}\\
+    \affaddr{Cambridge, UK}\\
+    \email{mk428@cl.cam.ac.uk}
+\alignauthor
+    Dominic P.\ Mulligan\\
+    \affaddr{Arm Research}\\
+    \affaddr{Cambridge, UK}\\
+    \email{Dominic.Mulligan@arm.com}
+\alignauthor
+    Victor B.\ F.\ Gomes\\
+    \affaddr{University of Cambridge}\\
+    \affaddr{Cambridge, UK}\\
+    \email{vb358@cl.cam.ac.uk}
+\and\alignauthor
+    Alastair R.\ Beresford\\
+    \affaddr{University of Cambridge}\\
+    \affaddr{Cambridge, UK}\\
+    \email{arb33@cl.cam.ac.uk}
 }
-
-\author{Dominic P.\ Mulligan}
-\email{Dominic.Mulligan@arm.com}
-\orcid{0000-0003-4643-3541}
-\affiliation{%
-  \institution{Arm Research}
-  \streetaddress{110 Fulbourn Road}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB1 9NJ}
-  \country{United Kingdom}
-}
-
-\author{Victor B.\ F.\ Gomes}
-\email{vb358@cl.cam.ac.uk}
-\orcid{0000-0002-2954-4648}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
-}
-
-\author{Alastair R.\ Beresford}
-\email{arb33@cl.cam.ac.uk}
-\orcid{0000-0003-0818-6535}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
-}
-
-%\renewcommand{\shortauthors}{Kleppmann, Mulligan, Gomes, and Beresford}
+\maketitle
 
 \begin{abstract}
     Replicated tree data structures are a fundamental building block of distributed filesystems, such as Google Drive and Dropbox, and collaborative applications with a JSON or XML data model.
@@ -98,8 +74,6 @@
     Our formally verified implementation achieves a throughput of 600 operations/sec in a geo-replicated setting.
 \end{abstract}
 
-\settopmatter{printfolios=true} % Recommended EuroSys formatting
-\maketitle
 
 \section{Introduction}\label{sec:intro}
 
@@ -195,14 +169,14 @@ Our contributions are:
   \draw [time] (change2.east) -- (merge2.west);
   \draw [network] (6.5,0) to [out=90,in=270] (7.2,3);
   \draw [network] (6.5,3) to [out=270,in=90] (7.2,0);
-  \node [rotate=90,blue,font=\footnotesize] at (7.5,1.5) {network communication};
+  \node [rotate=90,blue,font=\scriptsize] at (7.5,1.5) {network communication};
   \path [draw,dotted] (-3.1,1.5) -- (8.7,1.5);
   %%%
-  \node [fill=red!15] at (9.83,4.10) {(\emph{a})};
-  \node [fill=red!15] at (14.18,4.10) {(\emph{b})};
-  \node [fill=red!15] at (9.84,1.10) {(\emph{c})};
-  \node [fill=red!15] at (14.15,1.10) {(\emph{d})};
-  \node [rectangle,draw] at (10.9,3) {
+  \node [fill=red!15] at (9.63,4.10) {(\emph{a})};
+  \node [fill=red!15] at (13.98,4.10) {(\emph{b})};
+  \node [fill=red!15] at (9.64,1.10) {(\emph{c})};
+  \node [fill=red!15] at (13.95,1.10) {(\emph{d})};
+  \node [rectangle,draw] at (10.7,3) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{every node}=[text height=5pt,text depth=0pt]
           \tikzstyle{level 1}=[sibling distance=12mm]
@@ -212,7 +186,7 @@ Our contributions are:
               child {node {$C$} child {node {$A'$} child {node {$a_1'$}} child {node {$a_2'$}} child {node {$a_3'$}}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (13.5,3) {
+  \node [rectangle,draw] at (13.3,3) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=12mm]
           \node at (0,1.4) {$\mathsf{root}$} child {node (b) {$B$}} child {node (c) {$C$}};
@@ -222,7 +196,7 @@ Our contributions are:
           \draw (c) -- (a);
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (10.7,0) {
+  \node [rectangle,draw] at (10.5,0) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=10mm]
           \tikzstyle{level 3}=[sibling distance=6mm]
@@ -231,7 +205,7 @@ Our contributions are:
               child {node {$C$}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (13.3,0) {
+  \node [rectangle,draw] at (13.1,0) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=10mm]
           \tikzstyle{level 3}=[sibling distance=6mm]
@@ -243,7 +217,6 @@ Our contributions are:
 \end{tikzpicture}
 \caption{Replica 1 moves $A$ to be a child of $B$, while concurrently replica 2 moves the same node $A$ to be a child of $C$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}
 \label{fig:move-same-item}
-\Description{}
 \end{figure*}
 
 \begin{figure*}
@@ -281,22 +254,22 @@ Our contributions are:
   \draw [time] (change2.east) -- (merge2.west);
   \draw [network] (6.0,0) to [out=90,in=270] (6.7,3);
   \draw [network] (6.0,3) to [out=270,in=90] (6.7,0);
-  \node [rotate=90,blue,font=\footnotesize] at (7.0,1.5) {network communication};
+  \node [rotate=90,blue,font=\scriptsize] at (7.0,1.5) {network communication};
   \path [draw,dotted] (-2.5,1.6) -- (8.5,1.6);
   %%%%%
-  \node [rectangle,draw] at (10.95,3) {
+  \node [rectangle,draw] at (10.75,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.3,-1.3) rectangle (1,1.2);
-      \node [fill=red!15] at (-1.10,1.03) {(\emph{a})};
+      \node [fill=red!15] at (-1.07,1.02) {(\emph{a})};
       \node at (0,1) {$\mathsf{root}$};
       \node (a1) {$A$} child {node (b1) {$B$}} child {node {$C$}};
       \draw (b1.south west) .. controls (-2,-2) and (0,1.5) .. (a1.north);
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (13.8,3) {
+  \node [rectangle,draw] at (13.6,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (0.94,0.03) {(\emph{b})};
+      \node [fill=red!15] at (0.93,0.02) {(\emph{b})};
       \tikzstyle{level 1}=[sibling distance=12mm]
       \tikzstyle{level 2}=[sibling distance=6mm]
       \node {$\mathsf{root}$}
@@ -304,23 +277,22 @@ Our contributions are:
           child {node {$B'$} child {node {$A'$} child {node {$C'$}}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] (start) at (10.95,0) {
+  \node [rectangle,draw] (start) at (10.75,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.17,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (-0.98,0.03) {(\emph{c})};
+      \node [fill=red!15] at (-0.95,0.03) {(\emph{c})};
       \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] (right) at (13.8,0) {
+  \node [rectangle,draw] (right) at (13.6,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (0.93,0.03) {(\emph{d})};
+      \node [fill=red!15] at (0.91,0.03) {(\emph{d})};
       \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
       \end{tikzpicture}
   };
 \end{tikzpicture}
 \caption{Initially, nodes $A$ and $B$ are siblings. Replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
-\Description{Visualisation of trees with concurrent move operations}
 \end{figure*}
 
 \begin{figure*}
@@ -328,7 +300,6 @@ Our contributions are:
   \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
   \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}, indicating a bug in the underlying sync implementation.}
   \label{fig:gdrive-error}
-  \Description{Screenshot showing the errors ``Can't remove files with changes pending. Try again after sync is complete.'' and ``An unknown error occurred.''}
 \end{figure*}
 
 \section{Why a move operation is hard}\label{sec:move-is-hard}
@@ -410,7 +381,7 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \begin{figure*}
 \raggedright
 \begin{isabellebody}
-\internallinenumbers
+\internallinenumbers\setstretch{1.2}
 \isacommand{datatype}\isamarkupfalse%
 \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\isanewline
 \ \ {\isacharequal}\ Move\ {\isacharparenleft}move{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
@@ -486,7 +457,6 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \end{isabellebody}
 \caption{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \label{fig:code}
-\Description{The move operation algorithm, implemented in the Isabelle/HOL language.}
 \end{figure*}
 
 \section{The replicated move operation}\label{sec:algorithm}
@@ -585,7 +555,7 @@ When a replica needs to apply an operation with timestamp \isa{t}, it first undo
 As a result, the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
 The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
-The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a linear (or total) order.
+The \isa{'t::\{linorder\}} constraint in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a linear (or total) order.
 This comparison occurs on line 49.
 
 Recall that the replica state includes the operation log (line 14), and we use this log to perform the undo-do-redo cycle.
@@ -662,9 +632,7 @@ We discuss distributed filesystems further in \S\ref{sec:filesystems}.
 
 We now discuss the correctness properties of the algorithm from \S\ref{sec:algorithm}.
 All theorems stated here have been formally proved and mechanically checked using Isabelle.
-For space reasons we give only a brief sketch of the proofs in this paper; the Isabelle files containing the full details are open source [URL omitted for blind review].
-
-% TODO \cite{SourceFiles}
+For space reasons we give only a brief sketch of the proofs in this paper; the Isabelle files containing the full details are open source~\cite{SourceFiles}.
 
 To reason about the state of a replica we first define the function \isa{apply\_ops} on lines 53--54 of Figure~\ref{fig:code}.
 It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
@@ -766,7 +734,7 @@ To prove this theorem we must first show that \isa{undo\_op} performs the invers
 \ \ \ \ \ \ \ \ \ apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
 
-\noindent Here the \isa{\isacharat} operator concatenates two lists.
+\noindent The \isa{\isacharat} operator concatenates two lists.
 Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
 Assume \isa{t1 < t2} without loss of generality.
 We can now prove lemma \isa{apply\_op\_commute2} by induction over \isa{log}.
@@ -784,14 +752,14 @@ apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree)).
 Let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
 We now consider three cases:
 \begin{enumerate}
-    \item \isa{t3 < t1 < t2}.
+    \item \isa{t3 < t1 < t2}.\\
         Then neither applying \isa{oper1} nor applying \isa{oper2} will undo \isa{logop}.
         Thus, the two operations are applied in the same way as in the base case.
-    \item \isa{t1 < t3 < t2}.
-        Then \isa{apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree))} first undoes \isa{logop}, then applies \isa{oper1} using \isa{do\_op}, then reapplies \isa{logop} using \isa{redo\_op}, and finally applies \isa{oper2} using \isa{do\_op}.
-        On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes it again, then undoes \isa{logop}, applies \isa{oper1} and reapplies \isa{logop} as before, and finally reapplies \isa{oper2} using \isa{redo\_op}.
+    \item \isa{t1 < t3 < t2}. Then\\
+        \isa{apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree))}\\first undoes \isa{logop}, then applies \isa{oper1} using \isa{do\_op}, then reapplies \isa{logop} using \isa{redo\_op}, and finally applies \isa{oper2} using \isa{do\_op}.
+        On the other hand,\\\isa{apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree))}\\first applies \isa{oper2} using \isa{do\_op}, then undoes it again, then undoes \isa{logop}, applies \isa{oper1} and reapplies \isa{logop} as before, and finally reapplies \isa{oper2} using \isa{redo\_op}.
         The end result is the same.
-    \item \isa{t1 < t2 < t3}.
+    \item \isa{t1 < t2 < t3}.\\
         Then both applying \isa{oper1} and applying \isa{oper2} first undoes \isa{logop}, yielding \isa{tree' = undo\_op (logop, tree)}.
         From the inductive hypothesis we have:
         \begin{isabelle}
@@ -805,7 +773,7 @@ We now consider three cases:
 
 Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs above an axiomatic network model.
 Using our commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
-The details appear in our Isabelle theory files [URL omitted for blind review]. % \cite{SourceFiles}.
+The details appear in our Isabelle theory files~\cite{SourceFiles}.
 
 \subsection{Making the HOL definitions executable} \label{subsect.extracting}
 
@@ -848,7 +816,7 @@ Similarly, we can show this simulation relation holds for each function in our a
 \end{isabelle}
 
 That is, if \isa{executable\_apply\_ops} and \isa{apply\_ops} are applied to the same list of operations, they produce identical logs, and also produce trees that contain the same set of key-value bindings---i.e. the trees are extensionally equivalent, despite having very different in-memory representations.
-We can also prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic} for the hash-map-based implementation.
+We can also prove corollaries of the theorems \isa{apply\_ops\_commutes} and \isa{apply\_ops\_acyclic} for the hash-map-based implementation.
 %The analogue of \isa{apply\_ops\_unique\_parent} holds trivially since by construction, the hash-map contains at most one (metadata, parent) pair for a given child.
 
 \section{Evaluation}\label{sec:evaluation}
@@ -875,6 +843,7 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
 \begin{table}
   \caption{Median response times of an RPC request between replicas in different regions.}
   \label{tab:rpc-times}
+  \vspace{4pt}
   \begin{tabular}{r|rrr}
     \toprule
                     & to California & to Ireland & to Singapore \\
@@ -891,7 +860,6 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 c5.large instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
-  \Description{Plot in which the x axis goes from 0 to 600 move operations per second, and the y axis goes from 0 to 2 milliseconds. Local operations take a near-constant time around 50 microseconds; the time for remote operations increases linearly from 0.2ms to 1.4ms.}
 \end{figure}
 
 \begin{figure}
@@ -899,7 +867,6 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
   \includegraphics[width=\columnwidth,keepaspectratio=true]{leader-plot.pdf}
   \caption{Median time to apply a local CRDT operation compared to the median time to perform a move operation using state machine replication, with a leader located in another region. Note the log scale on both axes.}
   \label{fig:leader-plot}
-  \Description{Local CRDT operations take about 50 microseconds, and reach saturation at 600 ops/sec. Leader-based operations take about 150--180ms, and reach saturation at 14,000 ops/sec.}
 \end{figure}
 
 Local operations take constant time is because a locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
@@ -946,7 +913,7 @@ Of this, we use 203 lines to prove that every node has a unique parent, 443 line
 
 \section{Related work}\label{sec:relwork}
 
-Many replicated data systems use optimistic replication~\cite{Saito:2005jw}, which allows the state of replicas to temporarily diverge, in order to achieve better performance and availability in the presence of faults than strongly consistent systems~\cite{Bailis:2014th,Gilbert:2002il}.
+Many replicated data systems use optimistic replication \cite{Saito:2005jw}, which allows the state of replicas to temporarily diverge, in order to achieve better performance and availability in the presence of faults than strongly consistent systems~\cite{Bailis:2014th,Gilbert:2002il}.
 As a consequence, these systems require a mechanism for merging or reconciling conflicting updates that were made concurrently on different replicas.
 For example, version control systems such as Git~\cite{Chacon:2014kr} leave conflicts for the user to resolve manually.
 Databases such as Dynamo~\cite{DeCandia:2007ui} and Bayou~\cite{Terry:1995dn} rely on the application programmer to provide explicit conflict resolution logic; however, such logic is difficult to get right \cite{Bailis:2013jc,Burckhardt:2014hy,Gomes:2017gy}.
@@ -954,12 +921,12 @@ Hence, we focus on systems that automatically ensure that all replicas converge 
 
 \subsection{Conflict-free Replicated Data Types}
 
-Our algorithm is an example of an operation-based Conflict-free Replicated Data Type or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un,Burckhardt:2014ft}.
+Our algorithm is an operation-based Conflict-free Replicated Data Type or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un,Burckhardt:2014ft}.
 All CRDTs share the property that concurrent changes on different replicas can be merged in any order; any two replicas that have seen the same set of updates are guaranteed to be in the same state, regardless of the order in which they processed these updates.
 CRDTs have been defined for various abstract datatypes, such as registers and counters \cite{Shapiro:2011wy,Shapiro:2011un}, maps \cite{Baquero:2016iv,Kleppmann:2016ve}, sets \cite{Bieniusa:2012wu,Bieniusa:2012gt}, lists (sequences) \cite{Roh:2011dw,Nedelec:2013ky}, and text \cite{Preguica:2009fz,Weiss:2010hx}.
 For trees, several approaches have been proposed:
 \begin{itemize}
-    \item Martin et al.~\cite{Martin:2010ih} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT for JSON.
+    \item Martin et al.~\cite{Martin:2010ih} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT with a JSON data model.
         However, these algorithms only deal with insertion and deletion of tree nodes, and do not support moves.
     \item As discussed in \S\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
     \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} outline approaches to handling conflicts on trees, but do not provide algorithms.
@@ -1019,7 +986,7 @@ However, to our knowledge, this approach has not previously been applied to the 
 
 \section{Conclusions}
 
-In this paper we have defined a novel algorithm that handles arbitrary concurrent modifications of a tree data structure---adding, moving, and removing nodes---in a peer-to-peer replication setting.
+In this paper we have defined a novel algorithm that handles arbitrary concurrent modifications of a tree data structure -- adding, moving, and removing nodes -- in a peer-to-peer replication setting.
 It is applicable to distributed filesystems and many other applications that use a tree-structured data model.
 Our approach ensures that all replicas converge to the same consistent state without requiring any manual conflict resolution, and without needing application developers to implement conflict handling logic.
 Updates made to a local replica take effect immediately, while operations from remote replicas can be propagated and applied in the background.
@@ -1038,13 +1005,14 @@ The generated code could serve as a reference implementation against which other
 As mentioned in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different computing systems.
 In future work we hope to build novel applications, such as a distributed filesystem, using our algorithm.
 
-\begin{acks}
+\section*{Acknowledgements}
+
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
-Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.
+Martin Kleppmann is supported by a Leverhulme Early Career Fellowship and by the Isaac Newton Trust.
 Our evaluation was conducted using AWS credits from the AWS Educate program.
 Thank you to Marc Shapiro for feedback on a draft of this paper.
-\end{acks}
 
-\bibliographystyle{ACM-Reference-Format}
+%\balance
+\bibliographystyle{abbrv}
 \bibliography{references}{}
 \end{document}
