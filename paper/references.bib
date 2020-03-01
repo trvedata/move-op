@@ -1053,19 +1053,6 @@ doi = {10.1007/978-3-642-15260-3},
 isbn = {978-3-642-15259-7}
 }
 
-%% http://arxiv.org/pdf/1402.2237.pdf
-@article{Bailis:2014th,
-author = {Bailis, Peter and Fekete, Alan and Franklin, Michael J and Ghodsi, Ali and Hellerstein, Joseph M and Stoica, Ion},
-title = {Coordination avoidance in database systems},
-journal = {Proceedings of the VLDB Endowment},
-year = {2014},
-volume = {8},
-number = {3},
-pages = {185--196},
-month = nov,
-doi = {10.14778/2735508.2735509}
-}
-
 %% https://queue.acm.org/detail.cfm?id=2655736
 @article{Bailis:2014jx,
 author = {Bailis, Peter and Kingsbury, Kyle},
@@ -1076,6 +1063,16 @@ volume = {12},
 number = {7},
 month = jul,
 doi = {10.1145/2639988.2639988}
+}
+
+%% https://www.usenix.org/conference/osdi18/presentation/alquraan
+@inproceedings{Alquraan:2018wj,
+author = {Alquraan, Ahmed and Takruri, Hatem and Alfatafta, Mohammed and Al-Kiswany, Samer},
+title = {An Analysis of Network-Partitioning Failures in Cloud Systems},
+booktitle = {13th USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+year = {2018},
+pages = {51--68},
+month = oct
 }
 
 %% http://charlotte.ucsd.edu/classes/sp00/cse223/flp.pdf
@@ -1317,19 +1314,6 @@ month = dec,
 doi = {10.4230/LIPIcs.OPODIS.2016.25}
 }
 
-%% http://www.eecs.harvard.edu/~margo/cs165/papers/mohan-1992.pdf
-@article{Mohan:1992fe,
-author = {Mohan, C and Haderle, Don and Lindsay, Bruce and Pirahesh, Hamid and Schwarz, Peter},
-title = {{ARIES}: A transaction recovery method supporting fine-granularity locking and partial rollbacks using write-ahead logging},
-journal = {ACM Transactions on Database Systems (TODS)},
-year = {1992},
-volume = {17},
-number = {1},
-pages = {94--162},
-month = mar,
-doi = {10.1145/128765.128770}
-}
-
 @book{Vernon:2013ww,
 author = {Vernon, Vaughn},
 title = {{Implementing Domain-Driven Design}},
@@ -1421,4 +1405,117 @@ isbn = {978-3-540-75220-2}
   booktitle={Summer USENIX Conference},
   pages={63--72},
   year={1990}
+}
+
+%%% Databases stuff
+
+%% http://arxiv.org/pdf/1402.2237.pdf
+@article{Bailis:2014th,
+author = {Bailis, Peter and Fekete, Alan and Franklin, Michael J and Ghodsi, Ali and Hellerstein, Joseph M and Stoica, Ion},
+title = {Coordination avoidance in database systems},
+journal = {Proceedings of the VLDB Endowment},
+year = {2014},
+volume = {8},
+number = {3},
+pages = {185--196},
+month = nov,
+doi = {10.14778/2735508.2735509}
+}
+
+@inproceedings{AnnaKVS,
+author = {Wu, Chenggang and Faleiro, Jose and Lin, Yihan and Hellerstein, Joseph},
+title = {{Anna}: A {KVS} for Any Scale},
+booktitle = {34th IEEE International Conference on Data Engineering},
+series = {ICDE 2018},
+year = {2018},
+month = apr,
+publisher = {IEEE},
+doi = {10.1109/ICDE.2018.00044}
+}
+
+%% http://www.eecs.harvard.edu/~margo/cs165/papers/mohan-1992.pdf
+@article{Mohan:1992fe,
+author = {Mohan, C and Haderle, Don and Lindsay, Bruce and Pirahesh, Hamid and Schwarz, Peter},
+title = {{ARIES}: A transaction recovery method supporting fine-granularity locking and partial rollbacks using write-ahead logging},
+journal = {ACM Transactions on Database Systems (TODS)},
+year = {1992},
+volume = {17},
+number = {1},
+pages = {94--162},
+month = mar,
+doi = {10.1145/128765.128770}
+}
+
+%% http://www.ics.uci.edu/~cs223/papers/p371-mohan.pdf
+@inproceedings{Mohan:1992hc,
+author = {Mohan, C and Levine, Frank},
+title = {{ARIES/IM}: an efficient and high concurrency index management method using write-ahead logging},
+booktitle = {1992 ACM SIGMOD International Conference on Management of Data},
+year = {1992},
+pages = {371--380},
+publisher = {ACM},
+doi = {10.1145/130283.130338}
+}
+
+%% https://www.usenix.org/conference/fast17/technical-sessions/presentation/niazi
+@inproceedings{Niazi:2017uf,
+author = {Niazi, Salman and Ismail, Mahmoud and Haridi, Seif and Dowling, Jim and Grohsschmiedt, Steffen and Ronstr{\"o}m, Mikael},
+title = {{HopsFS}: Scaling Hierarchical File System Metadata Using {NewSQL} Databases},
+booktitle = {15th USENIX Symposium on File and Storage Technologies},
+year = {2017},
+pages = {89--104}
+}
+
+@inproceedings{Liu:2019zn,
+author = {Liu, Haifeng and Ding, Wei and Chen, Yuan and Guo, Weilong and Liu, Shuoran and Li, Tianpeng and Zhang, Mofei and Zhao, Jianxing and Zhu, Hongyin and Zhu, Zhengyi},
+title = {{CFS}: A Distributed File System for Large Scale Container Platforms},
+booktitle = {Proceedings of the 2019 International Conference on Management of Data},
+series = {SIGMOD '19},
+year = {2019},
+isbn = {9781450356435},
+publisher = {ACM},
+url = {https://doi.org/10.1145/3299869.3314046},
+doi = {10.1145/3299869.3314046},
+pages = {1729–1742},
+numpages = {14},
+keywords = {cloud native, container, distributed file system},
+location = {Amsterdam, Netherlands},
+}
+
+@article{CloudKit,
+author = {Shraer, Alexander and Aybes, Alexandre and Davis, Bryan and Chrysafis, Christos and Browning, Dave and Krugler, Eric and Stone, Eric and Chandler, Harrison and Farkas, Jacob and Quinn, John and et al.},
+title = {{CloudKit}: Structured Storage for Mobile Applications},
+journal = {Proceedings of the VLDB Endowment},
+year = {2018},
+issue_date = {January 2018},
+publisher = {VLDB Endowment},
+volume = {11},
+number = {5},
+issn = {2150-8097},
+url = {https://doi.org/10.1145/3164135.3164138},
+doi = {10.1145/3164135.3164138},
+month = jan,
+pages = {540–552},
+numpages = {13}
+}
+
+%% http://www.cs.nyu.edu/courses/fall12/CSCI-GA.2434-001/p729-cahill.pdf
+@inproceedings{Cahill:2008eg,
+author = {Cahill, Michael J and R{\"o}hm, Uwe and Fekete, Alan D},
+title = {Serializable isolation for snapshot databases},
+booktitle = {ACM SIGMOD International Conference on Management of Data},
+year = {2008},
+month = jun,
+pages = {729--738},
+publisher = {ACM},
+doi = {10.1145/1376616.1376690}
+}
+
+%% http://research.microsoft.com/en-us/people/philbe/ccontrol.aspx
+@book{Bernstein:1987va,
+author = {Bernstein, Philip A and Hadzilacos, Vassos and Goodman, Nathan},
+title = {Concurrency Control and Recovery in Database Systems},
+publisher = {Addison-Wesley},
+year = {1987},
+isbn = {0201107155}
 }
