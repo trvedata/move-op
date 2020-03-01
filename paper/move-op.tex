@@ -853,7 +853,7 @@ We can also prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\
 
 \section{Evaluation}\label{sec:evaluation}
 
-\subsection{Experimental setup and results}
+\subsection{Performance of move operation}
 
 We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in \S\ref{subsect.extracting}, and wrapped this implementation in a simple network service.
 We deployed three replicas of this service on Amazon EC2 \texttt{c5.large} instances in different regions worldwide: in Northern California (region \texttt{us-west-1}), Ireland (\texttt{eu-west-1}), and Singapore (\texttt{ap-southeast-1}).
@@ -887,31 +887,53 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
 \end{table}
 
 \begin{figure}
+  \vspace{20pt}
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 c5.large instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
   \Description{Plot in which the x axis goes from 0 to 600 move operations per second, and the y axis goes from 0 to 2 milliseconds. Local operations take a near-constant time around 50 microseconds; the time for remote operations increases linearly from 0.2ms to 1.4ms.}
 \end{figure}
 
-\subsection{Interpretation of results}
+\begin{figure}
+  \vspace{20pt}
+  \includegraphics[width=\columnwidth,keepaspectratio=true]{leader-plot.pdf}
+  \caption{Median time to apply a local CRDT operation compared to the median time to perform a move operation using state machine replication, with a leader located in another region. Note the log scale on both axes.}
+  \label{fig:leader-plot}
+  \Description{Local CRDT operations take about 50 microseconds, and reach saturation at 600 ops/sec. Leader-based operations take about 150--180ms, and reach saturation at 14,000 ops/sec.}
+\end{figure}
 
-A locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
-Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}, hence the near-constant execution time.
+Local operations take constant time is because a locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
+Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}.
 
-However, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
+On the other hand, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
 As the time interval between successive operations is smaller than the network delay between replicas, there are multiple operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
 The time taken to apply a remote operation is proportional to the number of undos and redos required, and hence proportional to the operation rate.
 
-A hand-optimised implementation of our algorithm could achieve higher throughput than our 600 operations/sec, since code generated from HOL definitions contains inefficiencies.
-The generated code could serve as a reference implementation against which other implementations could be tested.
-
-Nevertheless, our evaluation sends a positive signal about the practical applicability of our algorithm.
-When a user is interacting with a system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
+Note that when a user is interacting with the system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
 Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
-The alternative to our optimistic replication approach would be to use a central server (master replica) or consensus protocol that processes all operations in a serialisable order.
-Performing an operation then requires waiting for communication with a server potentially located on a different continent, taking over 100~ms (Table~\ref{tab:rpc-times}); by contrast, a local operation taking around 50~{\textmu}s is at least three orders of magnitude faster.
-Moreover, a local operation requires no waiting for network communication, and thus it supports disconnected operation: mobile devices can read and modify the replicated tree even while disconnected from the Internet, which is not the case with centralised systems.
+\subsection{Comparison to state machine replication}\label{sec:smr}
+
+A simple alternative to our CRDT algorithm is to use state machine replication~\cite{Schneider:1990vy}: that is, we use a leader replica or consensus algorithm to impose a total order on all operations, and then execute operations in that same order on all replicas.
+For a move operation on trees, the state machine replication algorithm is much simpler than the CRDT: it still needs to check for cycles, but it never needs to undo or redo any operations because they are never applied out-of-order.
+
+To compare the performance of our algorithm to the state machine approach we ran another set of experiments on the same three replicas in California, Ireland, and Singapore.
+In this experiment, the Californian replica was designated leader; it totally ordered all operations it received, and sent them to all other replicas in the same order.
+The Irish and Singaporean replicas generated operations, sent them to the leader, and applied them to their local tree in the order they were received from the leader.
+In order to ensure a fair comparison to the CRDT algorithm, these experiments used the same Isabelle-generated Scala code.
+
+The results from this experiment are shown in Figure~\ref{fig:leader-plot}.
+The leader-based approach was able to sustain a throughput of 14,000 move operations per second, approximately 23 times the CRDT's throughput of 600 ops/sec (shown as an asymptote in Figure~\ref{fig:leader-plot}), due to the fact that it does not need to spend CPU cycles undoing and redoing operations.
+On the other hand, the latency of each operation is much higher in the state machine approach, because the generating replica needs to wait for a round trip through the leader.
+This latency is around 145~ms for operations generated in Ireland and around 176~ms for Singapore (cf. Table~\ref{tab:rpc-times}), compared with the CRDT's 50~{\textmu}s processing time for local operations.
+
+Therefore, we have a clear trade-off: in applications that need to prioritise throughput, a state machine replication approach is preferable, while in applications that need to minimise response times to user requests, our CRDT algorithm is preferable.
+Our algorithm also has the advantage that local user operations require no waiting for network communication, making them highly available in the face of network failures.
+It also supports offline operation: mobile devices can read and modify their local replica of the tree even while disconnected from the Internet, which is not the case with leader-based replication.
+
+We note that the throughput of 600 ops/sec is for a single tree, e.g.\ a filesystem belonging to one user.
+Operations on independent trees, belonging to different users, can be processed in parallel.
+We believe that for many applications, 600 ops/sec/user is plenty, and the ability to work offline is a valuable benefit.
 
 \subsection{Evaluation of formal proof}
 
@@ -927,7 +949,7 @@ Of this, we use 203 lines to prove that every node has a unique parent, 443 line
 Many replicated data systems use optimistic replication~\cite{Saito:2005jw}, which allows the state of replicas to temporarily diverge, in order to achieve better performance and availability in the presence of faults than strongly consistent systems~\cite{Bailis:2014th,Gilbert:2002il}.
 As a consequence, these systems require a mechanism for merging or reconciling conflicting updates that were made concurrently on different replicas.
 For example, version control systems such as Git~\cite{Chacon:2014kr} leave conflicts for the user to resolve manually.
-Systems such as Dynamo~\cite{DeCandia:2007ui} and Bayou~\cite{Terry:1995dn} rely on the application programmer to provide explicit conflict resolution logic; however, such logic is difficult to get right \cite{Bailis:2013jc,Burckhardt:2014hy,Gomes:2017gy}.
+Databases such as Dynamo~\cite{DeCandia:2007ui} and Bayou~\cite{Terry:1995dn} rely on the application programmer to provide explicit conflict resolution logic; however, such logic is difficult to get right \cite{Bailis:2013jc,Burckhardt:2014hy,Gomes:2017gy}.
 Hence, we focus on systems that automatically ensure that all replicas converge towards a consistent state, without requiring custom application logic---a consistency model known as \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
 
 \subsection{Conflict-free Replicated Data Types}
@@ -950,13 +972,13 @@ Besides CRDTs, another family of algorithms for concurrent modification of data 
 Several authors have defined concurrent tree structures using OT \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only consider insertion and deletion of nodes, and do not support moves.
 
 Molli et al.~\cite{Molli:2003cd} define an OT tree structure with a move operation.
-However, it requires that all communication between replicas is performed via total order broadcast, which in turn requires the use of a sequencer server or a consensus algorithm~\cite{Chandra:1996cp}.
+However, it requires that all communication between replicas is performed via total order broadcast, which requires a leader replica or consensus algorithm, like in \S\ref{sec:smr}.
 Our algorithm has better availability characteristics in the presence of network partitions because it allows messages to be delivered in any order, e.g.\ via peer-to-peer protocols.
 
 \subsection{Distributed filesystems}\label{sec:filesystems}
 
 Many distributed filesystems, such as NFS, rely on synchronous interaction with a server.
-While this has the advantage of not requiring conflict resolution, it rules out users working while offline.
+This avoids the need for conflict resolution, but rules out users working offline.
 
 Coda is a client-server filesystem that allows clients to locally cache copies of files stored in a server-side data repository~\cite{kistler1992coda}. 
 Clients can edit data in the cache while offline, during which time a kernel module keeps track of all updates. 
@@ -977,7 +999,7 @@ In an attempt to test Rumor's conflict handling we obtained the source code from
 
 Unison is a file synchronisation tool with a formal specification that allows two replicas to synchronise the state of a directory~\cite{PierceVouillon:UnisonSpecTR}.
 It permits offline updates to both replicas.
-Like Rumor, Unison is a userspace process that works by comparing replica states.
+Like Rumor, Unison is a userspace process that compares replica states.
 Whenever it is run, Unison records a summary of the filesystem state on each replica, and it uses this summary to determine the changes made since the last synchronisation. 
 When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}a. 
 Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to choose one of four possible resolutions: those shown in Figure~\ref{fig:move-cycle}b, \ref{fig:move-cycle}c, \ref{fig:move-cycle}d, or to delete both directories.
@@ -1008,11 +1030,13 @@ We formally verified the correctness of our algorithm using the Isabelle/HOL pro
 Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an inherent advantage of using a proof assistant rather than other formal approaches such as model checking.
 
 We also extracted a formally verified Scala implementation from our Isabelle/HOL definitions, and evaluated its performance across three replicas in California, Ireland and Singapore.
-Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a central server or consensus protocol operating over these distances.
-It is able to sustain 600 updates per second; a more scalable implementation could be created by optimising the automatically extracted Scala code.
+Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a leader replica or consensus protocol operating over these distances, and it remains available in the face of network interruptions.
+However, compared to leader-based replication our algorithm has lower throughput of 600 updates per second.
+A hand-optimised implementation of our algorithm could achieve higher performance, since code generated from HOL definitions contains inefficiencies.
+The generated code could serve as a reference implementation against which other implementations could be tested.
 
 As mentioned in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different computing systems.
-In future work we hope to build novel peer-to-peer distributed systems, such as a distributed filesystem, based on our algorithm.
+In future work we hope to build novel applications, such as a distributed filesystem, using our algorithm.
 
 \begin{acks}
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
