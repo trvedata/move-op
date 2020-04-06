@@ -4,14 +4,14 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,snakes}
 
-\setcopyright{rightsretained}
-\copyrightyear{2020}
-\acmYear{2020}
-\acmDOI{}
-\acmConference[]{}{}{}
-\acmBooktitle{}
-\acmPrice{}
-\acmISBN{}
+\copyrightyear{2020} 
+\acmYear{2020} 
+\setcopyright{acmlicensed}
+\acmConference[PaPoC '20]{7th Workshop on Principles and Practice of Consistency for Distributed Data}{April 27, 2020}{Heraklion, Greece}
+\acmBooktitle{7th Workshop on Principles and Practice of Consistency for Distributed Data (PaPoC '20), April 27, 2020, Heraklion, Greece}
+\acmPrice{15.00}
+\acmDOI{10.1145/3380787.3393677}
+\acmISBN{978-1-4503-7524-5/20/04}
 
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
@@ -111,6 +111,8 @@ Moreover, most of the field of Operational Transformation algorithms is dedicate
 All of the aforementioned algorithms allow replicas to \emph{insert} or \emph{delete} elements anywhere in the list.
 However, none of them have explicit support for \emph{moving} elements from one position to another position in the list (\emph{reordering}).
 This is a surprising omission because moving is a commonly required operation: in many to-do list applications, a user can drag and drop list elements to reorder them, and graphics software allows users to reorder the object list with commands such as ``bring to front'' (which moves an object to the top of the list, so that it occludes other objects) and ``send to back'' (which moves an object to the bottom, so that it is occluded by other objects).
+In the example of Figure~\ref{fig:smiley}, imagine the user first creates the pupils and then the white circles of the eyes; if the software by default places new objects in front of existing objects, the pupils would then not be visible.
+The user thus needs to reorder the object list to bring the pupil objects to the front.
 
 In this paper we introduce an algorithm that allows an existing list CRDT to be extended with a move operation.
 The algorithm is generic in the sense that it can be implemented on top of any of the aforementioned list CRDTs.
@@ -616,7 +618,7 @@ Lord~\cite{Lord:2019bo} discusses the problem of moving ranges of elements, but 
 
 This short paper has made the case for list CRDTs to support an explicit move operation, allowing list elements to be reordered without duplicating them in the case of concurrent moves.
 We have outlined an algorithm for single-element moves that can be retrofitted to any existing list CRDT that uses stable position IDs to refer to locations within the list (which is the case for all currently known list CRDTs).
-We have also demonstrated the need for moving a contiguous range of list elements to a new position; finding an algorithm that adds this feature to a CRDTs is at present an open problem.
+We have also demonstrated the need for moving a contiguous range of list elements to a new position; finding an algorithm that adds this feature to a CRDT is at present an open problem.
 We hope that future research will succeed in developing an algorithm for moving ranges of elements.
 
 \begin{acks}
