@@ -661,7 +661,7 @@ For example, in XML, the set of children of an element is ordered.
 This can be implemented by maintaining an additional list CRDT for each branch node, e.g.\ using RGA~\cite{Roh:2011dw} or Logoot~\cite{Weiss:2010hx}.
 These algorithms assign a unique ID to each element of the list, and this ID can be included in the metadata field of move operations in order to determine the order of sibling nodes.
 
-This approach to determining ordering also easily supports reordering of child nodes within a parent: to move a node to a different position in a list, we use the list CRDT to generate a new ID at the desired position in the sequence.
+This approach to determining ordering also easily supports reordering of child nodes within a parent: to move a node to a different position in a list, we use the list CRDT to generate a new ID at the desired position in the sequence~\cite{Kleppmann:2020jw}.
 Then we perform a move operation in which the parent node is unchanged, but the metadata is changed to this new ID.
 
 \smallbreak\noindent\textbf{File merging.}
@@ -1030,6 +1030,8 @@ Unison is unable to automatically synchronise the move operations shown in Figur
 \citet{Bjorner:2007hp} discusses the development of the Distributed File System Replication (DFS-R) component of Windows Server, during which a model checker found an issue with concurrent moves similar to Figure~\ref{fig:move-cycle}a.
 Bj{\o}rner outlines several possible solutions, but notes that model-checking their algorithm was not feasible due to state space explosion.
 Our use of proof by induction, rather than model-checking, allows us to verify the correctness of our algorithm in unbounded executions.
+
+After we performed the experiments described in Section~\ref{sec:move-is-hard}, the Dropbox engineering team published a blog post~\cite{Dropbox2020sync} acknowledging the problems of cycles and duplication due to concurrent moves.
 
 \subsection{Totally ordered operation log}
 
