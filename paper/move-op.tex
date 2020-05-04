@@ -1,7 +1,6 @@
-\documentclass[acmsmall,anonymous,review]{acmart}
-% Recommended options from acmart-pacmpl-template.tex
-\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[a4paper,anonymous,USenglish]{lipics-v2019}
 
+\usepackage{booktabs} % \toprule etc.
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
 
@@ -26,70 +25,46 @@
 % Don't put a few lines of text on a page that is mostly occupied with figures
 \renewcommand{\floatpagefraction}{0.8}
 
-\setcopyright{none}
-\acmJournal{PACMPL}
-\acmVolume{}
-\acmNumber{OOPSLA}
-\acmArticle{}
-\acmYear{2020}
-\acmMonth{1}
-\acmDOI{}
-\bibliographystyle{ACM-Reference-Format}
-\citestyle{acmauthoryear}
-
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
-\begin{document}
 \title{A highly-available move operation for replicated trees}
 
-\author{Martin Kleppmann}
-\email{mk428@cl.cam.ac.uk}
-\orcid{0000-0001-7252-6958}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
-}
+\author{Martin Kleppmann}{University of Cambridge}{mk428@cl.cam.ac.uk}{https://orcid.org/0000-0001-7252-6958}{Supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.}
 
-\author{Dominic P.\ Mulligan}
-\email{Dominic.Mulligan@arm.com}
-\orcid{0000-0003-4643-3541}
-\affiliation{%
-  \institution{Arm Research}
-  \streetaddress{110 Fulbourn Road}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB1 9NJ}
-  \country{United Kingdom}
-}
+\author{Dominic P. Mulligan}{Arm Research, Cambridge}{Dominic.Mulligan@arm.com}{https://orcid.org/0000-0003-4643-3541}{}
 
-\author{Victor B.\ F.\ Gomes}
-\email{vb358@cl.cam.ac.uk}
-\orcid{0000-0002-2954-4648}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
-}
+\author{Victor B. F. Gomes}{Google\footnote{Work done while at the University of Cambridge}}{vb358@cl.cam.ac.uk}{https://orcid.org/0000-0002-2954-4648}{}
 
-\author{Alastair R.\ Beresford}
-\email{arb33@cl.cam.ac.uk}
-\orcid{0000-0003-0818-6535}
-\affiliation{%
-  \institution{Department of Computer Science and Technology}
-  \streetaddress{15 JJ Thomson Avenue}
-  \city{Cambridge}
-  \state{}
-  \postcode{CB3 0FD}
-  \country{United Kingdom}
-}
+\author{Alastair R. Beresford}{University of Cambridge}{arb33@cl.cam.ac.uk}{https://orcid.org/0000-0003-0818-6535}{}
 
+\authorrunning{M. Kleppmann, D.\,P. Mulligan, V.\,B.\,F. Gomes, and A.\,R. Beresford}
+\Copyright{Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford}
+
+\funding{The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528). Our evaluation was conducted using AWS credits from the AWS Educate program.}
+\acknowledgements{Thank you to Marc Shapiro for feedback on a draft of this paper.}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10003752.10003809.10010172</concept_id>
+       <concept_desc>Theory of computation~Distributed algorithms</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10010940.10010992.10010998.10010999</concept_id>
+       <concept_desc>Software and its engineering~Software verification</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+ </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Theory of computation~Distributed algorithms}
+\ccsdesc[500]{Software and its engineering~Software verification}
+
+\keywords{Conflict-free Replicated Data Types (CRDTs), distributed filesystems, formal verification}
+
+\begin{document}
+\maketitle
 \begin{abstract}
     Replicated tree data structures are data models supporting distributed filesystems, such as Google Drive and Dropbox, and XML or JSON databases.
     These systems need to support a \emph{move} operation that allows a subtree to be moved to a new location within the tree.
@@ -98,8 +73,6 @@
     Our algorithm requires no synchronous coordination between replicas, making it highly available in the face of network partitions.
     We formally prove the correctness of our algorithm using the Isabelle/HOL proof assistant, and evaluate the performance of our formally verified implementation in a geo-replicated setting.
 \end{abstract}
-
-\maketitle
 
 \section{Introduction}\label{sec:intro}
 
@@ -240,7 +213,6 @@ Our contributions in this paper are:
 \end{tikzpicture}
 \caption{Replica 1 moves $A$ to be a child of $B$, while concurrently replica 2 moves the same node $A$ to be a child of $C$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}
 \label{fig:move-same-item}
-\Description{}
 \end{figure*}
 
 \begin{figure*}
@@ -317,7 +289,6 @@ Our contributions in this paper are:
   };
 \end{tikzpicture}
 \caption{Initially, nodes $A$ and $B$ are siblings. Replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
-\Description{Visualisation of trees with concurrent move operations}
 \end{figure*}
 
 \begin{figure*}
@@ -325,7 +296,6 @@ Our contributions in this paper are:
   \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
   \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}, indicating a bug in the underlying replication algorithm.}
   \label{fig:gdrive-error}
-  \Description{Screenshot showing the errors ``Can't remove files with changes pending. Try again after sync is complete.'' and ``An unknown error occurred.''}
 \end{figure*}
 
 \section{Why a move operation is hard}\label{sec:move-is-hard}
@@ -460,7 +430,6 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \end{isabellebody}
 \caption{The move operation algorithm, implemented in the Isabelle/HOL language (continued in Figure~\ref{fig:code2}).}
 \label{fig:code1}
-\Description{The move operation algorithm, implemented in the Isabelle/HOL language (continued in Figure~\ref{fig:code2}).}
 \end{figure*}
 
 \begin{figure*}
@@ -493,7 +462,6 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \end{isabellebody}
 \caption{The move operation algorithm (continuation of Figure~\ref{fig:code1}).}
 \label{fig:code2}
-\Description{The move operation algorithm (continuation of Figure~\ref{fig:code1}).}
 \end{figure*}
 
 \section{The replicated move operation}\label{sec:algorithm}
@@ -911,14 +879,12 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
   \includegraphics[width=10cm,keepaspectratio=true]{plot.pdf}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 c5.large instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
-  \Description{Plot in which the x axis goes from 0 to 600 move operations per second, and the y axis goes from 0 to 2 milliseconds. Local operations take a near-constant time around 50 microseconds; the time for remote operations increases linearly from 0.2ms to 1.4ms.}
 \end{figure}
 
 \begin{figure}
   \includegraphics[width=10cm,keepaspectratio=true]{leader-plot.pdf}
   \caption{Median time to apply a local CRDT operation compared to the median time to perform a move operation using state machine replication, with a leader located in another region. Note the log scale on both axes.}
   \label{fig:leader-plot}
-  \Description{Local CRDT operations take about 50 microseconds, and reach saturation at 600 ops/sec. Leader-based operations take about 150--180ms, and reach saturation at 14,000 ops/sec.}
 \end{figure}
 
 Local operations take constant time is because a locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
@@ -1065,12 +1031,6 @@ The generated code could serve as a reference implementation against which other
 As highlighted in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different types of applications and databases.
 In future work we hope to build novel applications, such as a distributed filesystem, using our algorithm.
 
-\begin{acks}
-The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
-Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.
-Our evaluation was conducted using AWS credits from the AWS Educate program.
-Thank you to Marc Shapiro for feedback on a draft of this paper.
-\end{acks}
-
+\bibliographystyle{plainurl}
 \bibliography{references}{}
 \end{document}
