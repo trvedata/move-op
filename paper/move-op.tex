@@ -149,11 +149,11 @@ Our contributions in this paper are:
   \node [rotate=90,blue,font=\footnotesize] at (7.5,1.5) {network communication};
   \path [draw,dotted] (-3.1,1.5) -- (8.7,1.5);
   %%%
-  \node [fill=red!15] at (-2.97,-2.4) {(\emph{a})};
-  \node [fill=red!15] at (0.53,-2.4) {(\emph{b})};
-  \node [fill=red!15] at (3.14,-2.4) {(\emph{c})};
-  \node [fill=red!15] at (7.85,-2.4) {(\emph{d})};
-  \node [rectangle,draw] at (-1.9,-3.5) {
+  \node [fill=red!15] at (9.83,4.10) {(\emph{a})};
+  \node [fill=red!15] at (14.18,4.10) {(\emph{b})};
+  \node [fill=red!15] at (9.84,1.10) {(\emph{c})};
+  \node [fill=red!15] at (14.15,1.10) {(\emph{d})};
+  \node [rectangle,draw] at (10.9,3) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{every node}=[text height=5pt,text depth=0pt]
           \tikzstyle{level 1}=[sibling distance=12mm]
@@ -163,7 +163,7 @@ Our contributions in this paper are:
               child {node {$C$} child {node {$A'$} child {node {$a_1'$}} child {node {$a_2'$}} child {node {$a_3'$}}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (1.2,-3.5) {
+  \node [rectangle,draw] at (13.5,3) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=12mm]
           \node at (0,1.4) {$\mathsf{root}$} child {node (b) {$B$}} child {node (c) {$C$}};
@@ -173,7 +173,7 @@ Our contributions in this paper are:
           \draw (c) -- (a);
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (4,-3.5) {
+  \node [rectangle,draw] at (10.7,0) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=10mm]
           \tikzstyle{level 3}=[sibling distance=6mm]
@@ -182,7 +182,7 @@ Our contributions in this paper are:
               child {node {$C$}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (7,-3.5) {
+  \node [rectangle,draw] at (13.3,0) {
       \begin{tikzpicture}[level distance=7mm]
           \tikzstyle{level 1}=[sibling distance=10mm]
           \tikzstyle{level 3}=[sibling distance=6mm]
@@ -234,7 +234,7 @@ Our contributions in this paper are:
   \node [rotate=90,blue,font=\footnotesize] at (7.0,1.5) {network communication};
   \path [draw,dotted] (-2.5,1.6) -- (8.5,1.6);
   %%%%%
-  \node [rectangle,draw] at (-1.5,-3.5) {
+  \node [rectangle,draw] at (10.95,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.3,-1.3) rectangle (1,1.2);
       \node [fill=red!15] at (-1.10,1.03) {(\emph{a})};
@@ -243,10 +243,10 @@ Our contributions in this paper are:
       \draw (b1.south west) .. controls (-2,-2) and (0,1.5) .. (a1.north);
       \end{tikzpicture}
   };
-  \node [rectangle,draw] at (1.5,-3.5) {
+  \node [rectangle,draw] at (13.8,3) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (-0.94,0.03) {(\emph{b})};
+      \node [fill=red!15] at (0.94,0.03) {(\emph{b})};
       \tikzstyle{level 1}=[sibling distance=12mm]
       \tikzstyle{level 2}=[sibling distance=6mm]
       \node {$\mathsf{root}$}
@@ -254,17 +254,17 @@ Our contributions in this paper are:
           child {node {$B'$} child {node {$A'$} child {node {$C'$}}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] (start) at (4.5,-3.5) {
+  \node [rectangle,draw] (start) at (10.95,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.17,-2.3) rectangle (1.15,0.2);
       \node [fill=red!15] at (-0.98,0.03) {(\emph{c})};
       \node {$\mathsf{root}$} child {node {$A$} child {node {$B$}} child {node {$C$}}};
       \end{tikzpicture}
   };
-  \node [rectangle,draw] (right) at (7.5,-3.5) {
+  \node [rectangle,draw] (right) at (13.8,0) {
       \begin{tikzpicture}[level distance=7mm]
       \useasboundingbox (-1.15,-2.3) rectangle (1.15,0.2);
-      \node [fill=red!15] at (-0.93,0.03) {(\emph{d})};
+      \node [fill=red!15] at (0.93,0.03) {(\emph{d})};
       \node {$\mathsf{root}$} child {node {$B$} child {node {$A$} child {node {$C$}}}};
       \end{tikzpicture}
   };
@@ -850,13 +850,13 @@ At around 600 operations/sec each single-threaded replica is fully utilising one
 \end{table}
 
 \begin{figure}
-  \includegraphics[width=10cm,keepaspectratio=true]{plot.pdf}
+  \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 c5.large instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
 \end{figure}
 
 \begin{figure}
-  \includegraphics[width=10cm,keepaspectratio=true]{leader-plot.pdf}
+  \includegraphics[width=\columnwidth,keepaspectratio=true]{leader-plot.pdf}
   \caption{Median time to apply a local CRDT operation compared to the median time to perform a move operation using state machine replication, with a leader located in another region. Note the log scale on both axes.}
   \label{fig:leader-plot}
 \end{figure}
