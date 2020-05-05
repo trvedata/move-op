@@ -1,6 +1,10 @@
-\documentclass[a4paper,anonymous,USenglish]{lipics-v2019}
+\documentclass[10pt,journal,compsoc]{IEEEtran}
 
+\usepackage[nocompress]{cite} % required by IEEE compsoc
 \usepackage{booktabs} % \toprule etc.
+\usepackage{amssymb} % \nexists
+\usepackage{textcomp} % \textmu
+\usepackage{url}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
 
@@ -27,44 +31,15 @@
 
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
+\begin{document}
 \title{A highly-available move operation for replicated trees}
 
-\author{Martin Kleppmann}{University of Cambridge}{mk428@cl.cam.ac.uk}{https://orcid.org/0000-0001-7252-6958}{Supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.}
+\author{Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford
+\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem M. Kleppmann and A.R. Beresford are with the University of Cambridge.\protect\\
+\IEEEcompsocthanksitem D.P. Mulligan is with Arm Research, Cambridge, UK.\protect\\
+\IEEEcompsocthanksitem V.B.F. Gomes is with Google (this work was done while at the University of Cambridge).}}
 
-\author{Dominic P. Mulligan}{Arm Research, Cambridge}{Dominic.Mulligan@arm.com}{https://orcid.org/0000-0003-4643-3541}{}
-
-\author{Victor B. F. Gomes}{Google\footnote{Work done while at the University of Cambridge}}{vb358@cl.cam.ac.uk}{https://orcid.org/0000-0002-2954-4648}{}
-
-\author{Alastair R. Beresford}{University of Cambridge}{arb33@cl.cam.ac.uk}{https://orcid.org/0000-0003-0818-6535}{}
-
-\authorrunning{M. Kleppmann, D.\,P. Mulligan, V.\,B.\,F. Gomes, and A.\,R. Beresford}
-\Copyright{Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford}
-
-\funding{The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528). Our evaluation was conducted using AWS credits from the AWS Educate program.}
-\acknowledgements{Thank you to Marc Shapiro for feedback on a draft of this paper.}
-
-\begin{CCSXML}
-<ccs2012>
-   <concept>
-       <concept_id>10003752.10003809.10010172</concept_id>
-       <concept_desc>Theory of computation~Distributed algorithms</concept_desc>
-       <concept_significance>500</concept_significance>
-       </concept>
-   <concept>
-       <concept_id>10011007.10010940.10010992.10010998.10010999</concept_id>
-       <concept_desc>Software and its engineering~Software verification</concept_desc>
-       <concept_significance>500</concept_significance>
-       </concept>
- </ccs2012>
-\end{CCSXML}
-
-\ccsdesc[500]{Theory of computation~Distributed algorithms}
-\ccsdesc[500]{Software and its engineering~Software verification}
-
-\keywords{Conflict-free Replicated Data Types (CRDTs), distributed filesystems, formal verification}
-
-\begin{document}
-\maketitle
+\IEEEtitleabstractindextext{%
 \begin{abstract}
     Replicated tree data structures are data models supporting distributed filesystems, such as Google Drive and Dropbox, and XML or JSON databases.
     These systems need to support a \emph{move} operation that allows a subtree to be moved to a new location within the tree.
@@ -74,9 +49,15 @@
     We formally prove the correctness of our algorithm using the Isabelle/HOL proof assistant, and evaluate the performance of our formally verified implementation in a geo-replicated setting.
 \end{abstract}
 
-\section{Introduction}\label{sec:intro}
+\begin{IEEEkeywords}
+Conflict-free Replicated Data Types (CRDTs), formal verification, distributed filesystems
+\end{IEEEkeywords}}
+\maketitle
+\IEEEdisplaynontitleabstractindextext
 
-Many data management applications use a tree-structured or hierarchical data model.
+\IEEEraisesectionheading{\section{Introduction}\label{sec:intro}}
+
+\IEEEPARstart{M}{any} data management applications use a tree-structured or hierarchical data model.
 For example, most file systems are trees (directories are branch nodes, and files are leaf nodes), and databases are used to store this directory structure and file metadata~\cite{Niazi:2017uf,Liu:2019zn}.\footnote{Strictly speaking, filesystems with hardlinks form a DAG; we will show in \S\ref{sec:extensions} how to support hardlinks.}
 Moreover, XML databases and JSON document databases also operate on trees, which might represent rich text (a tree of paragraphs, lists, figures, sections, etc.), vector graphics, CAD drawings, and many other types of data.
 Typically, a graphical user interface allows a user to edit this information interactively, resulting in updates to the underlying XML/JSON database: adding or deleting nodes in the tree, and moving nodes from one position in the tree to another.
@@ -1031,6 +1012,13 @@ The generated code could serve as a reference implementation against which other
 As highlighted in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different types of applications and databases.
 In future work we hope to build novel applications, such as a distributed filesystem, using our algorithm.
 
-\bibliographystyle{plainurl}
+\section*{Acknowledgements}
+
+The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
+Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship and by the Isaac Newton Trust.
+Our evaluation was conducted using AWS credits from the AWS Educate program.
+Thank you to Marc Shapiro for feedback on a draft of this paper.
+
+\bibliographystyle{IEEEtran}
 \bibliography{references}{}
 \end{document}
