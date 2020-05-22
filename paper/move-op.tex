@@ -865,7 +865,6 @@ The concept of undo-redo is also well known from write-ahead logging~\cite{Mohan
 
 However, to our knowledge, this approach has not previously been applied to the problem of replicated trees, nor are we aware of previous mechanised proofs (using Isabelle or other tools) that formalise this approach.
 The simplicity of the approach facilitates reasoning about it.
-We are exploring applying undo-do-redo to other replication problems as well, and we expect that our formal verification approach will also benefit other applications of this principle.
 
 \section{Conclusions}
 
@@ -880,14 +879,21 @@ Nevertheless, it solves a real problem that has not been solved correctly in wid
 To rule out such bugs, we formally verified the correctness of our algorithm using the Isabelle/HOL proof assistant; our theorems show that replicas can apply operations in any order, and that the result is always a valid tree (nodes have at most one parent, and the graph does not contain any cycles).
 Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an advantage of using a proof assistant rather than model checking.
 
+One might wonder whether our algorithm's consistency model is strong enough for practical use.
+On this point, we note that this model is what Google Drive and Dropbox use today~\cite{Hughes:2016fp} (apart from the aforementioned bugs).
+
 We also extracted a formally verified Scala implementation from our Isabelle/HOL definitions, and evaluated its performance across three replicas in California, Ireland and Singapore.
-Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a leader replica or consensus protocol operating over these distances, and it remains available in the face of network interruptions.
+Our implementation applies local updates in approximately 50~{\textmu}s, three orders of magnitude faster than is possible with a leader replica or consensus protocol operating over these distances, and it remains available in the face of network interruptions.
 However, compared to leader-based replication our algorithm has lower throughput of 600 updates per second.
 A hand-optimised implementation of our algorithm could achieve higher performance, since code generated from HOL definitions contains inefficiencies.
 The generated code could serve as a reference implementation against which other implementations could be tested.
 
 As highlighted in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different types of applications and databases.
 In future work we hope to build novel applications, such as a distributed filesystem, using our algorithm.
+
+We are also exploring whether the undo-do-redo approach can be used in other concurrent data structures; for example, there is an open problem in collaborative text editing~\cite{Kleppmann:2020jw} that might be solved by this approach.
+We expect that our Isabelle/HOL formalisation will be a valuable resource for future work in this area, which can use our definitions and proofs as starting point.
+The formalisation is included as supplementary data of this paper.
 
 \section*{Acknowledgements}
 
