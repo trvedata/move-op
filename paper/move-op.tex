@@ -277,13 +277,6 @@ Our contributions are:
 \caption{Initially, nodes $A$ and $B$ are siblings. Replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
 \end{figure*}
 
-\begin{figure*}
-  \centering
-  \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
-  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}, indicating a bug in the underlying replication algorithm.}
-  \label{fig:gdrive-error}
-\end{figure*}
-
 \section{Why a move operation is hard}\label{sec:move-is-hard}
 
 Applications that rely on a tree data model often need to move a node from one location to another location within the tree, such that all of its children move along with it:
@@ -341,7 +334,7 @@ In our opinion, the best way of handling the conflicting operations of Figure~\r
 Like in \S\ref{sec:move-same-item}, the winning operation can be picked based on a timestamp.
 
 As before, we tested this scenario with Google Drive and Dropbox.
-In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed the ``unknown error'' message shown in Figure~\ref{fig:gdrive-error}.
+In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed an ``unknown error'' message.
 The replica in an error state refused to sync the conflicting directory, and its filesystem state remained permanently inconsistent with the other replica.
 This error state persisted until the directories on the erroring replica were manually moved to match the state of the other replica.
 We have reported this bug to Google.
@@ -618,7 +611,8 @@ We discuss distributed filesystems further in \S\ref{sec:filesystems}.
 
 We now discuss the correctness properties of the algorithm from \S\ref{sec:algorithm}.
 All theorems stated here have been formally proved and mechanically checked using Isabelle.
-For space reasons we give only a brief sketch of the proofs in this paper; the Isabelle files containing the full details are open source~\cite{SourceFiles}.
+For space reasons this paper gives only the statements that were proved, but elides a discussion of the reasoning steps.
+The Isabelle files containing the full details are open source~\cite{SourceFiles}, and are included as supplementary material with this paper.
 
 To reason about the state of a replica we first define the function \isa{apply\_ops} on lines 51--52 of Figure~\ref{fig:code}.
 It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
@@ -628,14 +622,13 @@ The \isa{foldl} function from the Isabelle/HOL standard library performs the ite
 \subsection{Tree invariants}\label{sec:tree-invariants}
 
 A tree is an acyclic graph in which every node has exactly one parent, except for the root, which has no parent.
-To prove that our algorithm maintains a tree structure, no matter which operations are applied, we prove that these invariants hold.
 In fact, we slightly generalise this property and allow more than one root to exist, so the graph represents a forest, allowing an application to move nodes between different trees, if desired.
 For example, the ``trash'' node used for deletion (\S\ref{sec:ops-trees}) can be separate from the main tree.
+To prove that our algorithm maintains a forest structure, no matter which operations are applied, we demonstrate several invariants.
 
-\subsubsection{Each node's parent is unique}\label{sec:unique-parent}
-
+\smallbreak\noindent\textbf{Each node's parent is unique.}
 The first invariant we prove is that each tree node has either no parent (if it is the root of a tree) or exactly one parent (if it is a non-root node).
-We state this theorem in Isabelle/HOL as follows, where \isa{apply\_ops\_unique\_parent} is the name we give to this theorem:
+We state this theorem in Isabelle/HOL as follows, where \isa{apply\_ops\_unique\_parent} is the name of this theorem:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}unique{\isacharunderscore}parent{\isacharcolon}\isanewline
@@ -643,15 +636,11 @@ We state this theorem in Isabelle/HOL as follows, where \isa{apply\_ops\_unique\
 \ \ \isakeyword{shows}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}
 \end{isabelle}
 \noindent That is, we consider any list of operations \isa{ops} and define \isa{(log, tree)} to be the replica state after \isa{ops} have been applied.
-We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 54--56 of Figure~\ref{fig:code}: whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
-
+We then prove that ``\isa{unique\_parent tree}'' holds, where the \isa{unique\_parent} predicate is defined on lines 54--56 of Figure~\ref{fig:code}: whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
 As we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
-Proving it is easy because the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintain the invariant \isa{unique\_parent tree}, and thus \isa{apply\_op} also maintains the invariant.
 
-\subsubsection{The graph contains no cycles}\label{sec:no-cycles}
-
-The second invariant we require is that the graph must not contain any cycles.
-In Isabelle/HOL:
+\smallbreak\noindent\textbf{The graph contains no cycles.}
+This second invariant is expressed as follows in Isabelle/HOL:
 \begin{isabelle}
 \isacommand{theorem}\isamarkupfalse%
 \ apply{\isacharunderscore}ops{\isacharunderscore}acyclic{\isacharcolon}\isanewline
@@ -660,27 +649,7 @@ In Isabelle/HOL:
 \end{isabelle}
 \noindent The \isa{acyclic} predicate is defined on lines 58--59 of Figure~\ref{fig:code}, using the \isa{ancestor} relation (the transitive closure of the graph's edges): a graph contains no cycles if no node is an ancestor of itself.
 
-\emph{Proof sketch}: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
-Further assume \isa{acyclic tree1}.
-We can then prove by contradiction that \isa{tree2} is also acyclic.
-Assume to the contrary that \isa{tree2} contains a cycle.
-If \isa{do\_op} left the tree unchanged (line 29), we immediately have a contradiction.
-Otherwise we can assume \isa{{\isasymnot}(ancestor tree c newp {\isasymor} c = newp)} and we have:
-\begin{isabelle}
-tree2 = \{(p', m', c') {\isasymin} tree1. c' {\isasymnoteq} c\} {\isasymunion} \{(newp, m, c)\}
-\end{isabelle}
-That is, \isa{do\_op} adds one edge \isa{\{(newp, m, c)\}} to the graph, and perhaps removes another edge.
-Since \isa{tree1} is acyclic, the added edge must lie on the cycle in \isa{tree2}.
-Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} must contain a path from \isa{c} to \isa{newp} (which is then closed by the new edge to form a cycle), i.e.\ \isa{c} must be an ancestor of \isa{newp} in \isa{tree1}.
-However, in that case, the predicate \isa{ancestor tree1 c newp} on line 29 would have been true, which contradicts the earlier assumption.
-Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
-
-Next, we show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
-(This is the case when operations are applied in order of increasing timestamp.)
-Then, from the result of the previous paragraph, any tree produced by \isa{apply\_ops} is acyclic.
-
-\subsubsection{Other correctness properties}
-
+\smallbreak\noindent\textbf{Other correctness properties}
 There are further criteria we might use to determine if our algorithm is correct.
 For example, we might demonstrate that a single-replica system operates with the usual sequential semantics of a tree.
 In a system with multiple disjoint trees, we could prove that the trees don't get tangled together.
@@ -700,75 +669,15 @@ We formalise this in Isabelle/HOL as follows:
 \end{isabelle}
 
 The predicate \isa{distinct} takes a list as argument, and returns true if all elements of the list are distinct (i.e.\ no value occurs more than once in the list).
-The assumption \isa{distinct (map move\_time ops1)} therefore states that in the list of operations \isa{ops1}, there are no two operations with the same timestamp.
+Therefore, the assumption \isa{distinct (map move\_time ops1)} states that in the list \isa{ops1}, there are no two operations with the same timestamp.
 
 The function \isa{set} takes a list and turns it into an unordered set with the same elements.
 Thus, the assumption \isa{set ops1 = set ops2} means that the lists \isa{ops1} and \isa{ops2} contain the same elements, but perhaps in a different order---in other words, \isa{ops1} is a permutation of \isa{ops2}.
 Under these assumptions, \isa{apply\_ops\_commutes} proves that applying the list of operations \isa{ops1} results in the same replica state as applying the list of operations \isa{ops2}.
 
-\subsubsection{Commutativity of apply\_op}\label{sec:commutativity}
-
-To prove this theorem we must first show that \isa{undo\_op} performs the inverse of \isa{do\_op} and that every operation can be undone, that is:
-\begin{isabelle}
-\isacommand{lemma}\isamarkupfalse%
-\ do{\isacharunderscore}undo{\isacharunderscore}op{\isacharunderscore}inv{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}\ {\isacharequal}\ tree{\isacartoucheclose}
-\end{isabelle}
-
-\noindent \isa{apply\_ops\_commutes} then follows from the following lemma, which proves that two calls of \isa{apply\_op} commute, provided that the timestamps in the operations and in the log are all distinct:
-\begin{isabelle}
-\isacommand{lemma}\isamarkupfalse%
-\ apply{\isacharunderscore}op{\isacharunderscore}commute{\isadigit{2}}{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}distinct\ {\isacharparenleft}{\isacharparenleft}map\ log{\isacharunderscore}time\ log{\isacharparenright}\ {\isacharat}\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}map\ move{\isacharunderscore}time\ {\isacharbrackleft}oper{\isadigit{1}}{\isacharcomma}\ oper{\isadigit{2}}{\isacharbrackright}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}\ {\isacharequal}\isanewline
-\ \ \ \ \ \ \ \ \ apply{\isacharunderscore}op\ oper{\isadigit{1}}\ {\isacharparenleft}apply{\isacharunderscore}op\ oper{\isadigit{2}}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacharparenright}{\isacartoucheclose}
-\end{isabelle}
-
-\noindent Here the \isa{\isacharat} operator concatenates two lists.
-Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
-Assume $\isa{t1} < \isa{t2}$ without loss of generality.
-We can now prove lemma \isa{apply\_op\_commute2} by induction over \isa{log}.
-
-For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op oper1 ([], tree))} evaluates to first applying \isa{oper1} using \isa{do\_op}, then applying \isa{oper2} using \isa{do\_op}.
-On the other hand, \isa{apply\_op oper1 (apply\_op oper2 ([], tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes \isa{oper2} again to yield the original \isa{tree} (per \isa{do\_undo\_op\_inv}), then applies \isa{oper1} using \isa{do\_op}, and finally reapplies \isa{oper2} using \isa{redo\_op}.
-The final states are the same on both sides of the equality.
-
-For the inductive step, let the log be \isa{logop {\isacharhash} ops} (where \isa{\isacharhash} is the \emph{list cons} operator).
-We now need to show that:
-\begin{isabelle}
-apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree)) =\\
-apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree)).
-\end{isabelle}
-Let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
-We now consider three cases:
-\begin{enumerate}
-    \item $\isa{t3} < \isa{t1} < \isa{t2}$.
-        Then neither applying \isa{oper1} nor applying \isa{oper2} will undo \isa{logop}.
-        Thus, the two operations are applied in the same way as in the base case.
-    \item $\isa{t1} < \isa{t3} < \isa{t2}$.
-        Then \isa{apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree))} first undoes \isa{logop}, then applies \isa{oper1} using \isa{do\_op}, then reapplies \isa{logop} using \isa{redo\_op}, and finally applies \isa{oper2} using \isa{do\_op}.
-        On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes it again, then undoes \isa{logop}, applies \isa{oper1} and reapplies \isa{logop} as before, and finally reapplies \isa{oper2} using \isa{redo\_op}.
-        The end result is the same.
-    \item $\isa{t1} < \isa{t2} < \isa{t3}$.
-        Then both applying \isa{oper1} and applying \isa{oper2} first undoes \isa{logop}, yielding \isa{tree' = undo\_op (logop, tree)}.
-        From the inductive hypothesis we have:
-        \begin{isabelle}
-        apply\_op oper2 (apply\_op oper1 (ops, tree')) =\\
-        apply\_op oper1 (apply\_op oper2 (ops, tree'))
-        \end{isabelle}
-        We now apply \isa{oper1} and \isa{oper2} as in the base case, and finally reapply \isa{logop} to both sides using \isa{redo\_op}, resulting in the same state on both sides.
-\end{enumerate}
-
-This completes the proof that any two operations commute, provided that their timestamps are distinct from each other and from the contents of the log.
-We can easily generalise this to show that any number of operations commute: given any sequence of operations, any permutation of that sequence will have the same effect, because we can produce the permutation by repeatedly swapping adjacent, commutative operations.
-
-\subsubsection{Strong eventual consistency}
-
-Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs above an axiomatic network model.
-Using our commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
+\smallbreak\noindent\textbf{Strong eventual consistency.}
+Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs.
+Using our convergence proof above we integrate our tree datatype with this framework, and thus demonstrate that our move operation on trees does indeed guarantee strong eventual consistency.
 The details appear in our Isabelle theory files~\cite{SourceFiles}.
 
 \subsection{Making the HOL definitions executable} \label{subsect.extracting}
@@ -781,7 +690,7 @@ Whilst these constructs are convenient for theorem proving, they do not translat
 We therefore produce variants of the definitions in Figure~\ref{fig:code} that are designed for execution rather than theorem proving.
 Rather than representing the tree as a set of (parent, meta, child) triples, these definitions use a hash-map in which the keys are child nodes, and the values are (meta, parent) pairs, written in Isabelle/HOL as \isa{('n::\{hashable\}, 'm {\isasymtimes} 'n) hm}.
 The \isa{hashable} type class means that keys must have a hashing function.
-In effect, this hash-map is an index over the set of triples, using the fact that the parent and metadata for a given child are unique (\S\ref{sec:unique-parent}).
+In effect, this hash-map is an index over the set of triples, using the fact that the parent and metadata for a given child are unique (\S\ref{sec:tree-invariants}).
 The hash-map implementation is from the Isabelle Collections Framework~\cite{DBLP:conf/itp/LammichL10}.
 
 A hash-map \isa{t} of type \isa{('n, 'm {\isasymtimes} 'n) hm} \emph{simulates} a set \isa{T} of type \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set} when their entries are the same:
@@ -791,18 +700,7 @@ A hash-map \isa{t} of type \isa{('n, 'm {\isasymtimes} 'n) hm} \emph{simulates} 
 \ \ {\isacharparenleft}{\isasymforall}p\ m\ c{\isachardot}\ hm{\isachardot}lookup\ c\ t\ {\isacharequal}\ Some\ {\isacharparenleft}m{\isacharcomma}\ p{\isacharparenright}\ {\isasymlongleftrightarrow}\ {\isacharparenleft}p{\isacharcomma}\ m{\isacharcomma}\ c{\isacharparenright}\ {\isasymin}\ T{\isacharparenright}{\isacartoucheclose}
 \end{isabelle}
 \noindent where \isa{hm.lookup c t} looks up the key \isa{c} in the hash-map \isa{t}, returning \isa{Some x} if \isa{c} maps to the value \isa{x}, and returning \isa{None} if \isa{c} does not appear in the hash-map.
-We can now prove the equivalence of the set-based and the hash-map-based versions of each function.
-For example, \isa{executable\_do\_op} is the equivalent of the \isa{do\_op} function based on a hash-map:
-\begin{isabelle}
-\isacommand{lemma}\isamarkupfalse%
-\ executable{\isacharunderscore}do{\isacharunderscore}op{\isacharunderscore}simulates{\isacharcolon}\isanewline
-\ \ \isakeyword{assumes}\ {\isacartoucheopen}simulates\ t\ T{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}executable{\isacharunderscore}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ t{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{1}}{\isacharcomma}\ u{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \ \ \isakeyword{and}\ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}oper{\isacharcomma}\ T{\isacharparenright}\ {\isacharequal}\ {\isacharparenleft}log{\isadigit{2}}{\isacharcomma}\ U{\isacharparenright}{\isacartoucheclose}\isanewline
-\ \ \isakeyword{shows}\ {\isacartoucheopen}log{\isadigit{1}}\ {\isacharequal}\ log{\isadigit{2}}\ {\isasymand}\ simulates\ u\ U{\isacartoucheclose}
-\end{isabelle}
-
-Similarly, we can show this simulation relation holds for each function in our algorithm, all the way to \isa{apply\_ops}:
+We can now prove the equivalence of the set-based and the hash-map-based implementations:
 \begin{isabelle}
 \isacommand{lemma}\isamarkupfalse%
 \ executable{\isacharunderscore}apply{\isacharunderscore}ops{\isacharunderscore}simulates{\isacharcolon}\isanewline
@@ -821,7 +719,7 @@ We can also prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\
 
 We used Isabelle/HOL's code generation mechanism to extract executable Scala code from our HOL definitions, as discussed in \S\ref{subsect.extracting}, and wrapped this implementation in a simple network service.
 We deployed three replicas of this service on Amazon EC2 \texttt{c5.large} instances in different regions worldwide: in Northern California (region \texttt{us-west-1}), Ireland (\texttt{eu-west-1}), and Singapore (\texttt{ap-southeast-1}).
-The network delays between these regions are substantial, as shown in Table~\ref{tab:rpc-times}.
+The network delays between these regions are substantial: in our experiments, a request-response round-trip from Ireland to California takes a median of 145~ms, while a request from Singapore to California takes 176~ms.
 
 We use a synthetic workload in which each replica starts with an empty tree, and then generates move operations at a fixed rate; for each move operation the generating replica chooses parent and child nodes uniformly at random from a set of 1,000 tree nodes.
 A tree node is created by the first operation that refers to it.
@@ -835,20 +733,6 @@ We repeated the experiment with different operation rates, and measured the exec
 Figure~\ref{fig:plots} shows the median execution times for local and remote operations respectively.
 The execution time for local operations is near-constant (median times between 50~{\textmu}s and 70~{\textmu}s), while the execution time for remote operations increases approximately linearly from 0.14~ms to 1.5~ms over the range of 30 to 600 operations/sec.
 At around 600 operations/sec each single-threaded replica is fully utilising one CPU core, and increasing the rate at which operations are generated does not increase throughput any further.
-
-\begin{table}
-  \caption{Median response times of an RPC request between replicas in different regions.}
-  \label{tab:rpc-times}
-  \begin{tabular}{r|rrr}
-    \toprule
-                    & to California & to Ireland & to Singapore \\
-    \midrule
-    from California & ---           & 139 ms     & 175 ms       \\
-    from Ireland    & 145 ms        & ---        & 182 ms       \\
-    from Singapore  & 176 ms        & 178 ms     & ---          \\
-    \bottomrule
-\end{tabular}
-\end{table}
 
 \begin{figure}
   \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
@@ -866,7 +750,7 @@ Local operations take constant time is because a locally generated operation alw
 Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}.
 
 On the other hand, for remote operations, a number of undos and redos must be performed, depending on the degree of concurrency.
-As the time interval between successive operations is smaller than the network delay between replicas, there are multiple operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
+As the time interval between successive operations decreases relative to the network delay, there are more operations ``in flight'' at the same time, and more calls to \isa{undo\_op} and \isa{redo\_op} are required to order operations by timestamp.
 The time taken to apply a remote operation is proportional to the number of undos and redos required, and hence proportional to the operation rate.
 
 Note that when a user is interacting with the system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
@@ -883,13 +767,12 @@ The Irish and Singaporean replicas generated operations, sent them to the leader
 In order to ensure a fair comparison to the CRDT algorithm, these experiments used the same Isabelle-generated Scala code.
 
 The results from this experiment are shown in Figure~\ref{fig:leader-plot}.
-The leader-based approach was able to sustain a throughput of 14,000 move operations per second, approximately 23 times the CRDT's throughput of 600 ops/sec (shown as an asymptote in Figure~\ref{fig:leader-plot}), due to the fact that it does not need to spend CPU cycles undoing and redoing operations.
-On the other hand, the latency of each operation is much higher in the state machine approach, because the generating replica needs to wait for a round trip through the leader.
-This latency is around 145~ms for operations generated in Ireland and around 176~ms for Singapore (cf. Table~\ref{tab:rpc-times}), compared with the CRDT's 50~{\textmu}s processing time for local operations.
+The leader-based approach was able to sustain a throughput of 14,000 move operations per second, approximately 23 times the CRDT's throughput of 600 ops/sec, due to the fact that it does not need to spend CPU cycles undoing and redoing operations.
+On the other hand, the latency of each operation is around 3,000 times greater in the state machine approach, due to the network delay to the leader.
 
 Therefore, we have a clear trade-off: in applications that need to prioritise throughput, a state machine replication approach is preferable, while in applications that need to minimise response times to user requests, our CRDT algorithm is preferable.
-Our algorithm also has the advantage that local user operations require no waiting for network communication, making them highly available in the face of network failures.
-It also supports offline operation: mobile devices can read and modify their local replica of the tree even while disconnected from the Internet, which is not the case with leader-based replication.
+Our algorithm also has the advantage that local user operations require no waiting for network communication, so users can still modify the tree while disconnected from the Internet.
+In the leader-based approach, clients cannot make updates while offline.
 
 We note that the throughput of 600 ops/sec is for a single tree, e.g.\ a filesystem belonging to one user.
 Operations on independent trees, belonging to different users, can be processed in parallel.
@@ -902,7 +785,7 @@ Our proofs contain no unproven assumptions (i.e. no occurrences of the \textbf{s
 Checking all of the proofs takes 3.5 minutes on a 2018 MacBook Pro.
 
 Besides the 59 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,166 lines of code.
-Of this, we use 203 lines to prove that every node has a unique parent, 443 lines to prove that the tree contains no cycles, 450 lines to prove that move operations commute and replicas converge, 327 lines to prove the strong eventual consistency of our algorithm using the framework of Gomes et al.~\cite{Gomes:2017gy}, and 743 lines to define the executable variant of our algorithm (\S\ref{subsect.extracting}) and prove its equivalence to the abstract definitions of Figure~\ref{fig:code}.
+Of this, we use 203 lines to prove that every node has a unique parent, 443 lines to prove that the tree contains no cycles, 450 lines to prove that move operations commute and replicas converge, 327 lines to prove the strong eventual consistency property, and 743 lines to define the executable variant of our algorithm and prove its equivalence to the definitions of Figure~\ref{fig:code}.
 
 \section{Related work}\label{sec:relwork}
 
@@ -910,7 +793,7 @@ Many replicated data systems use optimistic replication~\cite{Saito:2005jw}, whi
 As a consequence, these systems require a mechanism for merging or reconciling conflicting updates that were made concurrently on different replicas.
 For example, version control systems such as Git~\cite{Chacon:2014kr} leave conflicts for the user to resolve manually.
 Databases such as Dynamo~\cite{DeCandia:2007ui} and Bayou~\cite{Terry:1995dn} rely on the application programmer to provide explicit conflict resolution logic; however, such logic is difficult to get right \cite{Bailis:2013jc,Burckhardt:2014hy,Gomes:2017gy}.
-Hence, we focus on systems that automatically ensure that all replicas converge towards a consistent state, without requiring custom application logic---a consistency model known as \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
+Hence, we want to automatically ensure that all replicas converge towards a consistent state, without requiring custom application logic---a consistency model known as \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
 
 \subsection{Conflict-free Replicated Data Types}
 
@@ -922,14 +805,14 @@ Several CRDTs for trees have been proposed:
         However, these algorithms only deal with insertion and deletion of tree nodes, and do not support moves.
         A move operation can be emulated by deleting and re-inserting the moved node, but this approach suffers from the duplication problem demonstrated in \S\ref{sec:move-same-item}.
     \item As discussed in \S\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
-    \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} outline approaches to handling conflicts on trees, but do not provide algorithms.
+    \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} outline approaches to handling conflicts on trees, but provide no algorithms.
     \item Tao et al.~\cite{Tao:2015gd} propose handling conflicting move operations by allowing the same object to appear in more than one location; thus, their datatype is strictly a DAG, not a tree.
         Some conflicts are handled by duplicating tree nodes.
         Tao et al.\ also perform experiments with Dropbox, Google Drive, and OneDrive, similar to our experiments discussed in \S\ref{sec:move-is-hard}.
 \end{itemize}
 
 Besides CRDTs, another family of algorithms for concurrent modification of data structures is \emph{Operational Transformation} (OT)~\cite{Sun:1998vf}.
-Several authors have defined concurrent tree structures using OT \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only consider insertion and deletion of nodes, and do not support moves.
+Several authors have defined concurrent tree structures using OT \cite{Jungnickel:2016cb,Ignat:2003jy,Davis:2002iv}, but they only handle insertion and deletion of nodes, and do not support moves.
 
 Molli et al.~\cite{Molli:2003cd} define an OT tree structure with a move operation.
 However, it requires that all communication between replicas is performed via total order broadcast, which requires a leader replica or consensus algorithm, like in \S\ref{sec:smr}.
@@ -962,7 +845,7 @@ In an attempt to test Rumor's conflict handling we obtained the source code from
 Unison is a file synchronisation tool with a formal specification that allows two replicas to synchronise the state of a directory~\cite{PierceVouillon:UnisonSpecTR}.
 It permits offline updates to both replicas.
 Like Rumor, Unison is a userspace process that compares replica states.
-Whenever it is run, Unison records a summary of the filesystem state on each replica, and it uses this summary to determine the changes made since the last synchronisation. 
+Whenever it is run, Unison determines the changes made since the last synchronisation. 
 When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}a. 
 Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to choose one of four possible resolutions: those shown in Figure~\ref{fig:move-cycle}b, \ref{fig:move-cycle}c, \ref{fig:move-cycle}d, or to delete both directories.
 
@@ -976,7 +859,7 @@ After we performed the experiments described in Section~\ref{sec:move-is-hard}, 
 
 \subsection{Totally ordered operation log}
 
-Our approach of ordering operations by a timestamp, and undoing/redoing them as necessary so that they take effect in ascending timestamp order, is conceptually a very simple approach---although the details of the implementation are a bit subtle.
+Our approach of ordering operations by a timestamp, and undoing/redoing them as necessary so that they take effect in ascending timestamp order, is conceptually very simple.
 Similar ideas appear in many other systems, including the Bayou database~\cite{Terry:1995dn}, Jefferson's \emph{Time Warp} mechanism~\cite{Jefferson:1985em}, Shapiro et al.'s \emph{capricious total order}~\cite{Shapiro:2016hp}, and Burckhardt's \emph{standard conflict resolution}~\cite[{\S}4.3.3]{Burckhardt:2014hy}.
 The concept of undo-redo is also well known from write-ahead logging~\cite{Mohan:1992fe}.
 
@@ -995,7 +878,7 @@ This approach means that user interaction is consistently fast, even in the face
 The principle behind our algorithm is easy to understand: undoing and redoing operations so that they are effectively executed in timestamp order.
 Nevertheless, it solves a real problem that has not been solved correctly in widely deployed software such as Google Drive and Dropbox, as we demonstrated in \S\ref{sec:move-is-hard}.
 To rule out such bugs, we formally verified the correctness of our algorithm using the Isabelle/HOL proof assistant; our theorems show that replicas can apply operations in any order, and that the result is always a valid tree (nodes have at most one parent, and the graph does not contain any cycles).
-Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an advantage of using a proof assistant rather than other formal approaches such as model checking.
+Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an advantage of using a proof assistant rather than model checking.
 
 We also extracted a formally verified Scala implementation from our Isabelle/HOL definitions, and evaluated its performance across three replicas in California, Ireland and Singapore.
 Our implementation applies local updates in approximately 50~{\textmu}s, orders of magnitude faster than is possible with a leader replica or consensus protocol operating over these distances, and it remains available in the face of network interruptions.
