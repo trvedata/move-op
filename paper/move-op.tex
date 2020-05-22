@@ -10,9 +10,9 @@
 
 \usepackage{lineno}
 \usepackage{isabelle,isabellesym}
-\isabellestyle{tt}
+\isabellestyle{rm}
 \renewenvironment{isabelle}{%
-  \medbreak\noindent%
+  \medbreak\indent%
   \renewcommand{\isanewline}{\\}%
   \begin{minipage}{\columnwidth}% use minipage to prevent page breaks
   \begin{isabellebody}%
@@ -391,8 +391,7 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \ \ {\isacartoucheopen}{\isasymlbrakk}{\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isacharsemicolon}\ ancestor\ tree\ anc\ parent{\isasymrbrakk}\ {\isasymLongrightarrow}\ ancestor\ tree\ anc\ child{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{fun}\isamarkupfalse%
-\ do{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ do{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
 \ \ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}Move\ t\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
 \ \ \ \ \ {\isacharparenleft}LogMove\ t\ {\isacharparenleft}get{\isacharunderscore}parent\ tree\ c{\isacharparenright}\ newp\ m\ c{\isacharcomma}\isanewline
 \ \ \ \ \ \ if\ ancestor\ tree\ c\ newp\ {\isasymor}\ c\ {\isacharequal}\ newp\ then\ tree\isanewline
@@ -411,8 +410,7 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \ \ \ \ \ \ in\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{fun}\isamarkupfalse%
-\ apply{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymRightarrow}\isanewline
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
+\ apply{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
 \ \ {\isacartoucheopen}apply{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}{\isacharbrackleft}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ {\isacharequal}\isanewline
 \ \ \ \ \ {\isacharparenleft}let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\isanewline
 \ \ \ \ \ \ in\ {\isacharparenleft}{\isacharbrackleft}op{\isadigit{2}}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\ {\isacharbar}\isanewline
@@ -487,7 +485,7 @@ Given a \isa{tree}, we can construct a new \isa{tree'} in which the child \isa{c
 tree' = \{(p', m', c') {\isasymin} tree. c' {\isasymnoteq} c\} {\isasymunion} \{(p, m, c)\}
 \end{isabelle}
 That is, we remove any existing parent-child relationship for \isa{c} from the set \isa{tree}, and then add \isa{\{(p, m, c)\}} to represent the new parent-child relationship.
-This expression appears on lines 31 and 36 of Figure~\ref{fig:code}, as we shall explain shortly.
+This expression appears on lines 30 and 35 of Figure~\ref{fig:code}, as we shall explain shortly.
 
 \subsection{Replica state and operation log}\label{sec:state-log}
 
@@ -519,37 +517,37 @@ To implement this we first define the \isa{ancestor} relation in lines 22--24.
 It is the transitive closure of a tree's parent-child relation: if \isa{(p, m, c) {\isasymin} tree} then \isa{p} is an ancestor of \isa{c} (line 23); moreover, if \isa{a} is an ancestor of \isa{p} and \isa{(p, m, c) {\isasymin} tree}, then \isa{a} is also an ancestor of \isa{c} (line 24).
 The \textbf{inductive} keyword indicates that this recursive definition is iterated until the least fixed point is reached.
 
-The \isa{do\_op} function (lines 26--31) now performs the actual work of applying a move operation.
+The \isa{do\_op} function (lines 26--30) now performs the actual work of applying a move operation.
 This function takes as argument a pair consisting of a \isa{Move} operation and the current tree, and it returns a pair consisting of a \isa{LogMove} operation (which will be added to the log) and an updated tree.
-In line 29, the \isa{LogMove} record is constructed as described in \S\ref{sec:state-log}, obtaining the prior parent and metadata of \isa{c} using the \isa{get\_parent} function.
+In line 28, the \isa{LogMove} record is constructed as described in \S\ref{sec:state-log}, obtaining the prior parent and metadata of \isa{c} using the \isa{get\_parent} function.
 
-Line 30 performs the check that ensures no cycles are introduced: if \isa{ancestor tree c newp}, i.e.\ if the node \isa{c} is being moved, and \isa{c} is an ancestor of the new parent \isa{newp}, then the tree is returned unmodified---in other words, the operation is ignored.
+Line 29 performs the check that ensures no cycles are introduced: if \isa{ancestor tree c newp}, i.e.\ if the node \isa{c} is being moved, and \isa{c} is an ancestor of the new parent \isa{newp}, then the tree is returned unmodified---in other words, the operation is ignored.
 Similarly, the operation is also ignored if \isa{c = newp}.
-Otherwise (line 31), the tree is updated by removing \isa{c} from its existing parent, if any, and adding the new parent-child relationship \isa{(newp, m, c)} to the tree.
+Otherwise (line 30), the tree is updated by removing \isa{c} from its existing parent, if any, and adding the new parent-child relationship \isa{(newp, m, c)} to the tree.
 
 \subsection{Applying operations in any order}\label{sec:applying}
 
 The \isa{do\_op} function is sufficient for applying operations if all replicas apply operations in the same order.
 However, in an optimistic replication setting, each replica may apply the operations in a different order, and we need to ensure that the replica state nevertheless converges towards a consistent state.
-This goal is accomplished by the \isa{undo\_op}, \isa{redo\_op}, and \isa{apply\_op} functions (lines 33--51).
+This goal is accomplished by the \isa{undo\_op}, \isa{redo\_op}, and \isa{apply\_op} functions (lines 32--49).
 
 When a replica needs to apply an operation with timestamp \isa{t}, it first undoes the effect of any operations with a timestamp greater than \isa{t}, then performs the new operation, and finally re-applies the undone operations.
 As a result, the state of the tree is as if the operations had all been applied in order of increasing timestamp, even though in fact they might have been applied in any order.
 
-The \isa{apply\_op} function (lines 43--51) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
-The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the \isa{<} operator defining a linear (or total) order.
-This comparison occurs on line 49.
+The \isa{apply\_op} function (lines 42--49) takes two arguments: a \isa{Move} operation to apply and the current replica state; and it returns the new replica state.
+The constraint \isa{'t::\{linorder\}} in the type signature indicates that timestamps \isa{'t} are instances of \isa{linorder} type class, and they can therefore be compared with the $<$ operator defining a linear (or total) order.
+This comparison occurs on line 47.
 
 Recall that the replica state includes the operation log (line 14), and we use this log to perform the undo-do-redo cycle.
-Lines 45--47 handle the case where the log is empty: in this case, we simply perform the operation using \isa{do\_op}, and return the new tree along with a log containing a single \isa{LogMove} record.
-If the log is nonempty (line 48), we take \isa{logop} to be the first element of the log, and \isa{ops} to be the rest.
+Lines 43--45 handle the case where the log is empty: in this case, we simply perform the operation using \isa{do\_op}, and return the new tree along with a log containing a single \isa{LogMove} record.
+If the log is nonempty (line 46), we take \isa{logop} to be the first element of the log, and \isa{ops} to be the rest.
 (The hash character in \isa{logop {\isacharhash} ops} is the \emph{list cons} operator that adds one element to the head of a list.)
-If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 49) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 50).
-Otherwise we perform the operation using \isa{do\_op}, and add the corresponding \isa{LogMove} record as the head of the log (line 51).
+If the timestamp of \isa{logop} is greater than the timestamp of the new operation (line 47) we first undo \isa{logop} with \isa{undo\_op}, then recursively apply the new operation to the remaining log, and finally reapply \isa{logop} with \isa{redo\_op} (line 48).
+Otherwise we perform the operation using \isa{do\_op}, and add the corresponding \isa{LogMove} record as the head of the log (line 49).
 
 This logic ensures that the log is maintained in descending timestamp order, with the greatest timestamp at the head.
-\isa{undo\_op} (lines 33--36) inverts the effect of a previous move operation by restoring the prior parent and metadata that were recorded in the \isa{LogMove}'s additional field.
-\isa{redo\_op} (lines 38--41) uses \isa{do\_op} to perform an operation again and recomputes the \isa{LogMove} record (which might have changed due to the effect of the new operation).
+\isa{undo\_op} (lines 32--35) inverts the effect of a previous move operation by restoring the prior parent and metadata that were recorded in the \isa{LogMove}'s additional field.
+\isa{redo\_op} (lines 37--40) uses \isa{do\_op} to perform an operation again and recomputes the \isa{LogMove} record (which might have changed due to the effect of the new operation).
 
 \subsection{Handling conflicts}\label{sec:conflicts}
 
@@ -619,7 +617,7 @@ For space reasons we give only a brief sketch of the proofs in this paper; the I
 
 % TODO \cite{SourceFiles}
 
-To reason about the state of a replica we first define the function \isa{apply\_ops} on lines 53--54 of Figure~\ref{fig:code}.
+To reason about the state of a replica we first define the function \isa{apply\_ops} on lines 51--52 of Figure~\ref{fig:code}.
 It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
 The \isa{apply\_ops} function works by starting in the initial state \isa{([], \{\})} consisting of the empty operation log \isa{[]} and the tree represented by the empty set \isa{\{\}}, and then applying the operations one by one to the state using the \isa{apply\_op} function (introduced in \S\ref{sec:applying}).
 The \isa{foldl} function from the Isabelle/HOL standard library performs the iteration over the list of operations.
@@ -642,7 +640,7 @@ We state this theorem in Isabelle/HOL as follows, where \isa{apply\_ops\_unique\
 \ \ \isakeyword{shows}\ {\isacartoucheopen}unique{\isacharunderscore}parent\ tree{\isacartoucheclose}
 \end{isabelle}
 \noindent That is, we consider any list of operations \isa{ops} and define \isa{(log, tree)} to be the replica state after \isa{ops} have been applied.
-We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 56--57 of Figure~\ref{fig:code}: whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
+We then prove that \isa{unique\_parent tree} holds, where the \isa{unique\_parent} predicate is defined on lines 54--56 of Figure~\ref{fig:code}: whenever the tree contains a triple whose third element is the child node \isa{c}, then the first and second elements of the triple (the parent node and the metadata) are uniquely defined.
 
 As we make no assumptions about \isa{ops}, this theorem holds for any replica state that can be reached by applying any number of operations.
 Proving it is easy because the \isa{do\_op}, \isa{undo\_op} and \isa{redo\_op} functions individually maintain the invariant \isa{unique\_parent tree}, and thus \isa{apply\_op} also maintains the invariant.
@@ -657,13 +655,13 @@ In Isabelle/HOL:
 \ \ \isakeyword{assumes}\ {\isacartoucheopen}apply{\isacharunderscore}ops\ ops\ {\isacharequal}\ {\isacharparenleft}log{\isacharcomma}\ tree{\isacharparenright}{\isacartoucheclose}\isanewline
 \ \ \isakeyword{shows}\ {\isacartoucheopen}acyclic\ tree{\isacartoucheclose}
 \end{isabelle}
-\noindent The \isa{acyclic} predicate is defined on lines 59--60 of Figure~\ref{fig:code}, using the \isa{ancestor} relation (the transitive closure of the graph's edges): a graph contains no cycles if no node is an ancestor of itself.
+\noindent The \isa{acyclic} predicate is defined on lines 58--59 of Figure~\ref{fig:code}, using the \isa{ancestor} relation (the transitive closure of the graph's edges): a graph contains no cycles if no node is an ancestor of itself.
 
 \emph{Proof sketch}: Assume \isa{do\_op (op1, tree1) = (op2, tree2)} for some \isa{op1}, \isa{op2}, \isa{tree1} and \isa{tree2}.
 Further assume \isa{acyclic tree1}.
 We can then prove by contradiction that \isa{tree2} is also acyclic.
 Assume to the contrary that \isa{tree2} contains a cycle.
-If \isa{do\_op} left the tree unchanged (line 30), we immediately have a contradiction.
+If \isa{do\_op} left the tree unchanged (line 29), we immediately have a contradiction.
 Otherwise we can assume \isa{{\isasymnot}(ancestor tree c newp {\isasymor} c = newp)} and we have:
 \begin{isabelle}
 tree2 = \{(p', m', c') {\isasymin} tree1. c' {\isasymnoteq} c\} {\isasymunion} \{(newp, m, c)\}
@@ -671,7 +669,7 @@ tree2 = \{(p', m', c') {\isasymin} tree1. c' {\isasymnoteq} c\} {\isasymunion} \
 That is, \isa{do\_op} adds one edge \isa{\{(newp, m, c)\}} to the graph, and perhaps removes another edge.
 Since \isa{tree1} is acyclic, the added edge must lie on the cycle in \isa{tree2}.
 Moreover, since only one edge from \isa{newp} to \isa{c} was added, \isa{tree1} must contain a path from \isa{c} to \isa{newp} (which is then closed by the new edge to form a cycle), i.e.\ \isa{c} must be an ancestor of \isa{newp} in \isa{tree1}.
-However, in that case, the predicate \isa{ancestor tree1 c newp} on line 30 would have been true, which contradicts the earlier assumption.
+However, in that case, the predicate \isa{ancestor tree1 c newp} on line 29 would have been true, which contradicts the earlier assumption.
 Hence, the \isa{do\_op} function preserves the acyclicity invariant of the tree.
 
 Next, we show that for any tree produced by \isa{apply\_ops}, there exists a sequence of operations such that applying those operations using \isa{do\_op} invocations alone (not using \isa{undo\_op} or \isa{redo\_op}) results in the same tree.
@@ -728,7 +726,7 @@ To prove this theorem we must first show that \isa{undo\_op} performs the invers
 
 \noindent Here the \isa{\isacharat} operator concatenates two lists.
 Let \isa{t1 = move\_time oper1} and \isa{t2 = move\_time oper2} be the timestamps of the two operations \isa{oper1} and \isa{oper2}.
-Assume \isa{t1 < t2} without loss of generality.
+Assume $\isa{t1} < \isa{t2}$ without loss of generality.
 We can now prove lemma \isa{apply\_op\_commute2} by induction over \isa{log}.
 
 For the base case, where \isa{log} is empty, \isa{apply\_op oper2 (apply\_op oper1 ([], tree))} evaluates to first applying \isa{oper1} using \isa{do\_op}, then applying \isa{oper2} using \isa{do\_op}.
@@ -744,14 +742,14 @@ apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree)).
 Let \isa{t3 = log\_time logop} be the timestamp of the operation at the head of the log.
 We now consider three cases:
 \begin{enumerate}
-    \item \isa{t3 < t1 < t2}.
+    \item $\isa{t3} < \isa{t1} < \isa{t2}$.
         Then neither applying \isa{oper1} nor applying \isa{oper2} will undo \isa{logop}.
         Thus, the two operations are applied in the same way as in the base case.
-    \item \isa{t1 < t3 < t2}.
+    \item $\isa{t1} < \isa{t3} < \isa{t2}$.
         Then \isa{apply\_op oper2 (apply\_op oper1 (logop {\isacharhash} ops, tree))} first undoes \isa{logop}, then applies \isa{oper1} using \isa{do\_op}, then reapplies \isa{logop} using \isa{redo\_op}, and finally applies \isa{oper2} using \isa{do\_op}.
         On the other hand, \isa{apply\_op oper1 (apply\_op oper2 (logop {\isacharhash} ops, tree))} first applies \isa{oper2} using \isa{do\_op}, then undoes it again, then undoes \isa{logop}, applies \isa{oper1} and reapplies \isa{logop} as before, and finally reapplies \isa{oper2} using \isa{redo\_op}.
         The end result is the same.
-    \item \isa{t1 < t2 < t3}.
+    \item $\isa{t1} < \isa{t2} < \isa{t3}$.
         Then both applying \isa{oper1} and applying \isa{oper2} first undoes \isa{logop}, yielding \isa{tree' = undo\_op (logop, tree)}.
         From the inductive hypothesis we have:
         \begin{isabelle}
@@ -900,7 +898,7 @@ The formalisation of our algorithm, and the proofs of its properties as describe
 Our proofs contain no unproven assumptions (i.e. no occurrences of the \textbf{sorry} keyword).
 Checking all of the proofs takes 3.5 minutes on a 2018 MacBook Pro.
 
-Besides the 60 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,166 lines of code.
+Besides the 59 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,166 lines of code.
 Of this, we use 203 lines to prove that every node has a unique parent, 443 lines to prove that the tree contains no cycles, 450 lines to prove that move operations commute and replicas converge, 327 lines to prove the strong eventual consistency of our algorithm using the framework of Gomes et al.~\cite{Gomes:2017gy}, and 743 lines to define the executable variant of our algorithm (\S\ref{subsect.extracting}) and prove its equivalence to the abstract definitions of Figure~\ref{fig:code}.
 
 \section{Related work}\label{sec:relwork}
