@@ -32,7 +32,10 @@
 \hyphenation{da-ta-cen-ter da-ta-cen-ters time-stamp time-stamps time-stamped hard-links}
 
 \begin{document}
-\title{A highly-available move operation for replicated trees}
+\title{A highly-available move operation for replicated trees and distributed filesystems}
+
+% IEEE transactions review is single-blind by default, and double-blind only on special request
+% https://www.computer.org/publications/author-resources/peer-review/journals
 
 \author{Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford
 \IEEEcompsocitemizethanks{\IEEEcompsocthanksitem M. Kleppmann and A.R. Beresford are with the University of Cambridge.\protect\\
@@ -41,54 +44,56 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-    Replicated tree data structures are data models supporting distributed filesystems, such as Google Drive and Dropbox, and XML or JSON databases.
+    Replicated tree data structures are a fundamental building block of distributed filesystems, such as Google Drive and Dropbox, and collaborative applications with a JSON or XML data model.
     These systems need to support a \emph{move} operation that allows a subtree to be moved to a new location within the tree.
     However, such a move operation is difficult to implement correctly if different replicas can concurrently perform arbitrary move operations, and we demonstrate bugs in Google Drive and Dropbox that arise with concurrent moves.
-    In this paper we present an algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas converge towards the same consistent state.
+    In this paper we present a CRDT algorithm that handles arbitrary concurrent modifications on trees, while ensuring that the tree structure remains valid (in particular, no cycles are introduced), and guaranteeing that all replicas converge towards the same consistent state.
     Our algorithm requires no synchronous coordination between replicas, making it highly available in the face of network partitions.
     We formally prove the correctness of our algorithm using the Isabelle/HOL proof assistant, and evaluate the performance of our formally verified implementation in a geo-replicated setting.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Conflict-free Replicated Data Types (CRDTs), formal verification, distributed filesystems
+Conflict-free Replicated Data Types (CRDTs), formal verification, distributed filesystems, distributed collaboration
 \end{IEEEkeywords}}
 \maketitle
 \IEEEdisplaynontitleabstractindextext
 
 \IEEEraisesectionheading{\section{Introduction}\label{sec:intro}}
 
-\IEEEPARstart{M}{any} data management applications use a tree-structured or hierarchical data model.
-For example, most file systems are trees (directories are branch nodes, and files are leaf nodes), and databases are used to store this directory structure and file metadata~\cite{Niazi:2017uf,Liu:2019zn}.\footnote{Strictly speaking, filesystems with hardlinks form a DAG; we will show in \S\ref{sec:extensions} how to support hardlinks.}
-Moreover, XML databases and JSON document databases also operate on trees, which might represent rich text (a tree of paragraphs, lists, figures, sections, etc.), vector graphics, CAD drawings, and many other types of data.
-Typically, a graphical user interface allows a user to edit this information interactively, resulting in updates to the underlying XML/JSON database: adding or deleting nodes in the tree, and moving nodes from one position in the tree to another.
+\IEEEPARstart{M}{any} applications use a tree-structured data model.
+For example, most file systems are trees: directories are branch nodes, and files are leaf nodes.
+Moreover, XML and JSON documents are trees, and they are used in many applications to represent e.g.\ rich text (a tree of paragraphs, lists, figures, sections, etc.), vector graphics, CAD drawings, and many other types of data.
+Typically, a graphical user interface allows a user to edit this information interactively, resulting in updates to the underlying XML/JSON structure: adding or deleting nodes in the tree, and moving nodes from one position in the tree to another.
 
-When updating these trees, standard concurrency control techniques can be used, such as two-phase locking~\cite{Bernstein:1987va} or optimistic concurrency control~\cite{Cahill:2008eg}.
-However, these techniques require synchronous coordination between replicas.
-If we want the system to continue processing read and write requests even in the presence of arbitrary network partitions (in other words, if we want \emph{availability} and \emph{partition-tolerance} in the sense of the CAP theorem~\cite{Gilbert:2002il}), then we must avoid such coordination~\cite{Davidson:1985hv}.
-Coordination avoidance has shown to be beneficial in several data systems~\cite{Bailis:2014th,AnnaKVS}, and network partitions are common~\cite{Alquraan:2018wj,Bailis:2014jx}.
+In distributed filesystems and collaborative multi-user software, this tree is replicated across multiple nodes.
+If users attempt to update the tree concurrently on different replicas, concurrency control is required.
+However, standard techniques such as two-phase locking require synchronous coordination between replicas.
+If we want the system to continue processing read and write requests even in the presence of arbitrary network partitions (in other words, if we want \emph{availability} and \emph{partition-tolerance} in the sense of the CAP theorem~\cite{Gilbert:2002il}), then we must avoid such coordination.
+This is an important practical consideration since network partitions are common in many networks~\cite{Alquraan:2018wj,Bailis:2014jx}.
 
 We can use \emph{optimistic replication}~\cite{Saito:2005jw}, which means that any replica can make changes to the data without waiting for communication with any other replicas; operations are sent to other replicas at some later time when a network connection is available.
 This approach has the advantage of enabling disconnected operation on mobile devices, and high availability in geo-replicated settings.
 It also improves performance for end users because the duration of a user request is independent of any network latency.
 
-Dropbox and Google Drive are widely-deployed examples of optimistically replicated filesystems: they run a daemon on the user's machine that watches a designated directory for changes, and locally maintains a database with the user's tree of files and directories.
+Dropbox and Google Drive are widely-deployed examples of optimistically replicated filesystems: they run a daemon on the user's machine that watches a designated directory for changes.
 The user can read and arbitrarily modify the files on their local disk, even while their computer is offline.
 However, when the filesystem is concurrently updated on different computers, Google Drive and Dropbox exhibit bugs in their concurrency control, as we show in \S\ref{sec:move-is-hard}.
 
-In this paper we introduce a novel algorithm for handling concurrent updates to a replicated tree, such as a filesystem or XML database.
-It allows replicas to manipulate the tree by creating new nodes, deleting nodes, or moving subtrees to a new location within the tree.
-In order to rule out bugs like those in Google Drive we formally prove the correctness of our algorithm using the Isabelle/HOL proof assistant.
+In this paper we introduce a novel algorithm for handling concurrent updates to a replicated tree, such as an XML document or filesystem.
+It allows replicas to manipulate the tree by creating nodes, deleting nodes, or moving subtrees to a new location within the tree.
+We rule out bugs like those in Google Drive by formally proving our algorithm correct using the Isabelle/HOL proof assistant.
 
 Our algorithm supports optimistic replication, allowing replicas to temporarily diverge as they are updated, and ensuring that they always converge towards a consistent state.
-It is an example of a \emph{Conflict-free Replicated Data Type} or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un}, and it guarantees a consistency model called \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
-Our contributions in this paper are:
+It is an example of a \emph{Conflict-free Replicated Data Type} or CRDT~\cite{Shapiro:2011un}, and it guarantees a consistency model called \emph{strong eventual consistency}~\cite{Shapiro:2011un,Gomes:2017gy}.
+Our contributions are:
 \begin{itemize}
-    \item We define a Conflict-free Replicated Data Type for trees that supports a \emph{move} operation, without requiring any coordination between replicas such as locking or consensus.
+    \item We define a Conflict-free Replicated Data Type for trees that allow \emph{move} operations without any coordination between replicas such as locking or consensus.
         As discussed in \S\ref{sec:impossibility}, this has previously been thought to be impossible to achieve \cite{Najafzadeh:2017vk,Najafzadeh:2018bw}.
     \item We formalise the algorithm using Isabelle/HOL \cite{DBLP:conf/tphol/WenzelPN08}, a proof assistant based on higher-order logic, and obtain a computer-checked proof of correctness.
-        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge to a consistent state (strong eventual consistency) while keeping the data in a tree structure.
+        In particular, we prove that arbitrary concurrent modifications to the tree can be merged such that all replicas converge to a consistent state, while preserving the tree structure.
+        Our proof technique can also be applied to other distributed systems, making it of independent interest.
     \item To demonstrate the practical viability of our approach, we refine the algorithm to an executable implementation within Isabelle/HOL and prove the equivalence of the two.
-        We then extract a formally verified Scala implementation from Isabelle and evaluate its performance with replicas across three continents.
+        We extract a formally verified Scala implementation from Isabelle and evaluate its performance with replicas across three continents.
     \item We perform experiments with Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
 
@@ -140,13 +145,13 @@ Our contributions in this paper are:
   };
   \node [rectangle,draw,inner sep=3mm] (merge1) at (8.2,3) {?};
   \node [rectangle,draw,inner sep=3mm] (merge2) at (8.2,0) {?};
-  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $B$} (change1.west);
+  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt,font=\footnotesize] {Move $A$ to be a child of $B$} (change1.west);
   \draw [time] (change1.east) -- (merge1.west);
-  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $C$} (change2.west);
+  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt,font=\footnotesize] {Move $A$ to be a child of $C$} (change2.west);
   \draw [time] (change2.east) -- (merge2.west);
   \draw [network] (6.5,0) to [out=90,in=270] (7.2,3);
   \draw [network] (6.5,3) to [out=270,in=90] (7.2,0);
-  \node [rotate=90,blue,font=\footnotesize] at (7.5,1.5) {network communication};
+  \node [rotate=90,blue,font=\footnotesize,align=center] at (7.5,1.5) {network\\communication};
   \path [draw,dotted] (-3.1,1.5) -- (8.7,1.5);
   %%%
   \node [fill=red!15] at (9.83,4.10) {(\emph{a})};
@@ -225,13 +230,13 @@ Our contributions in this paper are:
   };
   \node [rectangle,draw,inner sep=3mm] (merge1) at (8,3) {?};
   \node [rectangle,draw,inner sep=3mm] (merge2) at (8,0) {?};
-  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $B$ to be a child of $A$} (change1.west);
+  \draw [time] (start1.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt,font=\footnotesize] {Move $B$ to be a child of $A$} (change1.west);
   \draw [time] (change1.east) -- (merge1.west);
-  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt] {Move $A$ to be a child of $B$} (change2.west);
+  \draw [time] (start2.east) -- node [above,text width=2.5cm,text centered,inner ysep=5pt,font=\footnotesize] {Move $A$ to be a child of $B$} (change2.west);
   \draw [time] (change2.east) -- (merge2.west);
   \draw [network] (6.0,0) to [out=90,in=270] (6.7,3);
   \draw [network] (6.0,3) to [out=270,in=90] (6.7,0);
-  \node [rotate=90,blue,font=\footnotesize] at (7.0,1.5) {network communication};
+  \node [rotate=90,blue,font=\footnotesize,align=center] at (7.0,1.5) {network\\communication};
   \path [draw,dotted] (-2.5,1.6) -- (8.5,1.6);
   %%%%%
   \node [rectangle,draw] at (10.95,3) {
@@ -287,7 +292,7 @@ Applications that rely on a tree data model often need to move a node from one l
         Moreover, renaming a file or directory is equivalent to moving it to a new name without changing its parent directory.
     \item In a rich text editor, a paragraph can be turned into a bullet point.
         In the XML tree this corresponds to creating new list and bullet point nodes, and then moving the paragraph node inside the bullet point.
-    \item In presentation software, grouping two graphical objects corresponds to creating a new group node, and then moving the two objects into the new group node.
+    \item In graphics software, grouping two objects corresponds to creating a new group node, and then moving the two objects into the new group node.
 \end{itemize}
 As these operations are so common, it is not obvious why a move operation should be difficult in a replicated setting.
 In this section we demonstrate some problems that arise with replicated trees, before proceeding to our solution in \S\ref{sec:algorithm}.
@@ -301,7 +306,7 @@ After the replicas communicate, what should the merged state of the tree be?
 If a move operation is implemented by deleting the moved subtree from its old location, and then re-creating it at the new location, the merged state will be as shown in Figure \ref{fig:move-same-item}a: the concurrent moves will duplicate the moved subtree, since each move independently recreates the subtree in each destination location.
 We believe that this duplication is undesirable, since subsequent edits to nodes in the duplicated subtree will apply to only one of the copies.
 Two users who believe they are collaborating on the same file may in fact be editing two different copies, which will then become inconsistent with each other.
-In the rich text editor and presentation software examples, such duplication is also undesirable.
+In the rich text editor and graphics software examples, such duplication is also undesirable.
 
 Another possible resolution is for the destination locations of both moves to refer to the same node, as shown in Figure~\ref{fig:move-same-item}b.
 However, the result is a DAG, not a tree.
@@ -310,7 +315,7 @@ POSIX filesystems do not allow this outcome, since they do not allow hardlinks t
 In our opinion, the only reasonable outcomes are those shown in Figure~\ref{fig:move-same-item}c and~\ref{fig:move-same-item}d: the moved subtree appears either in replica 1's destination location or in replica 2's destination location, but not in both.
 Which one of these two is picked is arbitrary, due to the symmetry between the two replicas.
 The ``winning'' location could be picked based on a timestamp in the operations, similarly to the ``last writer wins'' conflict resolution method of Thomas's write rule~\cite{Johnson:1975we}.
-(The \emph{timestamp} in this context need not come from a physical clock; it could also be logical, such as a Lamport timestamp~\cite{Lamport:1978jq}.)
+The \emph{timestamp} in this context need not come from a physical clock; it could also be logical, such as a Lamport timestamp~\cite{Lamport:1978jq}.
 
 We tested this scenario with file sync products Dropbox and Google Drive by concurrently moving the same directory to two different destination directories.\footnote{Experiment setup: we installed the official Mac OS clients for Dropbox and Google Drive on two computers, logged into the same Dropbox/Google accounts, and configured them to sync a directory on the local filesystem.
 To test concurrent operations, we disconnected both computers from the Internet, performed a move operation on the local filesystem of each computer, then reconnected and waited for them to sync.}
@@ -327,7 +332,7 @@ In an unreplicated tree it is easy to prevent cycles being introduced: if the no
 However, in a replicated setting, different replicas may perform operations that are individually safe, but whose combination leads to a cycle.
 One such example is illustrated in Figure~\ref{fig:move-cycle}.
 Here, replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$.
-As each replica propagates its operation to the other replica, a careless implementation might end up as shown in Figure~\ref{fig:move-cycle}a, in which $A$ and $B$ have formed a cycle, detached from the tree.
+As each replica propagates its operation to the other replica, a careless implementation might end up in the state shown in Figure~\ref{fig:move-cycle}a: $A$ and $B$ have formed a cycle, detached from the tree.
 
 Another possible resolution is shown in Figure~\ref{fig:move-cycle}b: the nodes involved in the concurrent moves (and their children) could be duplicated, so that both ``$A$ as a child of $B$'' and ``$B$ as a child of $A$'' can exist in the tree.
 However, such duplication is undesirable for the same reasons as in \S\ref{sec:move-same-item}.
@@ -454,7 +459,7 @@ Figure~\ref{fig:code} gives the full source code for our algorithm in the Isabel
 We choose this language because it combines the conciseness of pseudocode with the precision of mathematical notation.
 It supports formal reasoning, allowing us to prove the correctness of the algorithm (\S\ref{sec:proof}), and it can be exported to Scala, Haskell, or OCaml.
 
-In this section we walk through the code in Figure~\ref{fig:code} step by step, explaining the Isabelle/HOL syntax as we encounter it.
+In this section we walk through the code step by step, explaining the Isabelle/HOL syntax as we encounter it.
 Additional background documentation is available~\cite{DBLP:books/sp/NipkowK14}.
 
 \subsection{Operations and trees}\label{sec:ops-trees}
@@ -473,10 +478,10 @@ The operation does not specify the old location of \isa{c}; the algorithm simply
 If \isa{c} does not currently exist in the tree, it is created as a child of \isa{p}.
 
 The metadata field \isa{m} in a move operation allows additional information to be associated with the parent-child relationship of \isa{p} and \isa{c}.
-For example, in a filesystem, the parent and child would be the inodes of a directory and a file within it, respectively, and the metadata would contain the filename of the child.
-Thus, a file with inode \isa{c} can be renamed by performing a \isa{Move t p m c}, where the new parent directory \isa{p} is the unchanged inode of the existing parent directory, but the metadata \isa{m} contains the new filename.
+For example, in a filesystem, the parent and child are the inodes of a directory and a file within it, respectively, and the metadata contains the filename of the child.
+Thus, a file with inode \isa{c} can be renamed by performing a \isa{Move t p m c}, where the new parent directory \isa{p} is the inode of the existing parent (unchanged), but the metadata \isa{m} contains the new filename.
 
-When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations to their local replica using the algorithm described in the rest of this section.
+When users want to make changes to the tree on their local replica, they generate new \isa{Move t p m c} operations for these changes, and apply these operations using the algorithm described in the rest of this section.
 
 We can represent the tree as a set of \isa{(parent, meta, child)} triples, denoted in Isabelle/HOL as \isa{('n {\isasymtimes} 'm {\isasymtimes} 'n) set}.
 When we have \isa{(p, m, c) {\isasymin} tree}, that means \isa{c} is a child of \isa{p} in the tree, with associated metadata \isa{m}.
@@ -613,9 +618,7 @@ We discuss distributed filesystems further in \S\ref{sec:filesystems}.
 
 We now discuss the correctness properties of the algorithm from \S\ref{sec:algorithm}.
 All theorems stated here have been formally proved and mechanically checked using Isabelle.
-For space reasons we give only a brief sketch of the proofs in this paper; the Isabelle files containing the full details are open source [URL omitted for blind review].
-
-% TODO \cite{SourceFiles}
+For space reasons we give only a brief sketch of the proofs in this paper; the Isabelle files containing the full details are open source~\cite{SourceFiles}.
 
 To reason about the state of a replica we first define the function \isa{apply\_ops} on lines 51--52 of Figure~\ref{fig:code}.
 It takes a list of operations \isa{ops} and returns the state of a replica after it has applied all the operations in \isa{ops}.
@@ -766,7 +769,7 @@ We can easily generalise this to show that any number of operations commute: giv
 
 Gomes et al.~\cite{Gomes:2017gy} define a framework in Isabelle/HOL for proving the strong eventual consistency properties of CRDTs above an axiomatic network model.
 Using our commutativity proof above we integrate our tree datatype with this framework, and thus prove that our move operation on trees does indeed guarantee strong eventual consistency.
-The details appear in our Isabelle theory files [URL omitted for blind review]. % \cite{SourceFiles}.
+The details appear in our Isabelle theory files~\cite{SourceFiles}.
 
 \subsection{Making the HOL definitions executable} \label{subsect.extracting}
 
@@ -911,7 +914,7 @@ Hence, we focus on systems that automatically ensure that all replicas converge 
 
 \subsection{Conflict-free Replicated Data Types}
 
-Our algorithm is an example of an operation-based Conflict-free Replicated Data Type or CRDT~\cite{Shapiro:2011wy,Shapiro:2011un,Burckhardt:2014ft}.
+Our algorithm is an example of an operation-based Conflict-free Replicated Data Type or CRDT~\cite{Shapiro:2011un,Burckhardt:2014ft}.
 All CRDTs share the property that concurrent changes on different replicas can be merged in any order; any two replicas that have seen the same set of updates are guaranteed to be in the same state, regardless of the order in which they processed these updates.
 Several CRDTs for trees have been proposed:
 \begin{itemize}
@@ -975,7 +978,7 @@ After we performed the experiments described in Section~\ref{sec:move-is-hard}, 
 
 Our approach of ordering operations by a timestamp, and undoing/redoing them as necessary so that they take effect in ascending timestamp order, is conceptually a very simple approach---although the details of the implementation are a bit subtle.
 Similar ideas appear in many other systems, including the Bayou database~\cite{Terry:1995dn}, Jefferson's \emph{Time Warp} mechanism~\cite{Jefferson:1985em}, Shapiro et al.'s \emph{capricious total order}~\cite{Shapiro:2016hp}, and Burckhardt's \emph{standard conflict resolution}~\cite[{\S}4.3.3]{Burckhardt:2014hy}.
-The concept of undo-redo is also well known from write-ahead logging~\cite{Mohan:1992fe,Mohan:1992hc}.
+The concept of undo-redo is also well known from write-ahead logging~\cite{Mohan:1992fe}.
 
 However, to our knowledge, this approach has not previously been applied to the problem of replicated trees, nor are we aware of previous mechanised proofs (using Isabelle or other tools) that formalise this approach.
 The simplicity of the approach facilitates reasoning about it.
