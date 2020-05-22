@@ -10,7 +10,7 @@
 
 \usepackage{lineno}
 \usepackage{isabelle,isabellesym}
-\isabellestyle{rm}
+\isabellestyle{it}
 \renewenvironment{isabelle}{%
   \medbreak\indent%
   \renewcommand{\isanewline}{\\}%
@@ -367,14 +367,14 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \internallinenumbers
 \isacommand{datatype}\isamarkupfalse%
 \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\isanewline
-\ \ {\isacharequal}\ Move\ {\isacharparenleft}move{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
+\ \ {\isacharequal}\ {\rm Move}\ {\isacharparenleft}move{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}parent{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}meta{\isacharcolon}\ {\isacharprime}m{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ {\isacharparenleft}move{\isacharunderscore}child{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
 \isanewline
 \isacommand{datatype}\isamarkupfalse%
 \ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\isanewline
-\ \ {\isacharequal}\ LogMove\ {\isacharparenleft}log{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
+\ \ {\isacharequal}\ {\rm LogMove}\ {\isacharparenleft}log{\isacharunderscore}time{\isacharcolon}\ {\isacharprime}t{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}old{\isacharunderscore}parent{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m{\isacharparenright}\ option{\isacartoucheclose}{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}new{\isacharunderscore}parent{\isacharcolon}\ {\isacharprime}n{\isacharparenright}\isanewline
 \ \ \ \ \ \ \ \ \ \ \ \ {\isacharparenleft}log{\isacharunderscore}meta{\isacharcolon}\ {\isacharprime}m{\isacharparenright}\isanewline
@@ -386,9 +386,9 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \isacommand{definition}\isamarkupfalse%
 \ get{\isacharunderscore}parent\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m{\isacharparenright}\ option{\isacartoucheclose}\ \isakeyword{where}\isanewline
 \ \ {\isacartoucheopen}get{\isacharunderscore}parent\ tree\ child\ {\isasymequiv}\isanewline
-\ \ \ \ \ if\ {\isasymexists}{\isacharbang}parent{\isachardot}\ {\isasymexists}{\isacharbang}meta{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree\ then\isanewline
-\ \ \ \ \ \ \ Some\ {\isacharparenleft}THE\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharparenright}{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isacharparenright}\isanewline
-\ \ \ \ \ else\ None{\isacartoucheclose}\isanewline
+\ \ \ \ \ \isacommand{if}\ {\isasymexists}{\isacharbang}parent{\isachardot}\ {\isasymexists}{\isacharbang}meta{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree\ \isacommand{then}\isanewline
+\ \ \ \ \ \ \ {\rm Some}\ {\isacharparenleft}{\rm THE}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharparenright}{\isachardot}\ {\isacharparenleft}parent{\isacharcomma}\ meta{\isacharcomma}\ child{\isacharparenright}\ {\isasymin}\ tree{\isacharparenright}\isanewline
+\ \ \ \ \ \isacommand{else}\ {\rm None}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{inductive}\isamarkupfalse%
 \ ancestor\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ {\isacharprime}n\ {\isasymRightarrow}\ bool{\isacartoucheclose}\ \isakeyword{where}\isanewline
@@ -397,32 +397,32 @@ We give a precise specification of our algorithm's consistency properties in \S\
 \isanewline
 \isacommand{fun}\isamarkupfalse%
 \ do{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
-\ \ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}Move\ t\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
-\ \ \ \ \ {\isacharparenleft}LogMove\ t\ {\isacharparenleft}get{\isacharunderscore}parent\ tree\ c{\isacharparenright}\ newp\ m\ c{\isacharcomma}\isanewline
-\ \ \ \ \ \ if\ ancestor\ tree\ c\ newp\ {\isasymor}\ c\ {\isacharequal}\ newp\ then\ tree\isanewline
-\ \ \ \ \ \ else\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}\ {\isasymunion}\ {\isacharbraceleft}{\isacharparenleft}newp{\isacharcomma}\ m{\isacharcomma}\ c{\isacharparenright}{\isacharbraceright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ {\isacartoucheopen}do{\isacharunderscore}op\ {\isacharparenleft}{\rm Move}\ t\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}{\rm LogMove}\ t\ {\isacharparenleft}get{\isacharunderscore}parent\ tree\ c{\isacharparenright}\ newp\ m\ c{\isacharcomma}\isanewline
+\ \ \ \ \ \ \isacommand{if}\ ancestor\ tree\ c\ newp\ {\isasymor}\ c\ {\isacharequal}\ newp\ \isacommand{then}\ tree\isanewline
+\ \ \ \ \ \ \isacommand{else}\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}\ {\isasymunion}\ {\isacharbraceleft}{\isacharparenleft}newp{\isacharcomma}\ m{\isacharcomma}\ c{\isacharparenright}{\isacharbraceright}{\isacharparenright}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{fun}\isamarkupfalse%
 \ undo{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymtimes}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}n\ {\isasymtimes}\ {\isacharprime}m\ {\isasymtimes}\ {\isacharprime}n{\isacharparenright}\ set{\isacartoucheclose}\ \isakeyword{where}\isanewline
-\ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ None\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}{\isacartoucheclose}\ {\isacharbar}\isanewline
-\ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ {\isacharparenleft}Some\ {\isacharparenleft}oldp{\isacharcomma}\ oldm{\isacharparenright}{\isacharparenright}\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+    \ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}{\rm LogMove}\ t\ {\rm None}\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}{\isacartoucheclose}\ {\isacharbar}\isanewline
+\ \ {\isacartoucheopen}undo{\isacharunderscore}op\ {\isacharparenleft}{\rm LogMove}\ t\ {\isacharparenleft}{\rm Some}\ {\isacharparenleft}oldp{\isacharcomma}\ oldm{\isacharparenright}{\isacharparenright}\ newp\ m\ c{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
 \ \ \ \ \ {\isacharbraceleft}{\isacharparenleft}p{\isacharprime}{\isacharcomma}\ m{\isacharprime}{\isacharcomma}\ c{\isacharprime}{\isacharparenright}\ {\isasymin}\ tree{\isachardot}\ c{\isacharprime}\ {\isasymnoteq}\ c{\isacharbraceright}\ {\isasymunion}\ {\isacharbraceleft}{\isacharparenleft}oldp{\isacharcomma}\ oldm{\isacharcomma}\ c{\isacharparenright}{\isacharbraceright}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{fun}\isamarkupfalse%
 \ redo{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ log{\isacharunderscore}op\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
-\ \ {\isacartoucheopen}redo{\isacharunderscore}op\ {\isacharparenleft}LogMove\ t\ {\isacharunderscore}\ p\ m\ c{\isacharparenright}\ {\isacharparenleft}ops{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
-\ \ \ \ \ {\isacharparenleft}let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}Move\ t\ p\ m\ c{\isacharcomma}\ tree{\isacharparenright}\isanewline
-\ \ \ \ \ \ in\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ {\isacartoucheopen}redo{\isacharunderscore}op\ {\isacharparenleft}{\rm LogMove}\ t\ {\isacharunderscore}\ p\ m\ c{\isacharparenright}\ {\isacharparenleft}ops{\isacharcomma}\ tree{\isacharparenright}\ {\isacharequal}\isanewline
+\ \ \ \ \ {\isacharparenleft}\isacommand{let}\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}{\rm Move}\ t\ p\ m\ c{\isacharcomma}\ tree{\isacharparenright}\isanewline
+\ \ \ \ \ \ \isacommand{in}\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{fun}\isamarkupfalse%
 \ apply{\isacharunderscore}op\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
 \ \ {\isacartoucheopen}apply{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}{\isacharbrackleft}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ {\isacharequal}\isanewline
-\ \ \ \ \ {\isacharparenleft}let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\isanewline
-\ \ \ \ \ \ in\ {\isacharparenleft}{\isacharbrackleft}op{\isadigit{2}}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\ {\isacharbar}\isanewline
+\ \ \ \ \ {\isacharparenleft}\isacommand{let}\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\isanewline
+\ \ \ \ \ \ \isacommand{in}\ {\isacharparenleft}{\isacharbrackleft}op{\isadigit{2}}{\isacharbrackright}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\ {\isacharbar}\isanewline
 \ \ {\isacartoucheopen}apply{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}logop\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ {\isacharequal}\isanewline
-\ \ \ \ \ {\isacharparenleft}if\ move{\isacharunderscore}time\ op{\isadigit{1}}\ {\isacharless}\ log{\isacharunderscore}time\ logop\isanewline
-\ \ \ \ \ \ then\ redo{\isacharunderscore}op\ logop\ {\isacharparenleft}apply{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}ops{\isacharcomma}\ undo{\isacharunderscore}op\ {\isacharparenleft}logop{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}{\isacharparenright}{\isacharparenright}\isanewline
-\ \ \ \ \ \ else\ let\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ in\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ logop\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
+\ \ \ \ \ {\isacharparenleft}\isacommand{if}\ move{\isacharunderscore}time\ op{\isadigit{1}}\ {\isacharless}\ log{\isacharunderscore}time\ logop\isanewline
+\ \ \ \ \ \ \isacommand{then}\ redo{\isacharunderscore}op\ logop\ {\isacharparenleft}apply{\isacharunderscore}op\ op{\isadigit{1}}\ {\isacharparenleft}ops{\isacharcomma}\ undo{\isacharunderscore}op\ {\isacharparenleft}logop{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}{\isacharparenright}{\isacharparenright}\isanewline
+\ \ \ \ \ \ \isacommand{else}\ \isacommand{let}\ {\isacharparenleft}op{\isadigit{2}}{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}\ {\isacharequal}\ do{\isacharunderscore}op\ {\isacharparenleft}op{\isadigit{1}}{\isacharcomma}\ tree{\isadigit{1}}{\isacharparenright}\ \isacommand{in}\ {\isacharparenleft}op{\isadigit{2}}\ {\isacharhash}\ logop\ {\isacharhash}\ ops{\isacharcomma}\ tree{\isadigit{2}}{\isacharparenright}{\isacharparenright}{\isacartoucheclose}\isanewline
 \isanewline
 \isacommand{definition}\isamarkupfalse%
 \ apply{\isacharunderscore}ops\ {\isacharcolon}{\isacharcolon}\ {\isacartoucheopen}{\isacharparenleft}{\isacharprime}t{\isacharcolon}{\isacharcolon}{\isacharbraceleft}linorder{\isacharbraceright}{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ operation\ list\ {\isasymRightarrow}\ {\isacharparenleft}{\isacharprime}t{\isacharcomma}\ {\isacharprime}n{\isacharcomma}\ {\isacharprime}m{\isacharparenright}\ state{\isacartoucheclose}\ \isakeyword{where}\isanewline
