@@ -11,6 +11,7 @@ Proofs
 The [Isabelle/HOL](http://isabelle.in.tum.de/) formalisation and proof of correctness can be found
 in the following files:
 
+* `proof.pdf` contains a PDF rendering of the whole proof.
 * `Move.thy` contains the definition of the move algorithm for trees, a proof that a tree node
   has at most one parent, and a proof that the move operation is commutative.
 * `Move_Acyclic.thy` contains a proof that the tree contains no cycles.
@@ -18,6 +19,17 @@ in the following files:
   as formalised in [our proof framework](https://dl.acm.org/doi/10.1145/3133933).
 * `Move_Code.thy` contains an alternative definition of the algorithm that is efficiently
   executable, and a proof that it is equivalent to the earlier, more abstract algorithm.
+
+To check the proofs, [download Isabelle](https://isabelle.in.tum.de/) and install it.
+The `Move_SEC` theory depends on the definition of Strong Eventual Consistency in the
+[Isabelle Archive of Formal Proofs](https://www.isa-afp.org/entries/CRDT.html). Download a
+[release](https://www.isa-afp.org/download.html) of the AfP and
+[configure your Isabelle installation to use it](https://www.isa-afp.org/using.html).
+
+You can either run the Isabelle GUI interactively, or you can run it from the command line.
+This is how you run it on Mac OS (adjust the path to your Isabelle installation):
+
+    /Applications/Isabelle2019.app/Isabelle/bin/isabelle build -D .
 
 The Isabelle-generated Scala source is written to `evaluation/src/main/scala/Move_Code.scala`,
 where it is picked up by the evaluation (see below).
