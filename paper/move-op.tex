@@ -277,6 +277,13 @@ Our contributions are:
 \caption{Initially, nodes $A$ and $B$ are siblings. Replica 1 moves $B$ to be a child of $A$, while concurrently replica 2 moves $A$ to be a child of $B$. Boxes (\emph{a}) to (\emph{d}) show possible outcomes after the replicas have communicated and merged their states.}\label{fig:move-cycle}
 \end{figure*}
 
+\begin{figure*}
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio=true]{gdrive-error.png}
+  \caption{Error message produced by Google Drive Backup and Sync on Mac OS as a result of performing the operations shown in Figure~\ref{fig:move-cycle}, indicating a bug in the underlying replication algorithm.}
+  \label{fig:gdrive-error}
+\end{figure*}
+
 \section{Why a move operation is hard}\label{sec:move-is-hard}
 
 Applications that rely on a tree data model often need to move a node from one location to another location within the tree, such that all of its children move along with it:
@@ -334,7 +341,7 @@ In our opinion, the best way of handling the conflicting operations of Figure~\r
 Like in \S\ref{sec:move-same-item}, the winning operation can be picked based on a timestamp.
 
 As before, we tested this scenario with Google Drive and Dropbox.
-In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed an ``unknown error'' message.
+In Google Drive, one replica was able to successfully sync with the server, while the other replica displayed the ``unknown error'' message shown in Figure~\ref{fig:gdrive-error}.
 The replica in an error state refused to sync the conflicting directory, and its filesystem state remained permanently inconsistent with the other replica.
 This error state persisted until the directories on the erroring replica were manually moved to match the state of the other replica.
 We have reported this bug to Google.
@@ -845,7 +852,7 @@ In an attempt to test Rumor's conflict handling we obtained the source code from
 Unison is a file synchronisation tool with a formal specification that allows two replicas to synchronise the state of a directory~\cite{PierceVouillon:UnisonSpecTR}.
 It permits offline updates to both replicas.
 Like Rumor, Unison is a userspace process that compares replica states.
-Whenever it is run, Unison determines the changes made since the last synchronisation. 
+Whenever it is run, Unison records a summary of the filesystem state on each replica, and it uses this summary to determine the changes made since the last synchronisation. 
 When presented with the move operations described in Figure~\ref{fig:move-same-item}, Unison duplicates the files, resulting in the outcome shown in Figure~\ref{fig:move-same-item}a. 
 Unison is unable to automatically synchronise the move operations shown in Figure~\ref{fig:move-cycle} and instead asks the user to choose one of four possible resolutions: those shown in Figure~\ref{fig:move-cycle}b, \ref{fig:move-cycle}c, \ref{fig:move-cycle}d, or to delete both directories.
 
@@ -877,7 +884,7 @@ This approach means that user interaction is consistently fast, even in the face
 The principle behind our algorithm is easy to understand: undoing and redoing operations so that they are effectively executed in timestamp order.
 Nevertheless, it solves a real problem that has not been solved correctly in widely deployed software such as Google Drive and Dropbox, as we demonstrated in \S\ref{sec:move-is-hard}.
 To rule out such bugs, we formally verified the correctness of our algorithm using the Isabelle/HOL proof assistant; our theorems show that replicas can apply operations in any order, and that the result is always a valid tree (nodes have at most one parent, and the graph does not contain any cycles).
-Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an advantage of using a proof assistant rather than model checking.
+Moreover, these results apply to unbounded executions and an arbitrary number of replicas---an advantage of using a proof assistant rather than other formal approaches such as model checking.
 
 One might wonder whether our algorithm's consistency model is strong enough for practical use.
 On this point, we note that this model is what Google Drive and Dropbox use today~\cite{Hughes:2016fp} (apart from the aforementioned bugs).
