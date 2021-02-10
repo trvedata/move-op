@@ -1,0 +1,192 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{spverbatim}
+\sloppy
+
+\usepackage{xr}
+\externaldocument{move-op}
+
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\authorcomment}[1]{\begin{quote}\textbf{Author comment:} #1\end{quote}}
+
+\begin{document}
+\title{Summary of changes of ``A highly-available move operation for replicated trees''}
+\author{Martin Kleppmann, Dominic P.\ Mulligan, Victor B.F.\ Gomes, Alastair R.\ Beresford}
+\date{}
+\maketitle
+
+We thank the reviewers very much for their comments, which have improved the paper.
+In this document we explain how we have addressed the issues highlighted in the reviews.
+The most important changes are as follows:
+\begin{itemize}
+\item We have changed the title (previously \emph{``A highly-available move operation for replicated trees and distributed filesystems''}) to remove \emph{``and distributed filesystems''}, as suggested by Reviewer 2.
+\end{itemize}
+
+\section{Reviewer 1}
+
+\begin{spverbatim}
+Recommendation: Author Should Prepare A Major Revision For A Second Review
+
+Comments:
+Introduction section offers very brief and simplified coverage of common topics and don't really offer anything new.
+It would be even more valuable if some critical comparisons were made among the systems and approaches. There is no discussion that could help the reader understand that, given a particular system/approach configuration or set of performance or availability goals, approach X would be preferable to approach Y.
+In Section 3.5, please explain all cases with examples.
+My main concern is whether the comparison is fair. It shows that some results are achievable. How could one trustfully decide to apply the operations on the basis of these results for another scenario?
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: It presents move operation for distributed filesystems.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Yes
+
+1. Which category describes this manuscript?: Practice / Application / Case Study / Experience Report
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: Important references are missing; more references are needed
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Could be improved
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Could be improved
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Readable - but requires some effort to understand
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the digital library for this submission if accepted
+
+7. If yes to 6, should it be accepted: After revisions.  Please include explanation under Public Comments below.
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: Yes
+
+Please rate the manuscript. Please explain your choice.: Good
+\end{spverbatim}
+
+
+\section{Reviewer 2}
+
+\begin{spverbatim}
+Recommendation: Author Should Prepare A Major Revision For A Second Review
+
+Comments:
+## Is the manuscript technically sound?
+Yes. As stated before the paper has a clear contribution, which includes a mechanised proof of the algorithm correctness. Moreover, the proof code is presented in the appendix and is available online with instructions on how to check proofs locally.
+
+## How relevant is this manuscript to the readers of this periodical?
+The topic is relevant for TPDS community as it proposes a distributed algorithm to support optimistic replication of tree data structures.
+
+## Are the title, abstract, and keywords appropriate?
+Yes. However, it is unclear why is necessary to include "distributed filesystems" in the title. The work is concerned with a tree replicated datatype and distributed filesystems is an application.
+
+## Does the manuscript contain sufficient and appropriate references?
+The following reference should be included and is missing:
+
+De Porre K, Myter F, De Troyer C, Scholliers C, De Meuter W, Boix EG. Putting order in strong eventual consistency. In IFIP International Conference on Distributed Applications and Interoperable Systems 2019 Jun 17 (pp. 36-56). Springer, Cham.
+
+De Porre et al. work proposes an optimistic replication algorithm that can transform a general-purpose data type into a replicated data type. Similarly to the submitted paper, strong eventual consistency is ensured by maintaining a global total order of the operations. Since the case study in De Porre's paper is an AVL tree, a comparison should be included in the related work.
+
+## Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on?
+I found the introduction enticing and, although brief, it does a great job in defining the context, illustrating the problem, and clearly defining the contributions.
+
+## How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic?
+The paper is well structured. I particularly liked section 2 that clearly illustrates the main issues with concurrent non-coordinated move operations. Also, by showing that the replicated filesystems of Dropbox and Google drive both have bugs demonstrates how difficult is to devise a correct resolution policy for the move operation. Overall, section 2 nicely shows the work relevance and potential impact without getting too technical.
+The replication algorithm is thoroughly described and the proof of correctness is presented at the right level of detail - although the proofs are an essential component a more detailed presentation would become tedious.  
+
+## Please rate the readability of the manuscript.
+The paper is well written and easy to follow.
+
+## Detailed comments
+
+C1: The system model and network requirements should be explicitly defined.
+
+C2: Is the metadata parameter necessary? It seems that this parameter could be abstracted away which would simplify the algorithm presentation.
+
+C3: Further justification is needed for choosing to encode add and remove operations as move operations. My intuition, base on previously published results as CISE and Hamsaz, is that not all operations need to follow a total ordered across replicas. However, because all operations are defined as moves, conflicts are always possible. I was left wondering if by having explicit add and remove operations some undo-do-redo cycles could be avoided.
+
+C4: Instead of having an undo-do-redo cycle would it be possible to have state checkpoints? As operations might arrive in any order, the number of operations to undo can be high, in that case, it might be useful to have state checkpoints and combine these with undo operations.
+
+C5: Notation is not consistent. It is stated that types are primed letters (2nd paragraph of section 3.1), however, this naming convention is dropped later on.
+
+C6: The evaluation proves the point that the tree CRDT is the best option for fast response time and disconnected mode (in this case it is the only option).
+
+C7: The choice of using the extracted code for the evaluation is questionable. Stating that the code could be optimised, does not provide useful information. It is unclear what the impact would be if optimisations were applied. It's reasonable to conclude that the comparison between the proposed CRDT and state machine replication would be maintained, but the optimised code would give a clear evaluation of the tree CRDT.
+
+## Overall evaluation
+
+I really enjoyed reading this paper, it's well written and easy to follow and addresses a relevant topic to the TPDS community.
+It has a novel contribution as it defines an optimistic replication algorithm for trees that ensures convergence and the structural properties of trees. The idea behind the tree CRDT is simple, but it provides a solution to an existing problem. The fact that authors found problems in widely used applications that could be addressed with the tree CRDT proves its usefulness.
+The fact the CRDT was formally verified for any number of replicas and a certified implementation was extracted from the formal definitions, strengths considerably the submission.
+There are some choices that need to be further discussed and the evaluation should consider an optimised implementation of the algorithm.
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: The paper presents the first tree replicated data type that allows concurrent move operations without any coordination between replicas. The tree data type relies on an optimistic replication algorithm that ensures state convergence and that the tree structure properties are preserved at all times. Given the complex (inductive) structure of trees, a strong point of the work is the mechanised proof that provides certification for the correctness of the algorithm.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Yes
+
+1. Which category describes this manuscript?: Research/Technology
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: Important references are missing; more references are needed
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Yes
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Satisfactory
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Easy to read
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the digital library for this submission if accepted
+
+7. If yes to 6, should it be accepted: After revisions.  Please include explanation under Public Comments below.
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: No
+
+Please rate the manuscript. Please explain your choice.: Excellent
+\end{spverbatim}
+
+
+\section{Reviewer 3}
+
+\begin{spverbatim}
+Recommendation: Accept With No Changes
+
+Comments:
+The paper presents an implementation of a replicated tree data type with operations for adding, removing, and moving tree nodes. Replicated tree data types are essential basic blocks of a wide range of distributed software like distributed file systems, editors, applications manipulating XML/JSON structures, etc. While replication is needed to ensure resilience to network/machine failures, an important and difficult challenge in this context is ensuring some form of convergence, e.g., that all the nodes storing a replica of the data structure (tree) reach the same state when all the updates have been propagated in the network. This is an instance of strong eventual consistency. The paper presents a solution to this challenge that provides high availability as well (clients do not need to wait for the replicas to synchronize), and that is also formally verified in the Isabelle/HOL theorem prover.
+
+The paper starts with a very clear description of the motivation, noting that current solutions for the above challenge, deployed in Google Drive or Dropbox, are not satisfactory. The Google Drive solution may lead to unexpected errors while the Dropbox solution may duplicate nodes of the tree which may impact the user experience. It identifies the main challenge in designing replicated trees which is related to the move operation: moving a tree node so that it becomes the child of a different parent. In fact, node insertion and removal can be reduced to move operations.
+
+Then, it describes an implementation that in particular, solves the issues in Google Drive or Dropbox, which is based on a very neat and simple idea. Essentially, every operation is associated with a timestamp (one can use Lamport timestamps [11] and avoid synchronized clocks), and every replica maintains a tree and a log of operations (issued locally or remote operations received from other replicas), ordered by timestamps. Applying a remote operation O with timestamp T consists in undoing operations with a timestamp bigger than T, applying O, and finally, re-applying the undone operations. This solution, which is quite generic and could be applied for other data types as well, makes it possible to handle concurrent move operations that try to move the same node (taking into account only the one with a bigger timestamp like in Last Writer Wins conflict resolution [10]), and avoid introducing cycles due to concurrent move operations. It also ensures strong eventual consistency because when all the updates are received, any two replicas apply them in the same order (according to their timestamps). The fact that the implementation satisfies strong eventual consistency and that every replica stores a tree (without cycles) is proved in the Isabelle/HOL theorem prover. The implementation in Isabelle is compiled to executable Scala code which is evaluated in a rather realistic deployment (with three replicas on different continents) and compared to a standard master-slave implementation where the order between operations is managed by a single master node. This evaluation shows that indeed, the current solution has very low latency compared to the master-slave implementation, although a smaller throughput.
+
+The related work is quite extensive, covering the literature on Conflict-Free Data Types (the implementation in this paper being an instance of such a datatype), distributed file systems (the main application of this work), and works that use similar implementation ideas, based on timestamps.
+
+Overall, I think that the paper is very well written. The motivation and the description of the challenges are very convincing, the flow of the ideas being very easy to follow. Technically, the implementation relies on an idea which is simple in hindsight, but which has not been used in previous work (up to my knowledge), and which seems to have a very important practical impact. The formalization and proofs in Isabelle/HOL are a very important and non-trivial contribution which is meant to increase the confidence we have in this solution.
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: The paper presents a new formally-verified implementation of a replicated tree data type, which is an essential ingredient of a wide range of distributed software like distributed file systems, editors, applications manipulating XML/JSON structures, etc. This implementation is highly-available (the latency of applying an operation is independent of the network's latency) and eventually consistent (all replicas reach the same state when all updates have been propagated). These properties are essential in modern distributed services. The implementation solves existing issues in industrial applications like Google Drive and Dropbox, and contradicts claims about the existence of such an implementation in previous research articles.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Yes
+
+1. Which category describes this manuscript?: Research/Technology
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Very Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: References are sufficient and appropriate
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Yes
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Satisfactory
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Easy to read
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the digital library for this submission if accepted
+
+7. If yes to 6, should it be accepted: As is
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: Yes
+
+Please rate the manuscript. Please explain your choice.: Excellent
+\end{spverbatim}
+\end{document}
