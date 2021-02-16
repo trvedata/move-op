@@ -422,26 +422,6 @@ proof -
     using ancestor_parent_exists by fastforce
 qed
 
-lemma parent_neq_child:
-  assumes \<open>distinct (map move_child (ops @ [Move t p m c]))\<close>
-    and \<open>parent_exists roots (ops @ [Move t p m c])\<close>
-    and \<open>\<forall>oper \<in> set (ops @ [Move t p m c]). move_child oper \<notin> roots\<close>
-  shows \<open>p \<noteq> c\<close>
-proof -
-  obtain log tree where tree: \<open>do_ops ops = (log, tree)\<close>
-    by fastforce
-  have \<open>c \<notin> roots\<close>
-    using assms(3) by auto
-  moreover have \<open>c \<notin> set (map move_child ops)\<close>
-    using assms(1) by auto
-  hence \<open>c \<notin> {c. \<exists>p m. (p, m, c) \<in> tree}\<close>
-    using tree do_ops_tree_child by fastforce
-  moreover have \<open>p \<in> roots \<union> {c. \<exists>p m. (p, m, c) \<in> tree}\<close>
-    using assms(2) parent_exists_tree tree by fastforce
-  ultimately show \<open>p \<noteq> c\<close>
-    by blast
-qed
-
 lemma do_ops_apply1:
   assumes \<open>parent_exists roots (ops @ [Move t p m c])\<close>
     and \<open>\<forall>oper \<in> set ops. move_child oper \<noteq> c\<close>
@@ -461,108 +441,165 @@ proof -
     using assms(5) tree2 by auto
 qed
 
+lemma ancestor_monotone:
+  assumes \<open>ancestor tree a b\<close>
+  shows \<open>ancestor (tree \<union> {(p, m, c)}) a b\<close>
+using assms proof (induction rule: ancestor.induct)
+  case (1 parent meta child tree)
+  then show \<open>ancestor (tree \<union> {(p, m, c)}) parent child\<close>
+    using ancestor.simps by fastforce
+next
+  case (2 parent meta child tree anc)
+  then show \<open>ancestor (tree \<union> {(p, m, c)}) anc child\<close>
+    using ancestor.simps by fastforce
+qed
+
+(* Intuition behind this lemma: we add a new tree edge from p to c.
+   If there is no existing edge starting at c, then after adding the
+   edge, c must be a leaf node with no children. Thus, if there was
+   previously no path from a to b, and after adding the path there
+   now is a path from a to b, then that path must end at b. *)
+lemma ancestor_no_new_path:
+  assumes \<open>\<not> ancestor tree a b\<close>
+    and \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
+    and \<open>b \<noteq> c\<close>
+  shows \<open>\<not> ancestor (tree \<union> {(p, m, c)}) a b\<close>
+  sorry
+
+lemma tree_updates_commute:
+  assumes \<open>tree2 = {(p, m, c) \<in> tree1. c \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
+    and \<open>tree3 = tree2 \<union> {(p2, m2, c2)}\<close>
+    and \<open>tree4 = tree1 \<union> {(p2, m2, c2)}\<close>
+    and \<open>tree5 = {(p, m, c) \<in> tree4. c \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
+    and \<open>c1 \<noteq> c2\<close>
+  shows \<open>tree3 = tree5\<close>
+proof -
+  have \<open>{(p, m, c) \<in> tree1. c = c1} \<inter> {(p2, m2, c2)} = {}\<close>
+    using assms(5) by auto
+  moreover have \<open>{(p, m, c) \<in> tree4. c = c1} = {(p, m, c) \<in> tree1. c = c1}\<close>
+    using assms(3) assms(5) by auto
+  moreover have \<open>{(p, m, c) \<in> tree4. c \<noteq> c1} = tree4 - {(p, m, c) \<in> tree4. c = c1}\<close>
+    by auto
+  ultimately show \<open>tree3 = tree5\<close>
+    using assms(1) assms(2) assms(3) assms(4) by auto
+qed
+
 lemma do_ops_commute:
-  assumes \<open>distinct (map move_child (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2]))\<close>
-    and \<open>parent_exists roots (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2])\<close>
-    and \<open>parent_exists roots (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1])\<close>
-    and \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2]). move_child oper \<notin> roots\<close>
+  assumes \<open>parent_exists roots (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2])\<close>
+      and \<open>parent_exists roots (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1])\<close>
+      and \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2]).
+           move_child oper \<notin> roots \<and> move_child oper \<noteq> move_parent oper\<close>
+      and \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1]). move_child oper \<noteq> c2\<close>
   shows \<open>snd (do_ops (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2])) =
          snd (do_ops (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1]))\<close>
 proof -
-  have 1: \<open>distinct (map move_child (ops @ [Move t1 p1 m1 c1]))\<close>
-    using assms(1) by auto
-  have 2: \<open>parent_exists roots (ops @ [Move t1 p1 m1 c1])\<close>
-    using assms(2) parent_exists_snoc by force
-  have 3: \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1]). move_child oper \<notin> roots\<close>
+  have exists2: \<open>parent_exists roots (ops @ [Move t1 p1 m1 c1])\<close>
+    using assms(1) parent_exists_snoc by force
+  hence exists1: \<open>parent_exists roots ops\<close>
+    using parent_exists_snoc by auto
+  have \<open>c1 \<noteq> c2\<close>
     using assms(4) by auto
   have \<open>c1 \<noteq> p1\<close>
-    using parent_neq_child 1 2 3 by metis
-  have 4: \<open>\<forall>oper \<in> set ops. move_child oper \<noteq> c1\<close>
-    using assms(1) by auto
+    using assms(3) by auto
+  have \<open>c2 \<noteq> p2\<close>
+    using assms(3) by auto
   have \<open>c1 \<notin> roots\<close>
+    using assms(3) by auto
+  have \<open>c2 \<notin> roots\<close>
+    using assms(3) by auto
+  have ops1: \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1]). move_child oper \<noteq> c2\<close>
     using assms(4) by auto
-  have 5: \<open>\<forall>oper \<in> set (ops @ [Move t1 p1 m1 c1]). move_child oper \<noteq> c2\<close>
-    using assms(1) by auto
-  hence 6: \<open>\<forall>oper \<in> set ops. move_child oper \<noteq> c2\<close>
+  hence ops2: \<open>\<forall>oper \<in> set ops. move_child oper \<noteq> c2\<close>
     by auto
-  moreover have \<open>c2 \<notin> roots\<close>
-    using assms(4) by auto
-  moreover have \<open>c2 \<noteq> p2\<close>
-  proof -
-    have \<open>distinct (map move_child ((ops @ [Move t1 p1 m1 c1]) @ [Move t2 p2 m2 c2]))\<close>
-      using assms(1) by simp
-    moreover have \<open>parent_exists roots ((ops @ [Move t1 p1 m1 c1]) @ [Move t2 p2 m2 c2])\<close>
-      using assms(2) by simp
-    moreover have \<open>\<forall>oper\<in>set ((ops @ [Move t1 p1 m1 c1]) @ [Move t2 p2 m2 c2]). move_child oper \<notin> roots\<close>
-      using assms(4) by simp
-    ultimately show \<open>c2 \<noteq> p2\<close>
-      using parent_neq_child by metis
-  qed
   obtain log1 tree1 where tree1: \<open>do_ops ops = (log1, tree1)\<close>
     by fastforce
   obtain log2 tree2 where tree2: \<open>do_ops (ops @ [Move t1 p1 m1 c1]) = (log2, tree2)\<close>
     by fastforce
-  hence tree12: \<open>tree2 = {(p', m', c') \<in> tree1. c' \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
-    using do_ops_apply1 tree1 1 2 4 \<open>c1 \<notin> roots\<close> \<open>c1 \<noteq> p1\<close> sorry (* proofs found by sledgehammer time out *)
+  hence tree12: \<open>tree2 = (if ancestor tree1 c1 p1 \<or> c1 = p1 then tree1
+                 else {(p', m', c') \<in> tree1. c' \<noteq> c1} \<union> {(p1, m1, c1)})\<close>
+    using do_ops_apply_last tree1 tree2 by (metis (mono_tags, lifting))
   obtain log3 tree3 where tree3: \<open>do_ops (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2]) = (log3, tree3)\<close>
     by fastforce
   have tree23: \<open>tree3 = {(p', m', c') \<in> tree2. c' \<noteq> c2} \<union> {(p2, m2, c2)}\<close>
   proof -
     have \<open>parent_exists roots ((ops @ [Move t1 p1 m1 c1]) @ [Move t2 p2 m2 c2])\<close>
-      using assms(2) by simp
+      using assms(1) by simp
     then show ?thesis
-      using do_ops_apply1 tree2 tree3 5 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close> sorry
+      using do_ops_apply1 tree2 tree3 ops1 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close> sorry
   qed
   obtain log4 tree4 where tree4: \<open>do_ops (ops @ [Move t2 p2 m2 c2]) = (log4, tree4)\<close>
     by fastforce
   have tree14: \<open>tree4 = {(p', m', c') \<in> tree1. c' \<noteq> c2} \<union> {(p2, m2, c2)}\<close>
   proof -
     have \<open>parent_exists roots (ops @ [Move t2 p2 m2 c2])\<close>
-      using assms(3) parent_exists_snoc by force
+      using assms(2) parent_exists_snoc by force
     moreover have \<open>\<forall>oper\<in>set ops. move_child oper \<noteq> c2\<close>
-      using 5 by auto
+      using ops1 by auto
     ultimately show ?thesis
       using do_ops_apply1 tree1 tree4 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close> sorry
   qed
   obtain log5 tree5 where tree5: \<open>do_ops (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1]) = (log5, tree5)\<close>
     by fastforce
-  have tree45: \<open>tree5 = {(p', m', c') \<in> tree4. c' \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
+  have tree45: \<open>tree5 = (if ancestor tree4 c1 p1 \<or> c1 = p1 then tree4
+                else {(p', m', c') \<in> tree4. c' \<noteq> c1} \<union> {(p1, m1, c1)})\<close>
   proof -
-    have \<open>parent_exists roots ((ops @ [Move t2 p2 m2 c2]) @ [Move t1 p1 m1 c1])\<close>
-      using assms(3) by simp
-    moreover have \<open>\<forall>oper\<in>set (ops @ [Move t2 p2 m2 c2]). move_child oper \<noteq> c1\<close>
-      using 4 5 by auto
-    ultimately show ?thesis
-      using do_ops_apply1 tree4 tree5 \<open>c1 \<notin> roots\<close> \<open>c1 \<noteq> p1\<close> sorry
+    have \<open>do_ops ((ops @ [Move t2 p2 m2 c2]) @ [Move t1 p1 m1 c1]) = (log5, tree5)\<close>
+      by (simp add: tree5)
+    thus ?thesis
+      using do_ops_apply_last tree4 sorry
+  qed
+  have tree14': \<open>tree4 = tree1 \<union> {(p2, m2, c2)}\<close>
+  proof -
+    have \<open>c2 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree1}\<close>
+      using do_ops_tree_child tree1 ops2 by fastforce
+    hence \<open>{(p', m', c') \<in> tree1. c' \<noteq> c2} = tree1\<close>
+      by blast
+    thus ?thesis
+      by (simp add: tree14)
   qed
   have \<open>tree3 = tree5\<close>
-  proof -
-    have \<open>c1 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree1}\<close>
-      using 4 do_ops_tree_child tree1 by fastforce
-    hence \<open>{(p', m', c') \<in> tree1. c' \<noteq> c1} = tree1\<close>
-      by blast
-    hence \<open>tree2 = tree1 \<union> {(p1, m1, c1)}\<close>
+  proof (cases \<open>ancestor tree1 c1 p1\<close>)
+    case True
+    hence \<open>tree2 = tree1\<close>
       by (simp add: tree12)
-    moreover from this have \<open>c2 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree2}\<close>
-      using 5 do_ops_tree_child tree2 by fastforce
+    moreover have \<open>c2 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree2}\<close>
+      using do_ops_tree_child tree2 ops1 by fastforce
     hence \<open>{(p', m', c') \<in> tree2. c' \<noteq> c2} = tree2\<close>
       by blast
     hence \<open>tree3 = tree2 \<union> {(p2, m2, c2)}\<close>
       by (simp add: tree23)
-    moreover have \<open>c2 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree1}\<close>
-      using 6 do_ops_tree_child tree1 by fastforce
-    hence \<open>{(p', m', c') \<in> tree1. c' \<noteq> c2} = tree1\<close>
-      by blast
-    hence \<open>tree4 = tree1 \<union> {(p2, m2, c2)}\<close>
-      by (simp add: tree14)
-    moreover have \<open>c1 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree4}\<close>
-      using 5 \<open>c1 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree1}\<close> tree14 by auto
-    hence \<open>{(p', m', c') \<in> tree4. c' \<noteq> c1} = tree4\<close>
-      by blast
-    hence \<open>tree5 = tree4 \<union> {(p1, m1, c1)}\<close>
+    moreover have \<open>ancestor tree4 c1 p1\<close>
+      using True ancestor_monotone tree14' by fastforce
+    hence \<open>tree5 = tree4\<close>
       by (simp add: tree45)
+    ultimately show ?thesis
+      using tree14' by simp
+  next
+    case False
+    hence \<open>tree2 = {(p', m', c') \<in> tree1. c' \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
+      using \<open>c1 \<noteq> p1\<close> tree12 by auto
+    moreover have \<open>c2 \<notin> {c. \<exists>p m. (p, m, c) \<in> tree2}\<close>
+      using do_ops_tree_child tree2 ops1 by fastforce
+    hence \<open>{(p', m', c') \<in> tree2. c' \<noteq> c2} = tree2\<close>
+      by blast
+    hence \<open>tree3 = tree2 \<union> {(p2, m2, c2)}\<close>
+      by (simp add: tree23)
+    moreover have \<open>\<not> ancestor tree4 c1 p1\<close>
+    proof -
+      have \<open>\<nexists>p' m'. (p', m', c2) \<in> tree1\<close>
+        by (meson do_ops_tree_child tree1 ops2)
+      moreover from this have \<open>\<nexists>m' c'. (c2, m', c') \<in> tree1\<close>
+        using parent_exists_child_subset tree1 exists1 \<open>c2 \<notin> roots\<close> Un_iff by blast
+      ultimately show \<open>\<not> ancestor tree4 c1 p1\<close>
+        using ancestor_no_new_path False tree14' \<open>c1 \<noteq> c2\<close>
+        by (metis \<open>c2 \<notin> roots\<close> exists2 parent_exists_tree tree1)
+    qed
+    hence \<open>tree5 = {(p', m', c') \<in> tree4. c' \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
+      using tree45 False \<open>c1 \<noteq> p1\<close> by simp
+    moreover have \<open>c1 \<noteq> c2\<close>
+      using ops1 by auto
     ultimately show \<open>tree3 = tree5\<close>
-      by (simp add: sup_commute)
+      using tree14' tree_updates_commute by auto
   qed
   thus \<open>snd (do_ops (ops @ [Move t1 p1 m1 c1, Move t2 p2 m2 c2])) =
         snd (do_ops (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1]))\<close>
@@ -570,11 +607,12 @@ proof -
 qed
 
 theorem create_commutes:
-  assumes \<open>distinct (map move_child (ops1 @ ops2 @ [Move t p m c]))\<close>
-    and \<open>parent_exists roots (ops1 @ ops2 @ [Move t p m c])\<close>
-    and \<open>parent_exists roots (ops1 @ [Move t p m c])\<close>
-    and \<open>\<forall>oper \<in> set (ops1 @ ops2 @ [Move t p m c]). move_child oper \<notin> roots\<close>
-  shows \<open>snd (do_ops (ops1 @ ops2 @ [Move t p m c])) = snd (do_ops (ops1 @ [Move t p m c] @ ops2))\<close>
+  assumes \<open>parent_exists roots (ops1 @ ops2 @ [Move t p m c])\<close>
+      and \<open>parent_exists roots (ops1 @ [Move t p m c])\<close>
+      and \<open>\<forall>oper \<in> set (ops1 @ ops2 @ [Move t p m c]).
+           move_child oper \<notin> roots \<and> move_child oper \<noteq> move_parent oper\<close>
+      and \<open>\<forall>oper \<in> set (ops1 @ ops2). move_child oper \<noteq> c\<close>
+    shows \<open>snd (do_ops (ops1 @ ops2 @ [Move t p m c])) = snd (do_ops (ops1 @ [Move t p m c] @ ops2))\<close>
 using assms proof (induction ops2 rule: List.rev_induct)
   case Nil
   then show \<open>snd (do_ops (ops1 @ [] @ [Move t p m c])) = snd (do_ops (ops1 @ [Move t p m c] @ []))\<close>
@@ -589,25 +627,25 @@ next
   moreover have \<open>... = snd (do_ops ((ops1 @ ops) @ [Move t p m c, Move op_t op_p op_m op_c]))\<close>
   proof -
     have \<open>parent_exists roots ((ops1 @ ops) @ [Move op_t op_p op_m op_c, Move t p m c])\<close>
-      using snoc.prems(2) oper by auto
+      using snoc.prems(1) oper by auto
     moreover from this have \<open>parent_exists roots ((ops1 @ ops) @ [Move t p m c])\<close>
-      using parent_exists_interpolate snoc.prems(3) by force
+      using parent_exists_interpolate snoc.prems(2) by force
     hence \<open>parent_exists roots ((ops1 @ ops) @ [Move t p m c, Move op_t op_p op_m op_c])\<close>
       by (meson calculation parent_exists_commute)
-    moreover have \<open>distinct (map move_child ((ops1 @ ops) @ [Move op_t op_p op_m op_c, Move t p m c]))\<close>
-      using oper snoc.prems(1) by auto
-    moreover have \<open>\<forall>oper \<in> set ((ops1 @ ops) @ [Move op_t op_p op_m op_c, Move t p m c]). move_child oper \<notin> roots\<close>
-      using oper snoc.prems(4) by auto
+    moreover have \<open>\<forall>oper \<in> set ((ops1 @ ops) @ [Move op_t op_p op_m op_c, Move t p m c]).
+         move_child oper \<notin> roots \<and> move_child oper \<noteq> move_parent oper\<close>
+      by (simp add: oper snoc.prems(3))
+    moreover have \<open>\<forall>oper \<in> set ((ops1 @ ops) @ [Move op_t op_p op_m op_c]). move_child oper \<noteq> c\<close>
+      by (simp add: oper snoc.prems(4))
     ultimately show ?thesis
       using do_ops_commute by metis
   qed
   moreover have \<open>... = snd (do_ops (ops1 @ [Move t p m c] @ ops @ [oper]))\<close>
   proof -
     have \<open>parent_exists roots (ops1 @ ops @ [Move t p m c])\<close>
-      by (metis append.assoc append.simps(2) append_Nil operation.exhaust
-          parent_exists_interpolate snoc(3) snoc(4))
+      using oper parent_exists_interpolate snoc.prems(1) snoc.prems(2) by fastforce
     hence IH: \<open>snd (do_ops (ops1 @ ops @ [Move t p m c])) = snd (do_ops (ops1 @ [Move t p m c] @ ops))\<close>
-      using snoc.IH snoc.prems(1) snoc.prems(3) snoc.prems(4) by auto
+      using snoc.IH snoc.prems(2) snoc.prems(3) snoc.prems(4) by auto
     obtain tree where tree: \<open>tree = snd (do_ops (ops1 @ ops @ [Move t p m c]))\<close>
       by fastforce
     moreover have \<open>do_ops ((ops1 @ ops) @ [Move t p m c, oper]) =
