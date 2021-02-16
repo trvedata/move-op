@@ -65,7 +65,25 @@ next
     by simp
 qed
 
-theorem apply_ops_do_ops:
+lemma strict_sorted_map_omit1:
+  assumes \<open>strict_sorted (map f (xs @ [x] @ ys))\<close>
+  shows \<open>strict_sorted (map f (xs @ ys))\<close>
+using assms proof (induction xs)
+  case Nil
+  then show \<open>strict_sorted (map f ([] @ ys))\<close> by simp
+next
+  case (Cons a xs)
+  hence \<open>strict_sorted (map f (xs @ ys))\<close>
+    by simp
+  moreover have \<open>set (xs @ ys) \<subseteq> set (xs @ [x] @ ys)\<close>
+    by (simp add: subsetI)
+  hence \<open>\<forall>y \<in> set (xs @ ys). f a < f y\<close>
+    using Cons.prems by auto
+  ultimately show \<open>strict_sorted (map f ((a # xs) @ ys))\<close>
+    by auto
+qed
+
+lemma apply_ops_do_ops:
   assumes \<open>strict_sorted (map move_time ops)\<close>
   shows \<open>apply_ops ops = do_ops ops\<close>
 using assms proof(induction ops rule: List.rev_induct)
@@ -606,7 +624,7 @@ proof -
     using tree3 tree5 by auto
 qed
 
-theorem create_commutes:
+lemma create_commutes:
   assumes \<open>parent_exists roots (ops1 @ ops2 @ [Move t p m c])\<close>
       and \<open>parent_exists roots (ops1 @ [Move t p m c])\<close>
       and \<open>\<forall>oper \<in> set (ops1 @ ops2 @ [Move t p m c]).
@@ -664,6 +682,54 @@ next
   ultimately show \<open>snd (do_ops (ops1 @ (ops @ [oper]) @ [Move t p m c])) =
                    snd (do_ops (ops1 @ [Move t p m c] @ ops @ [oper]))\<close>
     by blast
+qed
+
+theorem create_optimised:
+  assumes \<open>parent_exists roots (ops1 @ ops2 @ [Move t p m c])\<close>
+      and \<open>parent_exists roots (ops1 @ [Move t p m c])\<close>
+      and \<open>\<forall>oper \<in> set (ops1 @ ops2 @ [Move t p m c]).
+           move_child oper \<notin> roots \<and> move_child oper \<noteq> move_parent oper\<close>
+      and \<open>\<forall>oper \<in> set (ops1 @ ops2). move_child oper \<noteq> c\<close>
+      and \<open>strict_sorted (map move_time (ops1 @ [Move t p m c] @ ops2))\<close>
+      and \<open>apply_ops (ops1 @ ops2) = (log, tree)\<close>
+      and \<open>apply_op (Move t p m c) (log, tree) = (log2, tree2)\<close>
+      and \<open>do_op (Move t p m c, tree) = (logop, tree3)\<close>
+    shows \<open>tree2 = tree3\<close>
+proof -
+  have \<open>apply_ops (ops1 @ [Move t p m c] @ ops2) = do_ops (ops1 @ [Move t p m c] @ ops2)\<close>
+    using apply_ops_do_ops assms(5) by blast
+  moreover have \<open>apply_ops (ops1 @ [Move t p m c] @ ops2) = apply_ops (ops1 @ ops2 @ [Move t p m c])\<close>
+  proof -
+    have \<open>set (ops1 @ [Move t p m c] @ ops2) = set (ops1 @ ops2 @ [Move t p m c])\<close>
+      by simp
+    moreover have \<open>distinct (map move_time (ops1 @ [Move t p m c] @ ops2))\<close>
+      using assms(5) strict_sorted_iff by blast
+    moreover from this have \<open>distinct (map move_time (ops1 @ ops2 @ [Move t p m c]))\<close>
+      by auto
+    ultimately show ?thesis
+      using apply_ops_commutes by blast
+  qed
+  moreover have \<open>apply_ops (ops1 @ ops2 @ [Move t p m c]) = (log2, tree2)\<close>
+    by (metis append_assoc apply_ops_step assms(6) assms(7))
+  moreover have \<open>snd (do_ops (ops1 @ [Move t p m c] @ ops2)) =
+                 snd (do_ops (ops1 @ ops2 @ [Move t p m c]))\<close>
+    using assms(1) assms(2) assms(3) assms(4) create_commutes by fastforce
+  moreover have \<open>do_ops (ops1 @ ops2 @ [Move t p m c]) = (logop # log, tree3)\<close>
+  proof -
+    have \<open>strict_sorted (map move_time (ops1 @ ops2))\<close>
+      by (meson assms(5) strict_sorted_map_omit1)
+    hence \<open>do_ops (ops1 @ ops2) = (log, tree)\<close>
+      using apply_ops_do_ops assms(6) by fastforce
+    hence \<open>do_ops ((ops1 @ ops2) @ [Move t p m c]) = apply_do_op (log, tree) (Move t p m c)\<close>
+      by (metis (no_types, lifting) do_ops_def foldl_Cons foldl_Nil foldl_append)
+    moreover have \<open>apply_do_op (log, tree) (Move t p m c) =
+           (let (logop, tree') = do_op (Move t p m c, tree) in (logop # log, tree'))\<close>
+      using apply_do_op.simps by blast
+    ultimately show ?thesis
+      using assms(8) by auto
+  qed
+  ultimately show \<open>tree2 = tree3\<close>
+    by auto
 qed
 
 end
