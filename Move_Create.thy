@@ -331,7 +331,7 @@ next
   case False
   obtain log1 tree1 where tree1: \<open>do_ops ops = (log1, tree1)\<close>
     by fastforce
-  obtain log2 tree2 where tree2: \<open>do_ops (ops @ [Move t1 p1 m1 c1]) = (log2, tree2)\<close>
+  obtain log2 tree2 where tree2: \<open>do_ops (ops @ [Move t2 p2 m2 c2]) = (log2, tree2)\<close>
     by fastforce
   have \<open>parent_exists roots (ops @ [Move t1 p1 m1 c1])\<close>
     using assms(1) parent_exists_snoc by force
@@ -340,7 +340,7 @@ next
   hence \<open>\<exists>a m. (a, m, p1) \<in> tree2\<close>
     by (metis (full_types) do_ops_child_monotonic do_ops_def foldl_append tree1 tree2)
   hence \<open>parent_exists roots ((ops @ [Move t2 p2 m2 c2]) @ [Move t1 p1 m1 c1])\<close>
-    using assms(2) parent_exists.intros(3) tree2 sorry (* should be easy?! *)
+    using assms(2) parent_exists.intros(3) tree2 by fastforce
   then show \<open>parent_exists roots (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1])\<close>
     by simp
 qed
