@@ -482,7 +482,51 @@ lemma ancestor_no_new_path:
     and \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
     and \<open>b \<noteq> c\<close>
   shows \<open>\<not> ancestor (tree \<union> {(p, m, c)}) a b\<close>
-  sorry
+proof - 
+  {
+    fix tree'
+    assume \<open>ancestor tree' a b\<close>
+      and \<open>tree' = (tree \<union> {(p, m, c)})\<close>
+      and \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
+      and \<open>\<not> ancestor tree a b\<close>
+      and \<open>b \<noteq> c\<close>
+    from this have \<open>False\<close>
+    proof(induction rule: ancestor.induct)
+      fix parent meta child tree'
+      assume \<open>(parent, meta, child) \<in> tree'\<close>
+        and E: \<open>tree' = tree \<union> {(p, m, c)}\<close>
+        and \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
+        and A: \<open>\<not> ancestor tree parent child\<close>
+        and \<open>child \<noteq> c\<close>
+      from this have \<open>ancestor tree' parent child\<close>
+        by (auto intro: ancestor.intros)
+      from this have \<open>ancestor tree parent child\<close>
+        using E \<open>(parent, meta, child) \<in> tree'\<close> \<open>child \<noteq> c\<close> ancestor.intros(1) by fastforce
+      from this show \<open>False\<close>
+        using A by simp
+    next
+      fix parent meta child tree' anc
+      assume \<open>(parent, meta, child) \<in> tree'\<close>
+        and \<open>ancestor tree' anc parent\<close>
+        and E: \<open>tree' = tree \<union> {(p, m, c)}\<close>
+        and N: \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
+        and A: \<open>\<not> ancestor tree anc child\<close>
+        and \<open>child \<noteq> c\<close>
+        and IH: \<open>tree' = tree \<union> {(p, m, c)} \<Longrightarrow>
+        \<nexists>m' c'. (c, m', c') \<in> tree \<Longrightarrow> \<not> ancestor tree anc parent \<Longrightarrow> parent \<noteq> c \<Longrightarrow> False\<close>
+      from IH and E N A have 0: \<open>\<not> ancestor tree anc parent \<Longrightarrow> parent \<noteq> c \<Longrightarrow> False\<close>
+        by blast
+      have 1: \<open>\<not> ancestor tree anc parent\<close>
+        sorry
+      have 2: \<open>parent \<noteq> c\<close>
+        sorry
+      from 0 1 2 show \<open>False\<close>
+        by simp
+    qed
+  }
+  from this show ?thesis
+    using assms by(cases \<open>tree = {}\<close>, auto)
+qed
 
 lemma tree_updates_commute:
   assumes \<open>tree2 = {(p, m, c) \<in> tree1. c \<noteq> c1} \<union> {(p1, m1, c1)}\<close>
