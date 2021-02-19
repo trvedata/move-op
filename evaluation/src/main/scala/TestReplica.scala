@@ -330,25 +330,28 @@ class ReplicaThread(replicaId: Long, metrics: MetricRegistry) extends Runnable {
 
   // Actually applies a move operation to the current state (calls into
   // Isabelle-generated code). Both local and remote operations.
-  private[this] def applyMove(move: Protocol.Move) {
+  private[this] def applyMove(moveOp: Protocol.Move) {
+    var move = moveOp
+    if (TestReplica.USE_LEADER) {
+      // Give operations consecutive timestamps in the order we received them from the leader
+      counter += 1
+      move = Protocol.Move(counter, replicaId, move.parent, move.child)
+    } else if (move.time > counter) {
+      // Lamport timestamp maintenance
+      counter = move.time
+    }
+
     if (!TestReplica.USE_GENERATED_CODE) {
       applyMoveHandwritten(move)
-      return
-    }
-
-    val timestamp = if (TestReplica.USE_LEADER) {
-      counter += 1
-      (BigInt(counter), BigInt(replicaId))
     } else {
-      if (move.time > counter) counter = move.time
-      (BigInt(move.time), BigInt(move.replica))
-    }
-    val operation = generated.Move(timestamp, BigInt(move.parent), "", BigInt(move.child))
-    state = generated.integer_apply_op(operation)(state)
+      val timestamp = (BigInt(move.time), BigInt(move.replica))
+      val operation = generated.Move(timestamp, BigInt(move.parent), "", BigInt(move.child))
+      state = generated.integer_apply_op(operation)(state)
 
-    // Truncate the log from time to time
-    if (counter % 100000 == 0) {
-      state = (state._1.take(1000), state._2)
+      // Truncate the log from time to time
+      if (counter % 100000 == 0) {
+        state = (state._1.take(10000), state._2)
+      }
     }
   }
 
