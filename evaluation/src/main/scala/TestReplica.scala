@@ -38,7 +38,9 @@ object TestReplica {
     }
 
     implicit val metrics = new MetricRegistry()
-    ConsoleReporter.forRegistry(metrics).build().start(20, TimeUnit.SECONDS)
+    ConsoleReporter.forRegistry(metrics).
+      convertDurationsTo(TimeUnit.MICROSECONDS).
+      build().start(20, TimeUnit.SECONDS)
 
     val replicaId = args(0).toLong
     val replica = new ReplicaThread(replicaId, metrics)
