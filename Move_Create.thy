@@ -517,9 +517,9 @@ proof -
       from IH and E N A have 0: \<open>\<not> ancestor tree anc parent \<Longrightarrow> parent \<noteq> c \<Longrightarrow> False\<close>
         by blast
       have 1: \<open>\<not> ancestor tree anc parent\<close>
-        sorry
+        using A E \<open>(parent, meta, child) \<in> tree'\<close> \<open>child \<noteq> c\<close> ancestor.intros(2) by fastforce
       have 2: \<open>parent \<noteq> c\<close>
-        sorry
+        using E N \<open>(parent, meta, child) \<in> tree'\<close> \<open>child \<noteq> c\<close> by blast
       from 0 1 2 show \<open>False\<close>
         by simp
     qed
@@ -587,7 +587,7 @@ proof -
     have \<open>parent_exists roots ((ops @ [Move t1 p1 m1 c1]) @ [Move t2 p2 m2 c2])\<close>
       using assms(1) by simp
     then show ?thesis
-      using do_ops_apply1 tree2 tree3 ops1 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close> sorry
+      by - (drule do_ops_apply1, auto simp add: assms tree2 tree3 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close>)
   qed
   obtain log4 tree4 where tree4: \<open>do_ops (ops @ [Move t2 p2 m2 c2]) = (log4, tree4)\<close>
     by fastforce
@@ -598,7 +598,7 @@ proof -
     moreover have \<open>\<forall>oper\<in>set ops. move_child oper \<noteq> c2\<close>
       using ops1 by auto
     ultimately show ?thesis
-      using do_ops_apply1 tree1 tree4 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close> sorry
+      by - (drule do_ops_apply1, auto simp add: assms tree1 tree4 \<open>c2 \<notin> roots\<close> \<open>c2 \<noteq> p2\<close>)
   qed
   obtain log5 tree5 where tree5: \<open>do_ops (ops @ [Move t2 p2 m2 c2, Move t1 p1 m1 c1]) = (log5, tree5)\<close>
     by fastforce
