@@ -495,7 +495,6 @@ proof -
       fix parent meta child tree'
       assume \<open>(parent, meta, child) \<in> tree'\<close>
         and E: \<open>tree' = tree \<union> {(p, m, c)}\<close>
-        and \<open>\<nexists>m' c'. (c, m', c') \<in> tree\<close>
         and A: \<open>\<not> ancestor tree parent child\<close>
         and \<open>child \<noteq> c\<close>
       from this have \<open>ancestor tree' parent child\<close>
