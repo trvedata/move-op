@@ -1,19 +1,23 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Run this script with one argument: the interval between generated move
 # operations, in microseconds, on each replica.
 INTERVAL="${1?Please specify interval between operations (in microseconds)}"
 
 # If false, runs in CRDT mode. If true, runs in leader-based mode.
-USE_LEADER=false
+USE_LEADER=true
+
+# If true, uses algorithm implementation extracted from Isabelle.
+# If false, uses a hand-written (not formally verified) implementation.
+USE_GENERATED_CODE=false
 
 # To run the experiments, log in to the AWS EC2 console and start up a c5.large
 # instance running Ubuntu 18.04 in each of the three regions us-west-1, eu-west-1,
 # and ap-southeast-1. Then fill in their IP addresses here:
-US_WEST_1=13.52.240.53
-EU_WEST_1=52.48.156.251
-AP_SOUTHEAST_1=54.169.188.185
+US_WEST_1=18.144.81.71
+EU_WEST_1=52.17.89.174
+AP_SOUTHEAST_1=18.141.237.55
 
 # Set up the security groups such that you can log in to the VMs by SSH (TCP port 22),
 # and that they can all connect to each other on TCP port 8080.
@@ -28,20 +32,27 @@ AP_SOUTHEAST_1=54.169.188.185
 # Once that setup is done, the following commands run the test script on the
 # three instances concurrently, and then copy the log files off the instances
 # into evaluation/data/logs/*.log.gz. Those logs are then analysed by the
-# script evaluation/data/processing_times.sh.
+# scripts evaluation/data/process-crdt.sh (for USE_LEADER=false) and
+# evaluation/data/process-leader.sh (for USE_LEADER=true).
 
 if [ "$USE_LEADER" = "true" ]; then
     LOGDIR="data/logs-leader"
     # Define us-west-1 to be the leader
-    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 0 &
-    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $US_WEST_1 &
-    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 2 $US_WEST_1 &
+    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 0 &
+    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 1 $US_WEST_1 &
+    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 2 $US_WEST_1 &
     wait
 else
     LOGDIR="data/logs"
-    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 1 $EU_WEST_1 $AP_SOUTHEAST_1 &
-    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 2 $US_WEST_1 $AP_SOUTHEAST_1 &
-    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER 3 $US_WEST_1 $EU_WEST_1 &
+    ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 1 $EU_WEST_1 $AP_SOUTHEAST_1 &
+    ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 2 $US_WEST_1 $AP_SOUTHEAST_1 &
+    ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 \
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 3 $US_WEST_1 $EU_WEST_1 &
     wait
 fi
 
