@@ -608,7 +608,7 @@ proof -
     have \<open>do_ops ((ops @ [Move t2 p2 m2 c2]) @ [Move t1 p1 m1 c1]) = (log5, tree5)\<close>
       by (simp add: tree5)
     thus ?thesis
-      using do_ops_apply_last tree4 sorry
+      by - (drule do_ops_apply_last[rotated], auto simp add: tree4)
   qed
   have tree14': \<open>tree4 = tree1 \<union> {(p2, m2, c2)}\<close>
   proof -
