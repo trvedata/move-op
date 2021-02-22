@@ -20,15 +20,15 @@ lemma apply_do_op_snd:
   by (simp add: prod.case_eq_if)
 
 lemma do_ops_apply_last:
-  assumes \<open>do_ops ops = (log1, tree1)\<close>
-    and \<open>do_ops (ops @ [Move t p m c]) = (log2, tree2)\<close>
+  assumes \<open>do_ops (ops @ [Move t p m c]) = (log2, tree2)\<close>
+    and \<open>do_ops ops = (log1, tree1)\<close>
   shows \<open>tree2 = (if ancestor tree1 c p \<or> c = p then tree1
                   else {(p', m', c') \<in> tree1. c' \<noteq> c} \<union> {(p, m, c)})\<close>
 proof -
   have \<open>do_ops (ops @ [Move t p m c]) = apply_do_op (log1, tree1) (Move t p m c)\<close>
-    by (metis (no_types, lifting) assms(1) do_ops_def foldl_Cons foldl_Nil foldl_append)
+    by (metis (no_types, lifting) assms(2) do_ops_def foldl_Cons foldl_Nil foldl_append)
   hence \<open>tree2 = snd (do_op (Move t p m c, tree1))\<close>
-    using assms(2) by auto
+    using assms(1) by auto
   thus ?thesis
     by simp
 qed
@@ -607,7 +607,7 @@ proof -
     have \<open>do_ops ((ops @ [Move t2 p2 m2 c2]) @ [Move t1 p1 m1 c1]) = (log5, tree5)\<close>
       by (simp add: tree5)
     thus ?thesis
-      by - (drule do_ops_apply_last[rotated], auto simp add: tree4)
+      by - (drule do_ops_apply_last, auto simp add: tree4)
   qed
   have tree14': \<open>tree4 = tree1 \<union> {(p2, m2, c2)}\<close>
   proof -
