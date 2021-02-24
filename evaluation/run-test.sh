@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 # This script executes on an EC2 VM. It runs a replica that generates
 # operations with a given inter-operation interval.

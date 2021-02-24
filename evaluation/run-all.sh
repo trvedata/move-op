@@ -6,7 +6,7 @@ set -euo pipefail
 INTERVAL="${1?Please specify interval between operations (in microseconds)}"
 
 # If false, runs in CRDT mode. If true, runs in leader-based mode.
-USE_LEADER=true
+USE_LEADER=false
 
 # If true, uses algorithm implementation extracted from Isabelle.
 # If false, uses a hand-written (not formally verified) implementation.
@@ -39,11 +39,11 @@ if [ "$USE_LEADER" = "true" ]; then
     LOGDIR="data/logs-leader"
     # Define us-west-1 to be the leader
     ssh -i ~/.ec2/martin-aws-us-west-1.pem ubuntu@$US_WEST_1 \
-        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 0 &
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 0 '' '' &
     ssh -i ~/.ec2/martin-aws-eu-west-1.pem ubuntu@$EU_WEST_1 \
-        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 1 $US_WEST_1 &
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 1 $US_WEST_1 '' &
     ssh -i ~/.ec2/martin-aws-ap-southeast-1.pem ubuntu@$AP_SOUTHEAST_1 \
-        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 2 $US_WEST_1 &
+        /home/ubuntu/move-op/evaluation/run-test.sh $INTERVAL $USE_LEADER $USE_GENERATED_CODE 2 $US_WEST_1 '' &
     wait
 else
     LOGDIR="data/logs"

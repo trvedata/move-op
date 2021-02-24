@@ -1,7 +1,3 @@
-BEGIN {
-    print "local ops/sec,local min,local median,local p95,remote min,remote median,remote p95"
-}
-
 /^ReplicaThread.local/,/95%/ {
     if ($1 == "1-minute") local_rate = $4
     if ($1 == "min") local_min = $3

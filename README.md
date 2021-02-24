@@ -119,6 +119,24 @@ on each replica, in microseconds.
 
 The script logs into the instances by SSH, updates the configuration, runs the
 experiment, and copies the logs off the instances into `evaluation/data/logs/*.log.gz`.
-Each test run lasts for 10 minutes and then automatically shuts down.
+Each test run lasts for 10 minutes and then automatically shuts down. This
+repository contains the logs from our evaluation in the following directories:
 
-Those logs are then analysed by the script in `evaluation/data/processing_times.sh`.
+* `evaluation/data/logs-crdt-generated`: Running in CRDT mode, using the code
+  extracted from Isabelle.
+* `evaluation/data/logs-crdt-optimised`: Running in CRDT mode, using the
+  hand-optimised (not verified) implementation.
+* `evaluation/data/logs-leader-generated`: Running in state machine replication
+  mode, using the code extracted from Isabelle.
+* `evaluation/data/logs-leader-optimised`: Running in state machine replication
+  mode, using the hand-optimised (not verified) implementation.
+
+Those logs are then analysed by the scripts `evaluation/data/process-crdt.sh`
+(for mode USE_LEADER=false) and `evaluation/data/process-leader.sh` (for
+USE_LEADER=true). Pass a directory name to these scripts and they will write a
+file called `summary.data` in that directory. Those data files are then used
+to plot the graphs in the paper using Gnuplot. To refresh the graphs:
+
+    gnuplot crdt-generated.gnuplot
+    gnuplot crdt-optimised.gnuplot
+    gnuplot leader-vs-crdt.gnuplot

@@ -742,16 +742,28 @@ The execution time for local operations is near-constant (median times between 5
 At around 600 operations/sec each single-threaded replica is fully utilising one CPU core, and increasing the rate at which operations are generated does not increase throughput any further.
 
 \begin{figure}
-  \includegraphics[width=\columnwidth,keepaspectratio=true]{plot.pdf}
+  \begin{center}
+  \includegraphics{../evaluation/data/crdt-generated.pdf}
+  \end{center}
   \caption{Median execution time for applying an operation to the replica state, on an Amazon EC2 c5.large instance, at varying operation throughput rates. Error bars indicate the minimum and 95th percentile execution times.}
   \label{fig:plots}
 \end{figure}
 
 \begin{figure}
-  \includegraphics[width=\columnwidth,keepaspectratio=true]{leader-plot.pdf}
+  \begin{center}
+  \includegraphics{../evaluation/data/crdt-optimised.pdf}
+  \end{center}
+  \caption{TODO}
+  \label{fig:plot-optimised}
+\end{figure}
+
+\begin{figure*}
+  \begin{center}
+  \includegraphics{../evaluation/data/leader-vs-crdt.pdf}
+  \end{center}
   \caption{Median time to apply a local CRDT operation compared to the median time to perform a move operation using state machine replication, with a leader located in another region. Note the log scale on both axes.}
   \label{fig:leader-plot}
-\end{figure}
+\end{figure*}
 
 Local operations take constant time is because a locally generated operation always has a timestamp greater than any existing operation at the generating replica at that time (by definition of Lamport timestamps).
 Applying that operation requires only a \isa{do\_op}, and no \isa{undo\_op} or \isa{redo\_op}.
