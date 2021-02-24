@@ -5,8 +5,9 @@ begin
 section \<open>Applying ops in timestamp order\<close>
 
 text \<open>We now show that if a list of operations is in sorted order, applying
-those ops with apply_ops is equivalent to a simpler function in which we
-only evaluate operations using do_op (never undoing or redoing anything).\<close>
+those ops with @{term apply_ops} is equivalent to a simpler function in which
+we only evaluate operations using @{term do_op} (never undoing or redoing
+anything).\<close>
 
 fun apply_do_op :: \<open>('t, 'n, 'm) state \<Rightarrow> ('t, 'n, 'm) operation \<Rightarrow> ('t, 'n, 'm) state\<close> where
   \<open>apply_do_op (log, tree) op =
@@ -261,8 +262,8 @@ operation for a given node must be unique (i.e. there cannot be two operations
 that both create the same node). These assumptions are easily satisfied in
 practice.
 
-The parent_exists predicate allows the first assumption to be captured. It
-requires the parent of every operation to either be one of a fixed set of
+The @{term parent_exists} predicate allows the first assumption to be captured.
+It requires the parent of every operation to either be one of a fixed set of
 root nodes (which may be e.g. the actual tree root and the trash node), or to
 be the child of a prior move/create operation.\<close>
 

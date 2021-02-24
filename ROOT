@@ -9,6 +9,7 @@ session "CRDT-Tree" (AFP) = "HOL" +
     Move_Acyclic
     Move_SEC
     Move_Code
+    Move_Create
   document_files
     "root.tex"
     "root.bib"

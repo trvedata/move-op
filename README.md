@@ -30,6 +30,8 @@ in the following files:
   as formalised in [our proof framework](https://dl.acm.org/doi/10.1145/3133933).
 * `Move_Code.thy` contains an alternative definition of the algorithm that is efficiently
   executable, and a proof that it is equivalent to the earlier, more abstract algorithm.
+* `Move_Create.thy` contains a proof that it is safe for node creation operations to use an
+  optimised code path.
 
 To check the proofs, [download Isabelle](https://isabelle.in.tum.de/) and install it.
 The `Move_SEC` theory depends on the definition of Strong Eventual Consistency in the
