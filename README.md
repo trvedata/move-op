@@ -7,7 +7,7 @@ by Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Be
 For background and details, please see these two papers:
 
 * Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford.
-  A highly-available move operation for replicated trees and distributed filesystems.
+  A highly-available move operation for replicated trees.
   Not yet formally published, but the LaTeX source is available in `paper/move-op.tex`.
 * Martin Kleppmann. Moving elements in list CRDTs. 7th Workshop on Principles and Practice
   of Consistency for Distributed Data ([PaPoC](https://papoc-workshop.github.io/2020/)), April 2020.
@@ -53,7 +53,7 @@ Papers
 
 There are two papers in the `paper` directory:
 
-* *A highly-available move operation for replicated trees and distributed filesystems* is in `paper/move-op.tex`
+* *A highly-available move operation for replicated trees* is in `paper/move-op.tex`
 * *Moving elements in list CRDTs* is in `paper/list-move.tex`
 
 To build PDFs of the papers with LaTeX: 
