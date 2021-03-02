@@ -61,8 +61,8 @@ Conflict-free Replicated Data Types (CRDTs), formal verification, distributed fi
 \IEEEraisesectionheading{\section{Introduction}\label{sec:intro}}
 
 \IEEEPARstart{M}{any} applications use a tree-structured data model.
-For example, most file systems are trees: directories are branch nodes, and files are leaf nodes.
-Moreover, XML and JSON documents are trees, and they are used in many applications to represent e.g.\ rich text (a tree of paragraphs, lists, figures, sections, etc.), vector graphics, CAD drawings, and many other types of data.
+Most filesystems are trees: directories are branch nodes, files are leaf nodes (we discuss hardlinks in \S\ref{sec:extensions}).
+XML and JSON documents are also trees, and they are used in many applications to represent e.g.\ rich text (a tree of paragraphs, lists, figures, sections, etc.), vector graphics, CAD drawings, and many other types of data.
 Typically, a graphical user interface allows a user to edit this information interactively, resulting in updates to the underlying XML/JSON structure: adding or deleting nodes in the tree, and moving nodes from one position in the tree to another.
 
 In distributed filesystems and collaborative multi-user software, this tree is replicated across multiple nodes.
@@ -962,7 +962,7 @@ The formalisation is open source~\cite{SourceFiles} and included as supplementar
 \section*{Acknowledgements}
 
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
-Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship, the Isaac Newton Trust, Nokia Bell Labs, and crowdfunding supporters including Molham Aref, Henry Caushi, Chet Corcos, Gabriel Herrero-Beaumont, Bogdan Kanivets, David Pollak, SoftwareMill, Talent Formation Network, and Adam Wiggins.
+Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship, the Isaac Newton Trust, Nokia Bell Labs, and crowdfunding supporters including Molham Aref, Chet Corcos, Mintter.com, David Pollak, SoftwareMill, Talent Formation Network, and Adam Wiggins.
 Our evaluation was conducted using AWS credits from the AWS Educate program.
 Thank you to Marc Shapiro for feedback on a draft of this paper.
 
