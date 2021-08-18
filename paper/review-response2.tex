@@ -1,0 +1,164 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{spverbatim}
+\sloppy
+
+\usepackage{xr}
+\externaldocument{move-op}
+
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\authorcomment}[1]{\begin{quote}\textbf{Author comment:} #1\end{quote}}
+
+\begin{document}
+\title{Summary of changes to ``A highly-available move operation for replicated trees''}
+\author{Martin Kleppmann, Dominic P.\ Mulligan, Victor B.F.\ Gomes, Alastair R.\ Beresford}
+\date{}
+\maketitle
+
+Thank you for this second round of reviews.
+We are happy to note that reviewers 2 and 3 would like to see the paper accepted with no further changes.
+In this revision we have therefore only made minor changes to address comments by reviewer 1, and added some minor clarifications.
+
+\section{Reviewer 1}
+
+\begin{spverbatim}
+Recommendation: Author Should Prepare A Major Revision For A Second Review
+
+Comments:
+What is the difference between the proposed algorithm and the data replication algorithms in the cloud? Please state their challenges in the introduction by mentioning references.
+A review of data replication based on meta-heuristics approach in cloud computing and data grid. doi.org/10.1007/s00500-020-04802-1.
+\end{spverbatim}
+\authorcomment{The cited paper is about using optimisation algorithms to decide what to replicate, how many replicas to create, where to locate them, when to access them, and so on.
+Those are important questions, but they are unrelated to our work.
+Our paper deals with the specific problem of ensuring that replicas converge to a consistent state.
+It can be deployed in any system that uses replicated trees, regardless of whether it is cloud-based, client-server, peer-to-peer, or uses any other topology.
+There is no need for us to distinguish between cloud systems and other types of replicated system because from the point of view of our algorithm they are the same.}
+\begin{spverbatim}
+A brief survey on replica consistency in cloud environments. doi.org/10.1186/s13174-020-0122-y
+\end{spverbatim}
+\authorcomment{As we already explain in {\S}1, {\S}4.2, and {\S}6, our algorithm provides a consistency model called ``strong eventual consistency'' [Shapiro et al., 2011].
+The survey referenced above unfortunately overlooks this important consistency model.
+Strong eventual consistency is a strengthening of eventual consistency, and it is often combined with causal consistency.
+It is one of the strongest consistency models that is always available in the sense of the CAP theorem.
+We believe our paper already adequately explains the consistency model, and references [2,3,4] of our paper explain it in further detail.}
+\begin{spverbatim}
+Explain the time complexity of the proposed method.
+\end{spverbatim}
+\authorcomment{We have added a discussion of the time complexity of our algorithm to the beginning of {\S}5.1.}
+\begin{spverbatim}
+Unfortunately, there are no "quantitative" performance comparisons among related strategies. It’s also important if the author can summarize the advantages, and disadvantages of each strategy according to the performance metrics.
+\end{spverbatim}
+\authorcomment{Our evaluation ({\S}5) performs a quantitative performance comparison between two implementations of our algorithm and state machine replication.
+We explain the pros and cons of these approaches in detail in this section.
+In \S~5.2 we also compare our algorithm to a locking-based approach, and show that it would have three orders of magnitude lower throughput than our algorithm in our test setup (5.7 versus 5,700 ops/sec).
+
+We therefore believe that our paper already contains the quantitative comparison that the reviewer is asking for.
+If there is a particular performance comparison that is missing in the reviewer's opinion, we request that they specify precisely what should be added.}
+\begin{spverbatim}
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: Present Conflict-free Replicated Data Type for trees that allow move operations without any coordination between replicas.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Appears to be - but didn't check completely
+
+1. Which category describes this manuscript?: Research/Technology
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: Important references are missing; more references are needed
+\end{spverbatim}
+\authorcomment{If references are missing, please specify what they are.}
+\begin{spverbatim}
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Could be improved
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Satisfactory
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Readable - but requires some effort to understand
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the main paper if accepted (cannot exceed the strict page limit)
+
+7. If yes to 6, should it be accepted: After revisions.  Please include explanation under Public Comments below.
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: No
+
+Please rate the manuscript. Please explain your choice.: Good
+\end{spverbatim}
+
+
+\section{Reviewer 2}
+
+\begin{spverbatim}
+Recommendation: Accept With No Changes
+
+Comments:
+The authors have addressed adequately my comments.
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: The paper presents a tree replicated data type that allows concurrent move operations without any coordination between replicas. The tree data type relies on an optimistic replication algorithm that ensures state convergence and that the tree structure properties are preserved at all times. Given the complex (inductive) structure of trees, a strong point of the work is the mechanized proof that provides certification for the correctness of the algorithm.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Yes
+
+1. Which category describes this manuscript?: Research/Technology
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: References are sufficient and appropriate
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Yes
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Satisfactory
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Easy to read
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the digital library for this submission if accepted
+
+7. If yes to 6, should it be accepted: As is
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: No
+
+Please rate the manuscript. Please explain your choice.: Good
+\end{spverbatim}
+
+
+\section{Reviewer 3}
+
+\begin{spverbatim}
+Recommendation: Accept With No Changes
+
+Comments:
+I followed the list of revisions and I think that the authors did a great job in addressing the comments of the other reviewers. I think that the paper is great and should be accepted in the current form.
+
+Additional Questions:
+1.  Please explain how this manuscript advances this field of research and/or contributes something new to the literature.: The paper presents a new formally-verified implementation of a replicated tree data type, which is an essential ingredient of a wide range of distributed software like distributed file systems, editors, applications manipulating XML/JSON structures, etc. This implementation is highly-available (the latency of applying an operation is independent of the network’s latency) and eventually consistent (all replicas reach the same state when all updates have been propagated). These properties are essential in modern distributed services. The implementation solves existing issues in industrial applications like Google Drive and Dropbox, and contradicts claims about the existence of such an implementation in previous research articles.
+
+2. Is the manuscript technically sound? Please explain your answer under Public Comments below.: Yes
+
+1. Which category describes this manuscript?: Research/Technology
+
+2. How relevant is this manuscript to the readers of this periodical? Please explain your rating under Public Comments below.: Very Relevant
+
+1. Are the title, abstract, and keywords appropriate? Please explain under Public Comments below.: Yes
+
+2. Does the manuscript contain sufficient and appropriate references? Please explain under Public Comments below.: References are sufficient and appropriate
+
+3. Does the introduction state the objectives of the manuscript in terms that encourage the reader to read on? Please explain your answer under Public Comments below.: Yes
+
+4. How would you rate the organization of the manuscript? Is it focused? Is the length appropriate for the topic? Please explain under Public Comments below.: Satisfactory
+
+5. Please rate the readability of the manuscript. Explain your rating under Public Comments below.: Easy to read
+
+6. Should the supplemental material be included? (Click on the Supplementary Files icon to view files): Yes, as part of the digital library for this submission if accepted
+
+7. If yes to 6, should it be accepted: As is
+
+8. Would you recommend adding the code/data associated with this paper to help address your concerns and/or strengthen the paper?: Yes
+
+Please rate the manuscript. Please explain your choice.: Excellent
+\end{spverbatim}
+
+\end{document}
