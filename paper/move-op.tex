@@ -93,7 +93,7 @@ Our contributions are:
         Our proof technique can also be applied to other distributed systems, making it of independent interest.
     \item To demonstrate its practical viability, we extract a formally verified Scala implementation of our algorithm from Isabelle.
         We compare its performance to a hand-optimised (not formally verified) implementation and to classic state machine replication.
-        In a geo-replicated setup across three continents, our algorithm has approximately half the throughput of state machine replication, but up to five orders of magnitude lower latency.
+        In a geo-replicated setup across three continents, state machine replication has approximately four times higher throughput than our algorithm, but our algorithm has up to 100,000 times lower latency.
     \item We perform experiments with Dropbox and Google Drive, and show that they exhibit problems that would be prevented by our algorithm.
 \end{itemize}
 
@@ -760,14 +760,14 @@ We can also prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\
 
 \subsection{Performance of move operation}
 
-Our algorithm can be computationally expensive if a large number of undos and redos are required.
-To demonstrate that this cost is acceptable in practice, we evaluated the performance of two different implementations of our algorithm.
-The first implementation is Scala code extracted from our formally verified HOL definitions using Isabelle/HOL's code generation mechanism, as discussed in \S\ref{subsect.extracting}.
+With our algorithm, the worst-case cost of applying a move operation is $O(hd)$, where $h$ is the number of operations in the history that need to be undone and redone, and $d$ is the depth of the tree (the number of parent relationships that need to be traversed to check whether the operation would introduce a cycle).
+To demonstrate that this cost is acceptable in practice, we evaluated the performance of two implementations of our algorithm.
+The first implementation is Scala code extracted from our formally verified HOL definitions using Isabelle/HOL's code generation mechanism.
 The second implementation is handwritten Scala code that we believe to be functionally equivalent, but which we have not formally verified.
 By comparing these implementations we can distinguish between inefficiencies introduced by code generation and costs that are inherent to our algorithm.
 
-We wrapped both implementations in a simple network service and deployed three replicas of this service on Amazon EC2 \texttt{c5.large} instances in different regions worldwide: in Northern California (region \texttt{us-west-1}), Ireland (\texttt{eu-west-1}), and Singapore (\texttt{ap-southeast-1}).
-The network delays between these regions are substantial: in our experiments, a request-response round-trip from Ireland to California takes a median of 145~ms, while a request from Singapore to California takes 176~ms.
+We wrapped both implementations in a simple network service and deployed three replicas on Amazon EC2 \texttt{c5.large} instances in Northern California (\texttt{us-west-1}), Ireland (\texttt{eu-west-1}), and Singapore (\texttt{ap-southeast-1}).
+The network delays between these regions are substantial: a round trip from Ireland to California takes a median of 145~ms, and from Singapore to California takes 176~ms.
 
 \begin{figure*}
   \begin{center}
@@ -795,10 +795,10 @@ A local operation takes near-constant time to apply because its timestamp is alw
 The median time to apply a local operation is around 50~{\textmu}s for the Isabelle-generated code and around 1--2~{\textmu}s for the handwritten code.
 The reduced performance at low operation rates can be explained by the JVM delaying JIT optimisations until a method has been executed a certain number of times.
 
-For remote operations, the execution time increases proportionally to the rate at which operations are generated: as the time interval between successive operations decreases relative to the network delay, there are more operations in flight at the same time, and more undos and redos are required to put operations in timestamp order.
+For remote operations, the execution time increases proportionally to the rate at which operations are generated: as the time interval between successive operations decreases relative to the network delay, more operations are in flight at the same time, and more undos/redos are required to put operations in timestamp order.
 At some point, each single-threaded replica is fully utilising one CPU core, and increasing the rate at which operations are generated does not increase throughput any further.
-The Isabelle-generated code is saturated at a rate of 600 operations/sec (with a median remote operation taking around 1~ms), while the optimised code is saturated at 5,700 operations/sec.
-This factor of 9.5 performance difference is solely a result of inefficient code generation; functionally both implementations are performing the same work.
+The Isabelle-generated code is saturated at a rate of 600 operations/sec (median remote operations taking $\approx$1~ms), while the optimised code is saturated at 5,700 operations/sec.
+This factor of 9.5 performance difference is solely due to inefficient code generation; functionally both implementations perform the same work.
 
 At peak, the optimised implementation is performing on average 200 undos and redos per remote operation.
 The throughput could be increased by applying a batch of operations at once, which would allow the cost of the undos and redos to be amortised over the size of the batch.
@@ -807,12 +807,13 @@ We leave an evaluation of this optimisation for future work.
 % Note that when a user is interacting with the system, they only have to wait for local operations to execute; any remote operations can be applied in the background without affecting user interaction.
 % Since our algorithm need not perform any undos or redos for local operations, these user interactions are consistently fast.
 
-\subsection{Comparison to state machine replication}\label{sec:smr}
+\subsection{Comparison to locking/state machine replication}\label{sec:smr}
 
 An alternative to our CRDT algorithm is to use a locking protocol (\S~\ref{sec:impossibility}).
 For example, a replica can acquire a lock from a lock server, perform an update, and then release the lock again.
 The minimum time for which a lock will be held after it is acquired is then the round-trip time.
 If the lock server is in California and the replica is in Singapore, and if one move operation is performed per lock acquisition, this system could only perform $1/176\,\mathrm{ms} = 5.7$ operations/sec.
+The throughput of this locking-based scheme is therefore three orders of magnitude lower than our optimised algorithm's throughput of 5,700 operations/sec.
 
 A better alternative to our CRDT algorithm is to use state machine replication~\cite{Schneider:1990vy}: that is, we use a leader replica or consensus algorithm to impose a total order on all operations, and then execute operations in that same order on all replicas.
 For a move operation on trees, the state machine replication algorithm is much simpler than the CRDT: it still needs to check for cycles, but it never needs to undo or redo any operations because they are never applied out-of-order.
@@ -836,7 +837,7 @@ The formalisation of our algorithm, and the proofs of its properties as describe
 Our proofs contain no unproven assumptions (i.e. no occurrences of the \textbf{sorry} keyword).
 Checking all of the proofs takes 3 minutes on a 2018 MacBook Pro.
 
-Besides the 59 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,495 lines of code.
+Besides the 59 lines of definitions given in Figure~\ref{fig:code}, our Isabelle/HOL formalisation consists of a further 2,495 lines of proof code.
 Of this, we use 203 lines to prove that every node has a unique parent, 443 lines to prove that the tree contains no cycles, 450 lines to prove that move operations commute and replicas converge, 327 lines to prove the strong eventual consistency property, 743 lines to define the executable variant of our algorithm and prove its equivalence to the definitions of Figure~\ref{fig:code}, and 779 lines to prove the safety of the optimisation in \S\ref{sec:create}.
 
 \section{Related work}\label{sec:relwork}
@@ -853,16 +854,18 @@ Our algorithm is an example of an operation-based Conflict-free Replicated Data 
 All CRDTs share the property that concurrent changes on different replicas can be merged in any order; any two replicas that have seen the same set of updates are guaranteed to be in the same state, regardless of the order in which they processed these updates.
 Several CRDTs for trees have been proposed:
 \begin{itemize}
-    \item Martin et al.~\cite{Martin:2010ih} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT for JSON.
+    \item Martin et al.~\cite{Martin:2010ih,Martin:2011} define a CRDT for XML data, and Kleppmann and Beresford~\cite{Kleppmann:2016ve} define a CRDT for JSON.
         However, these algorithms only deal with insertion and deletion of tree nodes, and do not support moves.
         A move operation can be emulated by deleting and re-inserting the moved node, but this approach suffers from the duplication problem demonstrated in \S\ref{sec:move-same-item}.
     \item As discussed in \S\ref{sec:impossibility}, Najafzadeh et al.~\cite{Najafzadeh:2017vk,Najafzadeh:2018bw} propose two implementations for a replicated filesystem: a CRDT in which conflicting moves are handled by duplicating tree nodes (as in Figures~\ref{fig:move-same-item}b and~\ref{fig:move-cycle}b), and a centralised implementation in which move operations must obtain a lock before executing (not a CRDT since it relies on synchronous coordination).
+        We discuss the performance costs of locking in \S\ref{sec:smr}.
     \item Ahmed-Nacer et al.~\cite{AhmedNacer:2012us} outline approaches to handling conflicts on trees, but provide no algorithms.
     \item Tao et al.~\cite{Tao:2015gd} propose handling conflicting move operations by allowing the same object to appear in more than one location; thus, their datatype is strictly a DAG, not a tree.
         Some conflicts are handled by duplicating tree nodes.
         Tao et al.\ also perform experiments with Dropbox, Google Drive, and OneDrive, similar to our experiments discussed in \S\ref{sec:move-is-hard}.
     \item Nair et al.~\cite{Nair:2021} develop a CRDT tree with move operation.
         This work is concurrent to ours and it is unpublished at the time of writing, so we have not been able to conduct a detailed comparison.
+        % TODO now available on arxiv: https://arxiv.org/abs/2103.04828
 \end{itemize}
 
 Several other CRDTs, such as Treedoc~\cite{Preguica:2009fz} and LSEQ~\cite{Nedelec:2013ky}, use a tree structure internally.
@@ -917,7 +920,7 @@ After we performed the experiments described in \S\ref{sec:move-is-hard}, the Dr
 \subsection{Totally ordered operation log}\label{sec:oplogs}
 
 Our approach of ordering operations by a timestamp, and undoing/redoing them as necessary so that they take effect in ascending timestamp order, is conceptually very simple.
-Similar ideas appear in many other systems, including the Bayou database~\cite{Terry:1995dn}, Jefferson's \emph{Time Warp} mechanism~\cite{Jefferson:1985em}, Shapiro et al.'s \emph{capricious total order}~\cite{Shapiro:2016hp}, Burckhardt's \emph{standard conflict resolution}~\cite[{\S}4.3.3]{Burckhardt:2014hy}.
+Similar ideas appear in many other systems, including the Bayou database~\cite{Terry:1995dn}, Jefferson's \emph{Time Warp} mechanism~\cite{Jefferson:1985em}, and Burckhardt's \emph{standard conflict resolution}~\cite[{\S}4.3.3]{Burckhardt:2014hy}.
 The concept of undo-redo is also well known from write-ahead logging~\cite{Mohan:1992fe}.
 
 The SECRO approach~\cite{DePorre:2019} allows arbitrary CRDTs to be defined by having each replica execute deterministic update functions in the same total order, and replaying operation history if necessary.
@@ -952,17 +955,16 @@ We also evaluated the performance of two implementations of our algorithm (one f
 Our optimised implementation applies local updates in 1--2~{\textmu}s, five orders of magnitude faster than is possible with a leader replica or consensus protocol operating over these distances, and our algorithm remains available in the face of network interruptions.
 However, compared to leader-based replication our algorithm has four times lower throughput.
 
-As highlighted in the introduction, our work is especially interesting due to the ubiquity of tree data models across many different types of applications and databases.
+Our work is especially interesting due to the ubiquity of tree data models across many different types of applications and databases.
 In future work we hope to integrate our algorithm into CRDT libraries such as Automerge,\footnote{\url{https://github.com/automerge/automerge}} and use it to build novel collaborative applications.
 
 We are also exploring whether the undo-do-redo approach can be used in other concurrent data structures; for example, there is an open problem in collaborative text editing~\cite{Kleppmann:2020jw} that might be solved by this approach.
-We expect that our Isabelle/HOL formalisation will be a valuable resource for future work in this area, which can use our definitions and proofs as starting point.
-The formalisation is open source~\cite{SourceFiles} and included as supplementary data of this paper.
+Our Isabelle/HOL formalisation, which is open source~\cite{SourceFiles}, can be used for future work in this area.
 
 \section*{Acknowledgements}
 
 The authors wish to acknowledge the support of The Boeing Company and the EPSRC ``REMS: Rigorous Engineering for Mainstream Systems'' programme grant (EP/K008528).
-Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship, the Isaac Newton Trust, Nokia Bell Labs, and crowdfunding supporters including Molham Aref, Chet Corcos, Mintter.com, David Pollak, SoftwareMill, Talent Formation Network, and Adam Wiggins.
+Martin Kleppmann is supported by a Leverhulme Trust Early Career Fellowship, the Isaac Newton Trust, Nokia Bell Labs, and crowdfunding supporters including Ably, Adrià Arcarons, Chet Corcos, Macrometa, Mintter, David Pollak, RelationalAI, SoftwareMill, Talent Formation Network, and Adam Wiggins.
 Our evaluation was conducted using AWS credits from the AWS Educate program.
 Thank you to Marc Shapiro for feedback on a draft of this paper.
 
@@ -970,7 +972,7 @@ Thank you to Marc Shapiro for feedback on a draft of this paper.
 \bibliography{references}{}
 
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photo-martin.jpg}}]{Martin Kleppmann}
-is a Senior Research Associate at the University of Cambridge. His research spans distributed systems, databases, security, and formal verification, with a particular focus on decentralised collaboration software and CRDTs. His book \emph{Designing Data-Intensive Applications} was published in 2017 and has been translated into six languages. Previously, he worked as a software engineer and entrepreneur at several internet companies, including Rapportive and LinkedIn.
+is a Senior Research Associate at the University of Cambridge. His research spans distributed systems, databases, security, and formal verification, with a focus on decentralised collaboration software and CRDTs. His book \emph{Designing Data-Intensive Applications} was published in 2017 and has been translated into six languages. Previously, he was a software engineer and entrepreneur at Internet companies including Rapportive and LinkedIn.
 \end{IEEEbiography}
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photo-dominic.jpg}}]{Dominic P.\ Mulligan}
 is a Staff Research Engineer in the Security Group at Arm Research, UK.  Prior to moving to Arm, he worked as a postdoctoral researcher at the Universities of Cambridge and Bologna, Italy, investigating the formal specification and verification of systems software such as C compilers and linkers.  His interests include formal verification, distributed systems, and privacy and security.
