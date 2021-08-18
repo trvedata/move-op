@@ -15,8 +15,7 @@
 \date{}
 \maketitle
 
-Thank you for this second round of reviews.
-We are happy to note that reviewers 2 and 3 would like to see the paper accepted with no further changes.
+We thank all reviewers for this second round of reviews and are happy to note that reviewers 2 and 3 both would like to see the paper accepted as-is with no further changes.
 In this revision we have therefore only made minor changes to address comments by reviewer 1, and added some minor clarifications.
 
 \section{Reviewer 1}
@@ -28,32 +27,31 @@ Comments:
 What is the difference between the proposed algorithm and the data replication algorithms in the cloud? Please state their challenges in the introduction by mentioning references.
 A review of data replication based on meta-heuristics approach in cloud computing and data grid. doi.org/10.1007/s00500-020-04802-1.
 \end{spverbatim}
-\authorcomment{The cited paper is about using optimisation algorithms to decide what to replicate, how many replicas to create, where to locate them, when to access them, and so on.
-Those are important questions, but they are unrelated to our work.
-Our paper deals with the specific problem of ensuring that replicas converge to a consistent state.
-It can be deployed in any system that uses replicated trees, regardless of whether it is cloud-based, client-server, peer-to-peer, or uses any other topology.
-There is no need for us to distinguish between cloud systems and other types of replicated system because from the point of view of our algorithm they are the same.}
+\authorcomment{The cited paper is about using optimisation algorithms to decide what to replicate, how many replicas to create, where to locate them, when to access them, and other similar questions.
+Whilst we agree that those questions are indeed important when deciding how to deploy real-world systems we think that they are unrelated to our work, which is a largely theoretical work introducing (and thereafter proving correct) a novel distributed algorithm.
+In particular, our paper introduces techniques that ensure that all replicas converge to a consistent ``view'' of a distributed tree data structure.
+Our work can be deployed in any system that requires the use of a replicated tree, regardless of whether it is cloud-based, client-server, peer-to-peer, or uses any other topology---from our point-of-view we are completely ambivalent about such deployment questions as they exist at a level of abstraction \emph{below} that in which we are working.
+Simply put: there is no need for us to distinguish between cloud systems and other types of replicated system because from the point of view of our algorithm they are the same.}
 \begin{spverbatim}
 A brief survey on replica consistency in cloud environments. doi.org/10.1186/s13174-020-0122-y
 \end{spverbatim}
-\authorcomment{As we already explain in {\S}1, {\S}4.2, and {\S}6, our algorithm provides a consistency model called ``strong eventual consistency'' [Shapiro et al., 2011].
+\authorcomment{As we explain in {\S}1, {\S}4.2, and {\S}6, our algorithm provides a consistency model called ``strong eventual consistency'' [Shapiro et al., 2011].
 The survey referenced above unfortunately overlooks this important consistency model.
-Strong eventual consistency is a strengthening of eventual consistency, and it is often combined with causal consistency.
-It is one of the strongest consistency models that is always available in the sense of the CAP theorem.
-We believe our paper already adequately explains the consistency model, and references [2,3,4] of our paper explain it in further detail.}
+Strong eventual consistency is a strengthening of eventual consistency, and it is often combined with causal consistency, and it is one of the strongest consistency models that is always provides ``availability'' in the sense of the CAP theorem.
+We believe our paper already adequately explains the consistency model, and the prior works [2,3,4] referenced in our paper explain it in further detail.}
 \begin{spverbatim}
 Explain the time complexity of the proposed method.
 \end{spverbatim}
-\authorcomment{We have added a discussion of the time complexity of our algorithm to the beginning of {\S}5.1.}
+\authorcomment{At the request of the reviewer we have added a discussion of the time complexity of our algorithm to the beginning of {\S}5.1.}
 \begin{spverbatim}
 Unfortunately, there are no "quantitative" performance comparisons among related strategies. It’s also important if the author can summarize the advantages, and disadvantages of each strategy according to the performance metrics.
 \end{spverbatim}
 \authorcomment{Our evaluation ({\S}5) performs a quantitative performance comparison between two implementations of our algorithm and state machine replication.
-We explain the pros and cons of these approaches in detail in this section.
+We explain the advantages and disadvantgaes of these approaches in detail in this section.
 In \S~5.2 we also compare our algorithm to a locking-based approach, and show that it would have three orders of magnitude lower throughput than our algorithm in our test setup (5.7 versus 5,700 ops/sec).
 
 We therefore believe that our paper already contains the quantitative comparison that the reviewer is asking for.
-If there is a particular performance comparison that is missing in the reviewer's opinion, we request that they specify precisely what should be added.}
+If there is a particular performance comparison that is missing in the reviewer's opinion, we kindly request that they specify precisely what should be added.}
 \begin{spverbatim}
 
 Additional Questions:
