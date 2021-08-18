@@ -31,13 +31,15 @@ A review of data replication based on meta-heuristics approach in cloud computin
 Whilst we agree that those questions are indeed important when deciding how to deploy real-world systems we think that they are unrelated to our work, which is a largely theoretical work introducing (and thereafter proving correct) a novel distributed algorithm.
 In particular, our paper introduces techniques that ensure that all replicas converge to a consistent ``view'' of a distributed tree data structure.
 Our work can be deployed in any system that requires the use of a replicated tree, regardless of whether it is cloud-based, client-server, peer-to-peer, or uses any other topology---from our point-of-view we are completely ambivalent about such deployment questions as they exist at a level of abstraction \emph{below} that in which we are working.
+Note that, whilst we provide an empirical assessment of our algorithm, this assessment is merely intended to demonstrate that our algorithm is not \emph{ipso facto} unworkably inefficient.
+
 Simply put: there is no need for us to distinguish between cloud systems and other types of replicated system because from the point of view of our algorithm they are the same.}
 \begin{spverbatim}
 A brief survey on replica consistency in cloud environments. doi.org/10.1186/s13174-020-0122-y
 \end{spverbatim}
 \authorcomment{As we explain in {\S}1, {\S}4.2, and {\S}6, our algorithm provides a consistency model called ``strong eventual consistency'' [Shapiro et al., 2011].
 The survey referenced above unfortunately overlooks this important consistency model.
-Strong eventual consistency is a strengthening of eventual consistency, and it is often combined with causal consistency, and it is one of the strongest consistency models that is always provides ``availability'' in the sense of the CAP theorem.
+Strong eventual consistency is a strengthening of eventual consistency, is often combined with causal consistency, and it is one of the strongest consistency models that is always provides ``availability'' in the sense of the CAP theorem.
 We believe our paper already adequately explains the consistency model, and the prior works [2,3,4] referenced in our paper explain it in further detail.}
 \begin{spverbatim}
 Explain the time complexity of the proposed method.
