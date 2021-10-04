@@ -760,7 +760,7 @@ We can also prove corollaries of \isa{apply\_ops\_commutes} and \isa{apply\_ops\
 
 \subsection{Performance of move operation}
 
-With our algorithm, the worst-case cost of applying a move operation is $O(hd)$, where $h$ is the number of operations in the history that need to be undone and redone, and $d$ is the depth of the tree (the number of parent relationships that need to be traversed to check whether the operation would introduce a cycle).
+With our algorithm, the worst-case cost of applying a move operation is $O(nd)$, where $n$ is the number of operations in the log that need to be undone and redone, and $d$ is the depth of the tree (the number of parent relationships that need to be traversed to check whether the operation would introduce a cycle).
 To demonstrate that this cost is acceptable in practice, we evaluated the performance of two implementations of our algorithm.
 The first implementation is Scala code extracted from our formally verified HOL definitions using Isabelle/HOL's code generation mechanism.
 The second implementation is handwritten Scala code that we believe to be functionally equivalent, but which we have not formally verified.
