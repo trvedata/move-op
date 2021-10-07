@@ -20,7 +20,7 @@ Proofs
 ------
 
 The [Isabelle/HOL](http://isabelle.in.tum.de/) formalisation and proof of correctness can be found
-in the following files:
+in the following files in the `proof` directory:
 
 * `proof.pdf` contains a PDF rendering of the whole proof.
 * `Move.thy` contains the definition of the move algorithm for trees, a proof that a tree node
