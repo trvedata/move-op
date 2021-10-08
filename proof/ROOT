@@ -1,6 +1,6 @@
 chapter AFP
 session "CRDT-Tree" (AFP) = "HOL" +
-  options [timeout = 600, document = pdf, document_output = "output"]
+  options [timeout = 3600, document = pdf, document_output = "output"]
   sessions
     CRDT
     Collections
@@ -12,4 +12,3 @@ session "CRDT-Tree" (AFP) = "HOL" +
     Move_Create
   document_files
     "root.tex"
-    "root.bib"

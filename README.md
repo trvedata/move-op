@@ -44,8 +44,8 @@ This is how you run it on Mac OS (adjust the path to your Isabelle installation)
 
     /Applications/Isabelle2019.app/Isabelle/bin/isabelle build -D .
 
-The Isabelle-generated Scala source is written to `evaluation/src/main/scala/Move_Code.scala`,
-where it is picked up by the evaluation (see below).
+The Isabelle-generated Scala source is written to `Move_Code.scala`. To use it in the evaluation,
+copy that file to `evaluation/src/main/scala/`.
 
 
 Papers

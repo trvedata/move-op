@@ -750,6 +750,7 @@ text\<open>Check that all of the executable algorithms produce executable code f
      extraction is material extracted from the Isabelle libraries---our material is towards the
      bottom.  (View it in the Output buffer of the Isabelle/JEdit IDE.)\<close>
 
+(*
 export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
   executable_apply_op executable_apply_ops in SML file generated.SML
 export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
@@ -758,6 +759,7 @@ export_code executable_ancestor executable_do_op executable_undo_op executable_r
   executable_apply_op executable_apply_ops in OCaml file generated.ml
 export_code executable_ancestor executable_do_op executable_undo_op executable_redo_op
   executable_apply_op executable_apply_ops in Haskell
+*)
 
 definition integer_apply_op ::
    \<open>((integer \<times> integer), integer, String.literal) operation \<Rightarrow>
@@ -795,7 +797,7 @@ definition string_apply_ops ::
 
 export_code integer_apply_op integer_apply_ops string_apply_op string_apply_ops
   in Scala module_name generated
-  file \<open>evaluation/src/main/scala/Move_Code.scala\<close>
+  file \<open>Move_Code.scala\<close>
 
 text\<open>Without resorting to saving the generated code above to a separate file and feeding them into
      an SML/Scala/OCaml/Haskell compiler, as appropriate, we can show that this code compiles and
