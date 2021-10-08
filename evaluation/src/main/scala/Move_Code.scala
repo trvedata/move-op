@@ -31,19 +31,19 @@ object DiffArray {
   import scala.collection.mutable.ArraySeq
 
   protected abstract sealed class DiffArray_D[A]
-  final case class Current[A] (a:ArraySeq[A]) extends DiffArray_D[A]
+  final case class Current[A] (a:ArraySeq[AnyRef]) extends DiffArray_D[A]
   final case class Upd[A] (i:Int, v:A, n:DiffArray_D[A]) extends DiffArray_D[A]
 
   object DiffArray_Realizer {
-    def realize[A](a:DiffArray_D[A]) : ArraySeq[A] = a match {
+    def realize[A](a:DiffArray_D[A]) : ArraySeq[AnyRef] = a match {
       case Current(a) => ArraySeq.empty ++ a
-      case Upd(j,v,n) => {val a = realize(n); a.update(j, v); a}
+      case Upd(j,v,n) => {val a = realize(n); a.update(j, v.asInstanceOf[AnyRef]); a}
     }
   }
 
   class T[A] (var d:DiffArray_D[A]) {
 
-    def realize () = { val a=DiffArray_Realizer.realize(d); d = Current(a); a }
+    def realize (): ArraySeq[AnyRef] = { val a=DiffArray_Realizer.realize(d); d = Current(a); a }
     override def toString() = realize().toSeq.toString
 
     override def equals(obj:Any) =
@@ -53,10 +53,10 @@ object DiffArray {
   }
 
 
-  def array_of_list[A](l : List[A]) : T[A] = new T(Current(ArraySeq.empty ++ l))
-    def new_array[A](v:A, sz : BigInt) = new T[A](Current[A](ArraySeq.fill[A](sz.intValue)(v)))
+  def array_of_list[A](l : List[A]) : T[A] = new T(Current(ArraySeq.empty ++ l.asInstanceOf[List[AnyRef]]))
+  def new_array[A](v:A, sz : BigInt) = new T[A](Current[A](ArraySeq.fill[AnyRef](sz.intValue)(v.asInstanceOf[AnyRef])))
 
-    private def length[A](a:DiffArray_D[A]) : BigInt = a match {
+  private def length[A](a:DiffArray_D[A]) : BigInt = a match {
     case Current(a) => a.length
     case Upd(_,_,n) => length(n)
   }
@@ -64,20 +64,20 @@ object DiffArray {
   def length[A](a : T[A]) : BigInt = length(a.d)
 
   private def sub[A](a:DiffArray_D[A], i:Int) : A = a match {
-    case Current(a) => a (i)
+    case Current(a) => a(i).asInstanceOf[A]
     case Upd(j,v,n) => if (i==j) v else sub(n,i)
   }
 
   def get[A](a:T[A], i:BigInt) : A = sub(a.d,i.intValue)
 
-  private def realize[A](a:DiffArray_D[A]) = DiffArray_Realizer.realize[A](a)
+  private def realize[A](a:DiffArray_D[A]): ArraySeq[AnyRef] = DiffArray_Realizer.realize[A](a)
 
   def set[A](a:T[A], i:BigInt,v:A) : T[A] = a.d match {
     case Current(ad) => {
       val ii = i.intValue;
-      a.d = Upd(ii,ad(ii),a.d);
+      a.d = Upd(ii,ad(ii).asInstanceOf[A],a.d);
       //ad.update(ii,v);
-      ad(ii)=v
+      ad(ii)=v.asInstanceOf[AnyRef]
       new T[A](Current(ad))
     }
     case Upd(_,_,_) => set(new T[A](Current(realize(a.d))), i.intValue,v)
@@ -85,12 +85,12 @@ object DiffArray {
 
   def grow[A](a:T[A], sz:BigInt, v:A) : T[A] = a.d match {
     case Current(ad) => {
-      val adt = ArraySeq.fill[A](sz.intValue)(v)
+      val adt = ArraySeq.fill[AnyRef](sz.intValue)(v.asInstanceOf[AnyRef])
       System.arraycopy(ad.array, 0, adt.array, 0, ad.length);
       new T[A](Current[A](adt))
     }
     case Upd (_,_,_) =>  {
-      val adt = ArraySeq.fill[A](sz.intValue)(v)
+      val adt = ArraySeq.fill[AnyRef](sz.intValue)(v.asInstanceOf[AnyRef])
       val ad = realize(a.d)
       System.arraycopy(ad.array, 0, adt.array, 0, ad.length);
       new T[A](Current[A](adt))
@@ -103,17 +103,17 @@ object DiffArray {
     } else {
       a.d match {
         case Current(ad) => {
-            val v=ad(0);
-            val szz=sz.intValue
-          val adt = ArraySeq.fill[A](szz)(v);
+          val v=ad(0);
+          val szz=sz.intValue
+          val adt = ArraySeq.fill[AnyRef](szz)(v);
           System.arraycopy(ad.array, 0, adt.array, 0, szz);
           new T[A](Current[A](adt))
         }
         case Upd (_,_,_) =>  {
           val ad = realize(a.d);
-            val szz=sz.intValue
-            val v=ad(0);
-          val adt = ArraySeq.fill[A](szz)(v);
+          val szz=sz.intValue
+          val v=ad(0);
+          val adt = ArraySeq.fill[AnyRef](szz)(v);
           System.arraycopy(ad.array, 0, adt.array, 0, szz);
           new T[A](Current[A](adt))
         }
@@ -125,7 +125,7 @@ object DiffArray {
   }
 
   def set_oo[A](d: Unit => T[A], a:T[A], i:BigInt, v:A) : T[A] = try set(a,i,v) catch {
-    case _:scala.IndexOutOfBoundsException => d ()
+    case _:scala.IndexOutOfBoundsException => d(())
   }
 
 }
@@ -299,7 +299,7 @@ def shiftr(x: BigInt, n: BigInt) : BigInt =
 
 def testBit(x: BigInt, n: BigInt) : Boolean =
   if (n.isValidInt)
-    x.testBit(n.toInt) 
+    x.testBit(n.toInt)
   else
     sys.error("Bit index too large: " + n.toString)
 
@@ -324,7 +324,7 @@ trait ord[A] {
 def less_eq[A](a: A, b: A)(implicit A: ord[A]): Boolean =
   A.`generated.less_eq`(a, b)
 def less[A](a: A, b: A)(implicit A: ord[A]): Boolean = A.`generated.less`(a, b)
-object ord {
+object ord{
   implicit def `generated.ord_integer`: ord[BigInt] = new ord[BigInt] {
     val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
     val `generated.less` = (a: BigInt, b: BigInt) => a < b
@@ -352,7 +352,7 @@ def less_int(k: int, l: int): Boolean = integer_of_int(k) < integer_of_int(l)
 
 trait preorder[A] extends ord[A] {
 }
-object preorder {
+object preorder{
   implicit def `generated.preorder_integer`: preorder[BigInt] = new
     preorder[BigInt] {
     val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
@@ -381,7 +381,7 @@ object preorder {
 
 trait order[A] extends preorder[A] {
 }
-object order {
+object order{
   implicit def `generated.order_integer`: order[BigInt] = new order[BigInt] {
     val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
     val `generated.less` = (a: BigInt, b: BigInt) => a < b
@@ -407,7 +407,7 @@ object order {
 
 trait linorder[A] extends order[A] {
 }
-object linorder {
+object linorder{
   implicit def `generated.linorder_integer`: linorder[BigInt] = new
     linorder[BigInt] {
     val `generated.less_eq` = (a: BigInt, b: BigInt) => a <= b
@@ -447,9 +447,8 @@ final case class Bit0(a: num) extends num
 final case class Bit1(a: num) extends num
 
 abstract sealed class char
-final case class
-  Char(a: Boolean, b: Boolean, c: Boolean, d: Boolean, e: Boolean, f: Boolean,
-        g: Boolean, h: Boolean)
+final case class Char(a: Boolean, b: Boolean, c: Boolean, d: Boolean,
+                       e: Boolean, f: Boolean, g: Boolean, h: Boolean)
   extends char
 
 abstract sealed class itself[A]
@@ -462,7 +461,7 @@ trait zero[A] {
   val `generated.zero`: A
 }
 def zero[A](implicit A: zero[A]): A = A.`generated.zero`
-object zero {
+object zero{
   implicit def `generated.zero_integer`: zero[BigInt] = new zero[BigInt] {
     val `generated.zero` = BigInt(0)
   }
@@ -472,7 +471,7 @@ trait one[A] {
   val `generated.one`: A
 }
 def one[A](implicit A: one[A]): A = A.`generated.one`
-object one {
+object one{
   implicit def `generated.one_integer`: one[BigInt] = new one[BigInt] {
     val `generated.one` = one_integera
   }
@@ -480,7 +479,7 @@ object one {
 
 trait zero_neq_one[A] extends one[A] with zero[A] {
 }
-object zero_neq_one {
+object zero_neq_one{
   implicit def `generated.zero_neq_one_integer`: zero_neq_one[BigInt] = new
     zero_neq_one[BigInt] {
     val `generated.zero` = BigInt(0)
@@ -529,7 +528,7 @@ trait hashable[A] {
 def hashcode[A](a: A)(implicit A: hashable[A]): Int = A.`generated.hashcode`(a)
 def def_hashmap_size[A](a: itself[A])(implicit A: hashable[A]): nat =
   A.`generated.def_hashmap_size`(a)
-object hashable {
+object hashable{
   implicit def `generated.hashable_integer`: hashable[BigInt] = new
     hashable[BigInt] {
     val `generated.hashcode` = (a: BigInt) => hashcode_integer(a)
@@ -554,7 +553,7 @@ trait equal[A] {
 }
 def equal[A](a: A, b: A)(implicit A: equal[A]): Boolean =
   A.`generated.equal`(a, b)
-object equal {
+object equal{
   implicit def `generated.equal_integer`: equal[BigInt] = new equal[BigInt] {
     val `generated.equal` = (a: BigInt, b: BigInt) => a == b
   }
@@ -635,8 +634,8 @@ final case class B() extends color
 
 abstract sealed class rbta[A, B]
 final case class Empty[A, B]() extends rbta[A, B]
-final case class
-  Branch[A, B](a: color, b: rbta[A, B], c: A, d: B, e: rbta[A, B])
+final case class Branch[A, B](a: color, b: rbta[A, B], c: A, d: B,
+                               e: rbta[A, B])
   extends rbta[A, B]
 
 abstract sealed class rbt[B, A]
