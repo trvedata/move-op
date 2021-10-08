@@ -8,7 +8,9 @@ For background and details, please see these two papers:
 
 * Martin Kleppmann, Dominic P. Mulligan, Victor B. F. Gomes, and Alastair R. Beresford.
   A highly-available move operation for replicated trees.
-  Not yet formally published, but the LaTeX source is available in `paper/move-op.tex`.
+  IEEE Transactions on Parallel and Distributed Systems, 2021.
+  ([PDF](https://martin.kleppmann.com/papers/move-op.pdf),
+  [doi:10.1109/TPDS.2021.3118603](https://doi.org/10.1109/TPDS.2021.3118603))
 * Martin Kleppmann. Moving elements in list CRDTs. 7th Workshop on Principles and Practice
   of Consistency for Distributed Data ([PaPoC](https://papoc-workshop.github.io/2020/)), April 2020.
   ([PDF](https://martin.kleppmann.com/papers/list-move-papoc20.pdf),
