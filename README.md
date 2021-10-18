@@ -144,3 +144,9 @@ to plot the graphs in the paper using Gnuplot. To refresh the graphs:
     gnuplot crdt-generated.gnuplot
     gnuplot crdt-optimised.gnuplot
     gnuplot leader-vs-crdt.gnuplot
+
+License
+-------
+
+This project is made available under the terms of the
+[MIT License](https://opensource.org/licenses/MIT).
